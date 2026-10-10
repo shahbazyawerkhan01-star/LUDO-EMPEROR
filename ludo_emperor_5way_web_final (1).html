@@ -4601,10 +4601,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         function applySplitSacrifice(pIdx, movingPawnIdx, startPos, possibleCaptures, usedDieIdx) {
             if (startPos === -1) return false;
+            if (!possibleCaptures || !Array.isArray(possibleCaptures) || possibleCaptures.length === 0) return false;
             
             // Only apply if the pawn is part of a capture that involves combined dice numbers
             const isCombinedCaptureStep = possibleCaptures.some(c => 
-                c.pawnIdx === movingPawnIdx && 
+                c && c.pawnIdx === movingPawnIdx && 
+                Array.isArray(c.diceIndices) &&
                 c.diceIndices.length > 1 && 
                 c.diceIndices[0] === usedDieIdx
             );
@@ -4638,7 +4640,9 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         }
 
         function rollDice(forcedDice = null) {
-          if (gameState.isRolling || gameState.hasRolled) return;
+          gameState.hasRolled = false;
+          gameState.isRolling = true;
+          gameState.isSettling = false;
           
           playSound('freesound_community-dice-95077.mp3');
 
@@ -4748,7 +4752,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           gameState.hasRolled = false;
           gameState.isRolling = false;
           gameState.isSettling = false;
+          gameState.pendingNextTurn = false;
+          gameState.pendingNextTurnStartedAt = 0;
           gameState.movesAvailable = [];
+          gameState.dice = [0, 0];
           gameState.selectedMoveIndex = null;
           gameState.isWaitingToPass = false;
           gameState.aiThinkTimer = 1.2;
@@ -4795,32 +4802,81 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           return gameState.pawns[pIdx].some((p, i) => moves.some((m) => canMovePawn(pIdx, i, m)));
         }
 
-        // Check if player meets one of the 7-roll bonus conditions
+        // Helper: returns true if pawn is in the player's colored home path (safe home stretch)
+        function isPawnInColoredHomePath(pIdx, pawn) {
+          if (!pawn || pawn.status !== 'on-path') return false;
+          const p = Number(pIdx) || 0;
+          const path = (typeof getPawnPath === 'function') ? getPawnPath(p) : null;
+          if (!path || pawn.pos === undefined || pawn.pos < 0) return false;
+          const homeStretchStart = Math.max(0, path.length - 6);
+          if (pawn.pos < homeStretchStart) return false;
+          const sq = path[pawn.pos];
+          return !!(sq && sq.c === 1 && sq.arm === p);
+        }
+
+        // Check if player meets the Lucky 7 condition:
+        // "it happen only when:
+        //  - 4 tokens at base home
+        //  - or 3 base home and one is home (finished) or colored home path
+        //  - or 2 at base home and 2 are home (finished) or colored home path
+        //  - or 1 at base home and 3 are home (finished) or colored home path"
+        // (i.e. strictly 1 to 4 tokens at base home, all remaining tokens finished or in colored home path, and ZERO tokens on the open track)
         function checkSevenRollConditions(pIdx) {
-          const pawns = gameState.pawns[pIdx];
-          const path = getPawnPath(pIdx);
-          
-          let homeCount = 0;
-          let finishedCount = 0;
+          const p = Number(pIdx);
+          if (!gameState.pawns || !gameState.pawns[p]) return false;
+          const pawns = gameState.pawns[p];
+
+          let baseHomeCount = 0;
+          let finishedHomeCount = 0;
           let coloredPathCount = 0;
-          
+          let openTrackCount = 0;
+
           pawns.forEach(pawn => {
             if (pawn.status === 'home') {
-              homeCount++;
+              baseHomeCount++;
             } else if (pawn.status === 'finished') {
-              finishedCount++;
+              finishedHomeCount++;
             } else if (pawn.status === 'on-path') {
-              const pData = path[pawn.pos];
-              // Only count if it's in the colored home path (column 1)
-              if (pData.c === 1) {
+              if (isPawnInColoredHomePath(p, pawn)) {
                 coloredPathCount++;
+              } else {
+                openTrackCount++;
               }
+            } else {
+              openTrackCount++;
             }
           });
-          
-          // The Luck 7 triggers if at least one token is home...
-          // ...and all other tokens are home, in the colored path, or finished.
-          return homeCount >= 1 && (homeCount + finishedCount + coloredPathCount === 4);
+
+          // Must have ZERO tokens out on the open/contested common track
+          if (openTrackCount > 0) return false;
+
+          // Must have 1, 2, 3, or 4 tokens at base home, and ALL remaining tokens home (finished) or in colored home path
+          const safeOrFinished = finishedHomeCount + coloredPathCount;
+          return (baseHomeCount >= 1 && baseHomeCount <= 4) && (baseHomeCount + safeOrFinished === 4);
+        }
+
+        function checkAndApplyLucky7(pIdx, dice) {
+          if (!dice || dice.length < 2) return false;
+          const p = Number(pIdx);
+          const d1 = Number(dice[0]) || 0;
+          const d2 = Number(dice[1]) || 0;
+          if (d1 + d2 !== 7) return false; // Any combination totaling 7: 1+6, 2+5, 3+4, 4+3, 5+2, 6+1
+          if (gameState.lucky7UsedThisTurn) return false;
+
+          // Only happens under the exact specified token position conditions
+          if (checkSevenRollConditions(p)) {
+            gameState.lucky7UsedThisTurn = true;
+            gameState.extraTurnEarned = true;
+            gameState.movesAvailable = [6, 6]; // Total 7 becomes 6 + 6!
+            gameState.dice = [6, 6]; // 3D dice also transform to 6 + 6!
+            showRule('lucky7');
+            if (typeof playSevenRollSound === 'function') playSevenRollSound();
+            if (typeof triggerAISpeech === 'function') {
+              triggerAISpeech(p, 'lucky7', "The Rule of 7 gave me double sixes!");
+            }
+            return true;
+          }
+          return false;
         }
 
         // Play the 7-roll congratulation sound
@@ -6812,29 +6868,18 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
               // Store the original dice roll for 3D rendering
               const originalDiceRoll = gameState.dice.slice();
 
-              // Check 7-roll rule condition - priority: Capture > Luck 7
-              const capturesWithActualRoll = getPossibleCaptures(gameState.currentPlayer, gameState.dice);
+              // Check 7-roll rule condition - priority: Capture > Lucky 7
               let isRuleSeven = false;
-              if (
-                !gameState.lucky7UsedThisTurn && 
-                gameState.dice[0] + gameState.dice[1] === 7 && 
-                checkSevenRollConditions(gameState.currentPlayer) &&
-                capturesWithActualRoll.length === 0
-              ) {
+              if (gameState.movesAvailable && gameState.movesAvailable.length === 2 && gameState.movesAvailable[0] === 6 && gameState.movesAvailable[1] === 6 && gameState.lucky7UsedThisTurn) {
                 isRuleSeven = true;
-                gameState.lucky7UsedThisTurn = true;
-                gameState.movesAvailable = [6, 6]; // UI tray shows 6-6
-                // DO NOT modify gameState.dice - keep original roll for 3D dice rendering
-                gameState.extraTurnEarned = true;
-                
-                // Visual Decoupling: The 3D dice retain their original faces (summing to 7)
-                // while the UI tray displays the granted bonus 6-6.
-                
-                showRule('lucky7');
-                triggerAISpeech(gameState.currentPlayer, 'lucky7', "The Rule of 7 gave me double sixes!");
-                playSevenRollSound();
-              } else {
-                gameState.movesAvailable = gameState.dice.slice();
+                gameState.dice = [6, 6];
+              } else if (typeof checkAndApplyLucky7 === 'function') {
+                isRuleSeven = checkAndApplyLucky7(gameState.currentPlayer, gameState.dice);
+              }
+              if (!isRuleSeven) {
+                if (!gameState.movesAvailable || gameState.movesAvailable.length === 0) {
+                  gameState.movesAvailable = gameState.dice.slice();
+                }
               }
               
               // Auto-select a playable die so a two-dice roll never leaves the
@@ -7334,7 +7379,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             const validSeat = Number.isInteger(action.player) && seatOwners[action.player] === request.session_id;
             let accepted = false;
             if (validSeat && action.player === window.gameState.currentPlayer) {
-              if (action.kind === 'roll' && !window.gameState.hasRolled && !window.gameState.isRolling && !window.gameState.isSettling) {
+              if (action.kind === 'roll' && !window.gameState.isRolling && !window.gameState.isSettling) {
                 rollDice(); accepted = true;
               } else if (action.kind === 'move' && window.gameState.hasRolled && Number.isInteger(action.pawn) && Number.isInteger(action.dieIndex)) {
                 const steps = window.gameState.movesAvailable[action.dieIndex];
@@ -7398,6 +7443,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           seatOwners = { 0: localSessionId };
           try {
             const seats = { 0: { sessionId: localSessionId, name: localPlayerName(), isAI: false, gender: 'male' } };
+            rowSeatsCache = seats;
             const { error } = await withTimeout(
               sb.from('rooms').insert({ code, host: localPlayerName(), started: false, seats }),
               15000, 'create room'
@@ -7427,7 +7473,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           }
         }
 
-        async function joinRoomByCode(codeRaw) {
+        async function joinRoomByCode(codeRaw, explicitName) {
           if (!ensureSupabaseReady()) {
             showRoomError("The room service isn't configured yet — this build still has placeholder Supabase credentials.");
             return false;
@@ -7439,7 +7485,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
               sb.rpc('claim_seat', {
                 p_room_code: code,
                 p_session_id: localSessionId,
-                p_name: localPlayerName(),
+                p_name: (explicitName && explicitName.trim()) || localPlayerName(),
                 p_gender: (window.gameConfig.players[1] && window.gameConfig.players[1].gender) || 'male'
               }),
               15000, 'join room'
@@ -7534,11 +7580,149 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           roomPanel.style.display = (roomPanel.style.display === 'none') ? 'block' : 'none';
         };
 
+        // ===== Invite Link & Guest Name Prompt/Modal System =====
+        function askGuestNameModal(code) {
+          const existing = document.getElementById('guest-invite-modal-overlay');
+          if (existing) existing.remove();
+
+          const overlay = document.createElement('div');
+          overlay.id = 'guest-invite-modal-overlay';
+          overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(4,7,15,0.88); backdrop-filter:blur(10px); z-index:999999; display:flex; align-items:center; justify-content:center; padding:16px; box-sizing:border-box; font-family:"Fredoka", sans-serif;';
+
+          overlay.innerHTML = `
+            <div style="background:linear-gradient(150deg, #182030 0%, #0c1019 100%); border:2px solid #2ecc71; border-radius:24px; padding:28px 22px; width:420px; max-width:92vw; box-shadow:0 25px 60px rgba(0,0,0,0.9), 0 0 35px rgba(46,204,113,0.3); text-align:center; color:white; box-sizing:border-box; position:relative;">
+              <button id="guest-modal-close-btn" type="button" style="position:absolute; top:14px; right:14px; background:rgba(255,255,255,0.1); color:#aaa; border:none; width:32px; height:32px; border-radius:50%; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:bold;">✕</button>
+              <div style="font-size:46px; line-height:1; margin-bottom:8px;">🎲</div>
+              <h2 style="margin:0 0 6px; font-size:24px; font-weight:700; color:#fff; letter-spacing:0.5px;">Join Multiplayer Room</h2>
+              <div style="display:inline-block; background:rgba(46,204,113,0.18); border:1px solid #2ecc71; color:#2ecc71; font-family:monospace; font-size:16px; font-weight:bold; letter-spacing:2px; padding:4px 14px; border-radius:12px; margin-bottom:14px;">
+                ROOM CODE: <span style="color:#2ecc71;">${code}</span>
+              </div>
+              <p style="margin:0 0 16px; font-size:14px; color:#cbd5e1; font-family:'Inter', sans-serif; line-height:1.4;">
+                You've been invited to play! Enter your guest or player name below to join the match:
+              </p>
+
+              <div style="margin-bottom:14px; text-align:left;">
+                <label for="guest-modal-name-input" style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:#2ecc71; font-family:'Inter', sans-serif; font-weight:700; margin-bottom:6px;">
+                  👤 Your Name
+                </label>
+                <input type="text" id="guest-modal-name-input" maxlength="16" placeholder="Enter your name..." autocomplete="off" style="width:100%; padding:12px 14px; border-radius:12px; border:2px solid #4a5568; background:rgba(0,0,0,0.6); color:white; font-size:16px; font-family:'Fredoka', sans-serif; outline:none; box-sizing:border-box; transition:border-color 0.2s, box-shadow 0.2s;">
+                <div id="guest-modal-error" style="display:none; color:#ff6b6b; font-size:12px; font-family:'Inter', sans-serif; margin-top:6px; font-weight:600;">Please enter your name to join!</div>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <button id="guest-modal-confirm-btn" type="button" style="width:100%; background:linear-gradient(135deg, #27ae60, #2ecc71); color:white; font-family:'Fredoka', sans-serif; font-weight:bold; font-size:17px; padding:13px; border:none; border-radius:12px; cursor:pointer; box-shadow:0 4px 15px rgba(46,204,113,0.4); letter-spacing:0.5px; transition:transform 0.15s;">
+                  🚀 JOIN ROOM & PLAY
+                </button>
+                <button id="guest-modal-prompt-btn" type="button" style="background:transparent; border:none; color:#718096; font-size:12px; font-family:'Inter', sans-serif; cursor:pointer; text-decoration:underline;">
+                  Or use browser prompt
+                </button>
+              </div>
+            </div>
+          `;
+
+          document.body.appendChild(overlay);
+
+          const inputEl = document.getElementById('guest-modal-name-input');
+          const errorEl = document.getElementById('guest-modal-error');
+          const confirmBtn = document.getElementById('guest-modal-confirm-btn');
+          const promptBtn = document.getElementById('guest-modal-prompt-btn');
+          const closeBtn = document.getElementById('guest-modal-close-btn');
+          if (closeBtn) {
+            closeBtn.onclick = () => {
+              overlay.remove();
+              window.__joiningViaInvite = false;
+              if (roomPanel) roomPanel.style.display = 'block';
+              roomToast('Type your name in the room panel and tap JOIN to enter.');
+            };
+          }
+
+          if (inputEl) {
+            inputEl.addEventListener('focus', () => {
+              inputEl.style.borderColor = '#2ecc71';
+              inputEl.style.boxShadow = '0 0 12px rgba(46,204,113,0.3)';
+              if (errorEl) errorEl.style.display = 'none';
+            });
+            inputEl.addEventListener('blur', () => {
+              inputEl.style.borderColor = '#4a5568';
+              inputEl.style.boxShadow = 'none';
+            });
+            setTimeout(() => inputEl.focus(), 150);
+          }
+
+          async function doJoinWithName(entered) {
+            if (!entered || !entered.trim()) {
+              if (errorEl) {
+                errorEl.innerText = 'Please enter your name to join!';
+                errorEl.style.display = 'block';
+              }
+              if (inputEl) {
+                inputEl.style.borderColor = '#ff6b6b';
+                inputEl.focus();
+              }
+              return;
+            }
+
+            const cleanName = entered.trim();
+            if (confirmBtn) {
+              confirmBtn.disabled = true;
+              confirmBtn.innerText = 'Connecting...';
+              confirmBtn.style.opacity = '0.7';
+            }
+
+            window.__joiningViaInvite = false;
+            localStorage.setItem('ludo_online_name', cleanName);
+            const mainNameInput = document.getElementById('room-name-input');
+            if (mainNameInput) mainNameInput.value = cleanName;
+
+            overlay.remove();
+
+            if (roomPanel) roomPanel.style.display = 'block';
+            showConnectingState(`Joining room ${code} as ${cleanName}...`);
+
+            const success = await joinRoomByCode(code, cleanName);
+            if (success) {
+              savePlayerName(cleanName);
+            }
+          }
+
+          if (confirmBtn) {
+            confirmBtn.onclick = () => doJoinWithName(inputEl && inputEl.value);
+          }
+          if (inputEl) {
+            inputEl.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') doJoinWithName(inputEl.value);
+            });
+          }
+          if (promptBtn) {
+            promptBtn.onclick = () => {
+              const res = window.prompt(`Enter your name to join room ${code}:`);
+              if (res && res.trim()) {
+                doJoinWithName(res.trim());
+              }
+            };
+          }
+
+          window.__promptGuestName = (customCode) => {
+            const targetCode = (customCode || code).toUpperCase();
+            const res = window.prompt(`Enter your name to join room ${targetCode}:`);
+            if (res && res.trim()) {
+              doJoinWithName(res.trim());
+            }
+          };
+        }
+
         const urlParams = new URLSearchParams(window.location.search);
-        const roomFromUrl = urlParams.get('room');
-        if (roomFromUrl) {
-          roomPanel.style.display = 'block';
-          joinRoomByCode(roomFromUrl);
+        const inviteRoomFromUrl = (urlParams.get('room') || urlParams.get('invite') || '').trim();
+        if (inviteRoomFromUrl) {
+          window.__joiningViaInvite = true;
+          const cleanCode = inviteRoomFromUrl.toUpperCase();
+          // Clear preset / cached guest names
+          localStorage.removeItem('ludo_online_name');
+          if (roomNameInput) roomNameInput.value = '';
+          if (roomJoinInput) roomJoinInput.value = cleanCode;
+
+          // Ask guest to enter name via prompt/modal and sync to room
+          askGuestNameModal(cleanCode);
         }
 
         window.__roomSystem = {
