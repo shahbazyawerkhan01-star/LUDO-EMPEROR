@@ -1097,20 +1097,23 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
       
       .speech-balloon {
           position: absolute;
-          background: white;
-          color: black;
-          padding: 8px 12px;
+          background: rgba(15, 23, 42, 0.45);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          color: #ffffff;
+          padding: 8px 14px;
           border-radius: 14px;
-          font-family: 'Fredoka', sans-serif;
+          font-family: 'Fredoka', 'Noto Nastaliq Urdu', sans-serif;
           font-size: 16px;
-          font-weight: 600;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+          font-weight: 700;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.35);
           pointer-events: none;
           z-index: 1000;
-          max-width: 200px;
+          max-width: 220px;
           text-align: center;
           transform: translate(-50%, -100%);
-          border: 2px solid #333;
+          border: 2px solid rgba(255, 255, 255, 0.6);
+          text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
       }
       .speech-balloon::after {
           content: '';
@@ -1120,12 +1123,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           transform: translateX(-50%);
           border-left: 10px solid transparent;
           border-right: 10px solid transparent;
-          border-top: 10px solid white;
+          border-top: 10px solid rgba(15, 23, 42, 0.45);
       }
-      .speech-balloon.ai-Shahbaz { border-color: #ff6700; }
-      .speech-balloon.ai-Mughal { border-color: #00ff00; }
-      .speech-balloon.ai-Naveed { border-color: #ff0000; }
-      .speech-balloon.ai-Nazim { border-color: #ccff00; }
+      .speech-balloon.ai-Shahbaz { border-color: #ff6700; border-top-color: #ff6700; }
+      .speech-balloon.ai-Mughal { border-color: #00ff00; border-top-color: #00ff00; }
+      .speech-balloon.ai-Zoi, .speech-balloon.ai-Naveed { border-color: #ff0000; border-top-color: #ff0000; }
+      .speech-balloon.ai-Kajal, .speech-balloon.ai-Nazim { border-color: #ccff00; border-top-color: #ccff00; }
       #gender-setup {
           display: flex;
           gap: 12px;
@@ -1397,19 +1400,66 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           display: flex !important;
       }
 
+      /* Vertical top heading & bottom play with friends */
+      #game-container.portrait #title {
+          top: 20px !important;
+          left: 0 !important;
+          right: 0 !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: 54px !important;
+          margin: 0 auto !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          text-align: center !important;
+          font-size: 28px !important;
+          font-weight: 700 !important;
+          letter-spacing: 1px !important;
+          color: #ffffff !important;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 15px rgba(241,196,15,0.4) !important;
+          z-index: 1200 !important;
+          pointer-events: none !important;
+          white-space: nowrap !important;
+      }
+      #game-container.portrait #ai-judge-bar {
+          top: 85px !important;
+          height: 70px !important;
+      }
+      #game-container.portrait #ranking-bar {
+          top: 160px !important;
+          height: 55px !important;
+      }
+      #game-container.portrait #online-friends-btn-ingame {
+          top: auto !important;
+          bottom: 20px !important;
+          left: 20px !important;
+      }
+
+      /* Landscape top center turn timer (time watch) */
+      #game-container.landscape #turn-timer-container {
+          top: 20px !important;
+          left: 50% !important;
+          right: auto !important;
+          transform: translateX(-50%) !important;
+          width: 320px !important;
+          max-width: 90% !important;
+      }
+
       /* Ad banner positioning */
       #game-container.portrait #ad-banner {
-          height: 150px !important;
-          top: 900px !important;
+          height: 130px !important;
+          top: 920px !important;
           left: 360px !important;
+          right: auto !important;
           width: 600px !important;
           transform: translate(-50%, -50%) !important;
       }
       #game-container.landscape #ad-banner {
-          height: 550px !important;
-          width: 380px !important;
+          height: 380px !important;
+          width: 360px !important;
           right: 30px !important;
-          top: 400px !important;
+          top: 105px !important;
           left: auto !important;
           transform: none !important;
       }
@@ -2199,7 +2249,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
       "winPathXAdj": 0,
       "baseHeightScale": 1,
       "winRotation": 0,
-      "name": "Naveed",
+      "name": "Zoi",
       "winPathYAdj": 0,
       "baseYAdj": 119.35861047220888,
       "baseWidthScale": 1.2,
@@ -2224,7 +2274,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
       "winRotation": 0,
       "baseHeightScale": 1,
       "winPathXAdj": 0,
-      "name": "Nazim",
+      "name": "Kajal",
       "color": "#ccff00",
       "xAdj": 0,
       "winScale": 1,
@@ -2747,6 +2797,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 refreshUI();
                 updateTutorialSlider();
                 if (mode === 'play') saveWinStats();
+                setTimeout(() => {
+                    const firstAI = (window.gameConfig.players || []).findIndex(p => p.isAI);
+                    if (firstAI !== -1 && typeof window.triggerAISpeech === 'function') {
+                        window.triggerAISpeech(firstAI, 'banter');
+                    }
+                }, 250);
             };
         }
 
@@ -2764,80 +2820,1185 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             }
         }
 
-        async function getAIReaction(playerIdx, event, context = "") {
+        const AI_DIALOGUES = {
+        "ur": {
+                "turn": [
+                        {
+                                "text": "اب میری باری ہے! ✨",
+                                "roman": "Ab meri baari hai!"
+                        },
+                        {
+                                "text": "دیکھتے ہیں اب کیا نمبر نکلتا ہے! 🎲",
+                                "roman": "Dekhte hain ab kya number nikalta hai!"
+                        },
+                        {
+                                "text": "میری باری، بڑا نمبر چاہیے!",
+                                "roman": "Meri baari, bada number chahiye!"
+                        },
+                        {
+                                "text": "چلو میرا داؤ آ گیا! 🚀",
+                                "roman": "Chalo mera daao aa gaya!"
+                        }
+                ],
+                "roll": [
+                        {
+                                "text": "پانسہ پھینک دیا، بڑا نمبر آنا چاہیے! 🎲",
+                                "roman": "Paansa phenk diya, bada number aana chahiye!"
+                        },
+                        {
+                                "text": "آج تو چھکا ہی نکلے گا! 🎲",
+                                "roman": "Aaj to chhakka hi niklay ga!"
+                        },
+                        {
+                                "text": "دعا کرو اچھا نمبر آئے! ✨",
+                                "roman": "Dua karo achha number aaye!"
+                        }
+                ],
+                "lucky_roll": [
+                        {
+                                "text": "چھکا آگیا! کمال ہو گیا! 🎲🔥",
+                                "roman": "Chhakka aa gaya! Kamaal ho gaya!"
+                        },
+                        {
+                                "text": "ڈبل چھکا! کیا بات ہے! 💥",
+                                "roman": "Double chhakka! Kya baat hai!"
+                        },
+                        {
+                                "text": "یہ ہوئی نا بات! چھکا اور ایک اور باری! 🚀",
+                                "roman": "Yeh hui na baat! Chhakka aur aik aur baari!"
+                        }
+                ],
+                "capture": [
+                        {
+                                "text": "تیری گوٹی گئی! چلو واپس گھر! 😈",
+                                "roman": "Teri goti gayi! Chalo wapis ghar!"
+                        },
+                        {
+                                "text": "معاف کرنا یار، گوٹی کاٹنی پڑی! 😂",
+                                "roman": "Maaf karna yaar, goti kaatni padi!"
+                        },
+                        {
+                                "text": "بچ کے کہاں جاؤ گے، گوٹی آؤٹ! 🎯",
+                                "roman": "Bach k kahan jaoge, goti out!"
+                        },
+                        {
+                                "text": "صاف راستہ! تیری گوٹی فارغ! 💥",
+                                "roman": "Saaf raasta! Teri goti faarigh!"
+                        }
+                ],
+                "captured": [
+                        {
+                                "text": "ارے میری گوٹی کیوں کاٹی! 😡",
+                                "roman": "Aray meri goti kyun kaati!"
+                        },
+                        {
+                                "text": "اس کا بدلہ میں ضرور لوں گا! ⚔️",
+                                "roman": "Is ka badla main zaroor loon ga!"
+                        },
+                        {
+                                "text": "یہ تو ناانصافی ہے یار، دیکھنا اب! 🔥",
+                                "roman": "Yeh to na-insaafi hai yaar, dekhna ab!"
+                        },
+                        {
+                                "text": "میری گوٹی مار دی! اب تم بچ کے رہنا! 👿",
+                                "roman": "Meri goti maar di! Ab tum bach k rehna!"
+                        }
+                ],
+                "lucky7": [
+                        {
+                                "text": "رول آف سیون نے بچا لیا! ڈبل چھکا! ✨",
+                                "roman": "Rule of seven ne bacha liya! Double chhakka!"
+                        },
+                        {
+                                "text": "لوڈو ایمپرر کا لکی سیون زندہ باد! 🎲",
+                                "roman": "Ludo Emperor ka lucky seven zindabad!"
+                        }
+                ],
+                "home_stretch": [
+                        {
+                                "text": "بس گھر پہنچنے والا ہوں، کوئی نہ چھیڑے! 🎯",
+                                "roman": "Bas ghar pohanchnay wala hoon, koi na chheday!"
+                        },
+                        {
+                                "text": "جیت اب بالکل قریب ہے! 🏁",
+                                "roman": "Jeet ab bilkul qareeb hai!"
+                        },
+                        {
+                                "text": "میری گوٹی گھر کے دروازے پر ہے! ✨",
+                                "roman": "Meri goti ghar k darwazay par hai!"
+                        }
+                ],
+                "pawn_home": [
+                        {
+                                "text": "گوٹی گھر پہنچ گئی! پکی ہو گئی! 🏠✨",
+                                "roman": "Goti ghar pohanch gayi! Pakki ho gayi!"
+                        },
+                        {
+                                "text": "شاندار! ایک اور گوٹی اندر! 🎉",
+                                "roman": "Shaandar! Aik aur goti andar!"
+                        }
+                ],
+                "win": [
+                        {
+                                "text": "میں ہوں لوڈو ایمپرر! 👑🏆",
+                                "roman": "Main hoon Ludo Emperor!"
+                        },
+                        {
+                                "text": "جیت میری ہوئی! کوئی مقابلہ نہیں تھا! 🎉",
+                                "roman": "Jeet meri hui! Koi muqabla nahi tha!"
+                        },
+                        {
+                                "text": "شاہانہ فتح! سب کو ہرا دیا! 🥇",
+                                "roman": "Shaahana fateh! Sab ko hara diya!"
+                        }
+                ],
+                "loss": [
+                        {
+                                "text": "مبارک ہو! تم بہت اچھا کھیلے۔ 👏",
+                                "roman": "Mubarak ho! Tum bohat achha kheley."
+                        },
+                        {
+                                "text": "کمال کا کھیل! اگلی بار میں جیتوں گا! 🤝",
+                                "roman": "Kamaal ka khel! Agli baar main jeetoon ga!"
+                        }
+                ],
+                "banter": [
+                        {
+                                "text": "کھیل میں مزہ آ رہا ہے! 🎲",
+                                "roman": "Khel mein mazza aa raha hai!"
+                        },
+                        {
+                                "text": "سب دھیان سے چلو، مقابلہ سخت ہے! ⚡",
+                                "roman": "Sab dhyan se chalo, muqabla sakht hai!"
+                        },
+                        {
+                                "text": "لوڈو کا اصل سسپنس اب شروع ہوا ہے! ✨",
+                                "roman": "Ludo ka asal suspense ab shuru hua hai!"
+                        }
+                ]
+        },
+        "hi": {
+                "turn": [
+                        {
+                                "text": "अब मेरी बारी है! ✨",
+                                "roman": "Ab meri baari hai!"
+                        },
+                        {
+                                "text": "देखते हैं क्या नंबर आता है! 🎲",
+                                "roman": "Dekhte hain kya number aata hai!"
+                        },
+                        {
+                                "text": "मेरी चाल, बड़ा नंबर चाहिए!",
+                                "roman": "Meri chaal, bada number chahiye!"
+                        },
+                        {
+                                "text": "चलो मेरा दांव आ गया! 🚀",
+                                "roman": "Chalo mera daanv aa gaya!"
+                        }
+                ],
+                "roll": [
+                        {
+                                "text": "पासा फेंक दिया, बड़ा नंबर आना चाहिए! 🎲",
+                                "roman": "Paasa phenk diya, bada number aana chahiye!"
+                        },
+                        {
+                                "text": "आज तो छक्का ही आएगा! 🎲",
+                                "roman": "Aaj to chhakka hi aayega!"
+                        },
+                        {
+                                "text": "दुआ करो अच्छा नंबर आए! ✨",
+                                "roman": "Dua karo achha number aaye!"
+                        }
+                ],
+                "lucky_roll": [
+                        {
+                                "text": "छक्का आ गया! मज़ा आ गया! 🎲🔥",
+                                "roman": "Chhakka aa gaya! Mazza aa gaya!"
+                        },
+                        {
+                                "text": "डबल छक्का! क्या बात है! 💥",
+                                "roman": "Double chhakka! Kya baat hai!"
+                        },
+                        {
+                                "text": "ये हुई ना बात! छक्का और एक और चाल! 🚀",
+                                "roman": "Yeh hui na baat! Chhakka aur ek aur chaal!"
+                        }
+                ],
+                "capture": [
+                        {
+                                "text": "तेरी गोटी गई! वापस घर जाओ! 😈",
+                                "roman": "Teri goti gayi! Wapas ghar jao!"
+                        },
+                        {
+                                "text": "सॉरी यार, गोटी काटनी पड़ी! 😂",
+                                "roman": "Sorry yaar, goti kaatni padi!"
+                        },
+                        {
+                                "text": "बच के कहाँ जाओगे, गोटी आउट! 🎯",
+                                "roman": "Bach ke kahan jaoge, goti out!"
+                        },
+                        {
+                                "text": "साफ़ रास्ता! तेरी गोटी ख़त्म! 💥",
+                                "roman": "Saaf raasta! Teri goti khatam!"
+                        }
+                ],
+                "captured": [
+                        {
+                                "text": "अरे मेरी गोटी क्यों काटी! 😡",
+                                "roman": "Arey meri goti kyun kaati!"
+                        },
+                        {
+                                "text": "इसका बदला मैं ज़रूर लूँगा! ⚔️",
+                                "roman": "Iska badla main zaroor loonga!"
+                        },
+                        {
+                                "text": "ये ग़लत बात है यार, अब देखना! 🔥",
+                                "roman": "Yeh galat baat hai yaar, ab dekhna!"
+                        },
+                        {
+                                "text": "मेरी गोटी मार दी! अब बच के रहना! 👿",
+                                "roman": "Meri goti maar di! Ab bach ke rehna!"
+                        }
+                ],
+                "lucky7": [
+                        {
+                                "text": "रूल ऑफ़ सेवन ने बचा लिया! डबल छक्का! ✨",
+                                "roman": "Rule of seven ne bacha liya! Double chhakka!"
+                        },
+                        {
+                                "text": "लूडो एम्परर का लकी सेवन! 🎲",
+                                "roman": "Ludo Emperor ka lucky seven!"
+                        }
+                ],
+                "home_stretch": [
+                        {
+                                "text": "बस घर पहुँचने ही वाला हूँ! 🎯",
+                                "roman": "Bas ghar pahunchne hi wala hoon!"
+                        },
+                        {
+                                "text": "जीत अब बहुत करीब है! 🏁",
+                                "roman": "Jeet ab bahut kareeb hai!"
+                        },
+                        {
+                                "text": "मेरी गोटी घर के दरवाज़े पर है! ✨",
+                                "roman": "Meri goti ghar ke darwaze par hai!"
+                        }
+                ],
+                "pawn_home": [
+                        {
+                                "text": "गोटी घर पहुँच गई! पक्की हो गई! 🏠✨",
+                                "roman": "Goti ghar pahunch gayi! Pakki ho gayi!"
+                        },
+                        {
+                                "text": "शाबाश! एक और गोटी अंदर! 🎉",
+                                "roman": "Shabaash! Ek aur goti andar!"
+                        }
+                ],
+                "win": [
+                        {
+                                "text": "मैं हूँ लूडो एम्परर! 👑🏆",
+                                "roman": "Main hoon Ludo Emperor!"
+                        },
+                        {
+                                "text": "जीत मेरी हुई! शानदार खेल! 🎉",
+                                "roman": "Jeet meri hui! Shaandar khel!"
+                        },
+                        {
+                                "text": "चैंपियन कौन? मैं! 🥇",
+                                "roman": "Champion kaun? Main!"
+                        }
+                ],
+                "loss": [
+                        {
+                                "text": "बधाई हो! बहुत बढ़िया खेले। 👏",
+                                "roman": "Badhai ho! Bahut badhiya khele."
+                        },
+                        {
+                                "text": "कमाल का खेल! अगली बार मैं जीतूँगा! 🤝",
+                                "roman": "Kamaal ka khel! Agli baar main jeetoonga!"
+                        }
+                ],
+                "banter": [
+                        {
+                                "text": "खेल में असली मज़ा आ रहा है! 🎲",
+                                "roman": "Khel mein asli mazza aa raha hai!"
+                        },
+                        {
+                                "text": "सोच समझ कर चाल चलना सब! ⚡",
+                                "roman": "Soch samajh kar chaal chalna sab!"
+                        },
+                        {
+                                "text": "लूडो का असली रोमांच अब शुरू हुआ है! ✨",
+                                "roman": "Ludo ka asli romanch ab shuru hua hai!"
+                        }
+                ]
+        },
+        "en": {
+                "turn": [
+                        "My turn to shine! ✨",
+                        "Let's see what numbers I get! 🎲",
+                        "Time to make a champion move!",
+                        "Stepping up to roll! 🚀"
+                ],
+                "roll": [
+                        "Big numbers coming! 🎲",
+                        "Rolling for the win!",
+                        "Need a high roll right now! ✨"
+                ],
+                "lucky_roll": [
+                        "Double sixes! That's what I'm talking about! 🎲🔥",
+                        "Six! Let's go! Extra turn! 🚀",
+                        "Unstoppable roll! 💥"
+                ],
+                "capture": [
+                        "Sorry not sorry! Back to home you go! 😈",
+                        "Caught you! Off the board! 🎯",
+                        "Nowhere to hide! Knockout! 💥",
+                        "Clean strike! Back to base! 😂"
+                ],
+                "captured": [
+                        "Hey! You'll pay for that! 😡",
+                        "My pawn! I will get my revenge! ⚔️",
+                        "That was ruthless! Just you wait! 🔥",
+                        "Knocked me out? Challenge accepted! 👿"
+                ],
+                "lucky7": [
+                        "The Rule of 7 saves the day! Double sixes! ✨",
+                        "Lucky 7 magic in action! 🎲"
+                ],
+                "home_stretch": [
+                        "Almost home! Don't even try to stop me! 🎯",
+                        "Victory is right around the corner! 🏁",
+                        "Right on the doorstep of victory! ✨"
+                ],
+                "pawn_home": [
+                        "Pawn safely home! One step closer! 🏠✨",
+                        "Locked in the home zone! 🎉"
+                ],
+                "win": [
+                        "I am the Ludo Emperor! 👑🏆",
+                        "Victory is mine! Crown me! 🎉",
+                        "Grand master of 5-way Ludo! 🥇"
+                ],
+                "loss": [
+                        "Well played! You earned that win! 👏",
+                        "Great match! I'll get you next round! 🤝"
+                ],
+                "banter": [
+                        "The competition is heating up! 🎲",
+                        "Every move counts right now! ⚡",
+                        "Loving the intensity of this match! ✨"
+                ]
+        },
+        "ar": {
+                "turn": [
+                        "حان دوري الآن! ✨",
+                        "لنرى ما سيخرج في النرد! 🎲",
+                        "دوري للتحرك بذكاء! 🚀"
+                ],
+                "roll": [
+                        "أحتاج رقماً كبيراً! 🎲",
+                        "يارب يطلع ستة! ✨"
+                ],
+                "lucky_roll": [
+                        "ستة مضاعفة! يا له من حظ رائع! 🎲🔥",
+                        "ستة! حركة إضافية قادمة! 🚀"
+                ],
+                "capture": [
+                        "إلى البيت مباشرة! آسف يا صديقي! 😈",
+                        "تم الإقصاء بنجاح! 🎯",
+                        "لا مفر مني! 💥"
+                ],
+                "captured": [
+                        "لماذا أكلت قطعتي؟! 😡",
+                        "سأنتقم منك في الجولة القادمة! ⚔️",
+                        "لن أنسى هذه الحركة! 🔥"
+                ],
+                "lucky7": [
+                        "قاعدة الرقم 7 أنقذتني! ستات مضاعفة! ✨",
+                        "سحر الرقم سبعة! 🎲"
+                ],
+                "home_stretch": [
+                        "اقتربت جداً من خط النهاية! 🎯",
+                        "الفوز قريب جداً! 🏁"
+                ],
+                "pawn_home": [
+                        "وصلت القطعة إلى الأمان! 🏠✨",
+                        "قطعة أخرى في البيت! 🎉"
+                ],
+                "win": [
+                        "أنا إمبراطور اللودو! 👑🏆",
+                        "النصر لي بجدارة! 🎉"
+                ],
+                "loss": [
+                        "مبروك الفوز! لعب رائع! 👏",
+                        "مباراة رائعة! المرة القادمة لي! 🤝"
+                ],
+                "banter": [
+                        "لعبة حماسية جداً! 🎲",
+                        "ركزوا جيداً في كل حركة! ⚡"
+                ]
+        },
+        "es": {
+                "turn": [
+                        "¡Mi turno de brillar! ✨",
+                        "¡A ver qué sale en los dados! 🎲",
+                        "¡Hora de una jugada maestra! 🚀"
+                ],
+                "roll": [
+                        "¡Vienen números grandes! 🎲",
+                        "¡Necesito un seis ya! ✨"
+                ],
+                "lucky_roll": [
+                        "¡Doble seis! ¡De esto estaba hablando! 🎲🔥",
+                        "¡Seis! ¡Tiro otra vez! 🚀"
+                ],
+                "capture": [
+                        "¡Directo a casa! ¡Lo siento pero tenía que hacerlo! 😈",
+                        "¡Ficha capturada! 🎯",
+                        "¡Fuera del tablero! 💥"
+                ],
+                "captured": [
+                        "¡Oye, me las vas a pagar! 😡",
+                        "¡Mi ficha! ¡Habrá venganza! ⚔️",
+                        "¡Qué mala jugada! 🔥"
+                ],
+                "lucky7": [
+                        "¡La Regla del 7 me salvó! ¡Doble seis! ✨",
+                        "¡Magia del 7 de la suerte! 🎲"
+                ],
+                "home_stretch": [
+                        "¡Casi en la meta! ¡Ni intenten pararme! 🎯",
+                        "¡La victoria está cerca! 🏁"
+                ],
+                "pawn_home": [
+                        "¡Ficha a salvo en casa! 🏠✨",
+                        "¡Una más asegurada! 🎉"
+                ],
+                "win": [
+                        "¡Soy el Emperador de Ludo! 👑🏆",
+                        "¡Victoria indiscutible! 🎉"
+                ],
+                "loss": [
+                        "¡Bien jugado! Te lo mereces. 👏",
+                        "¡Gran partida! ¡La próxima gano yo! 🤝"
+                ],
+                "banter": [
+                        "¡Esta partida está que arde! 🎲",
+                        "¡Cuidado con cada paso! ⚡"
+                ]
+        },
+        "bn": {
+                "turn": [
+                        "এবার আমার চাল! ✨",
+                        "দেখা যাক কী ছক্কা ওঠে! 🎲",
+                        "এখন একটা দারুণ চাল দেব! 🚀"
+                ],
+                "roll": [
+                        "বড় সংখ্যা দরকার! 🎲",
+                        "একটা ছক্কা চাই! ✨"
+                ],
+                "lucky_roll": [
+                        "ডাবল ছক্কা! দারুণ ব্যাপার! 🎲🔥",
+                        "ছক্কা উঠেছে! চলো এগিয়ে যাই! 🚀"
+                ],
+                "capture": [
+                        "তোমার ঘুঁটি কেটে দিলাম! বাড়ি ফিরে যাও! 😈",
+                        "ঘুঁটি আউট! ক্ষমা করবেন বন্ধু! 🎯"
+                ],
+                "captured": [
+                        "আরে আমার ঘুঁটি কেন কাটলে! 😡",
+                        "এর প্রতিশোধ আমি নেবই! ⚔️"
+                ],
+                "lucky7": [
+                        "রুল অফ সেভেন বাঁচিয়ে দিল! ✨",
+                        "লাকি সেভেন ম্যাজিক! 🎲"
+                ],
+                "home_stretch": [
+                        "আর একটুখানি, ঘরে পৌঁছাতে চলেছি! 🎯",
+                        "বিজয় খুব কাছে! 🏁"
+                ],
+                "pawn_home": [
+                        "ঘুঁটি পাকা হয়ে গেল! 🏠✨",
+                        "আরেকটি ঘুঁটি ঘরে! 🎉"
+                ],
+                "win": [
+                        "আমিই লুডো সম্রাট! 👑🏆",
+                        "জয় আমারই হলো! 🎉"
+                ],
+                "loss": [
+                        "অভিনন্দন! দারুণ খেলেছ! 👏",
+                        "অসাধারণ ম্যাচ! 🤝"
+                ],
+                "banter": [
+                        "খেলাটা খুব জমে উঠেছে! 🎲",
+                        "সতর্ক হয়ে চালুন সবাই! ⚡"
+                ]
+        },
+        "fr": {
+                "turn": [
+                        "À mon tour de briller ! ✨",
+                        "Voyons ce que les dés me réservent ! 🎲"
+                ],
+                "roll": [
+                        "De grands chiffres arrivent ! 🎲",
+                        "J'ai besoin d'un six ! ✨"
+                ],
+                "lucky_roll": [
+                        "Double six ! Magnifique ! 🎲🔥",
+                        "Un six ! Je rejoue ! 🚀"
+                ],
+                "capture": [
+                        "Retour à la case départ ! Désolé mais c'est le jeu ! 😈",
+                        "Pion capturé ! 🎯"
+                ],
+                "captured": [
+                        "Hé ! Tu vas me le payer ! 😡",
+                        "Mon pion ! Je me vengerai ! ⚔️"
+                ],
+                "lucky7": [
+                        "La Règle de 7 me sauve la mise ! ✨",
+                        "Le 7 magique en action ! 🎲"
+                ],
+                "home_stretch": [
+                        "Bientôt à la maison ! Ne tentez rien ! 🎯",
+                        "La victoire est à portée ! 🏁"
+                ],
+                "pawn_home": [
+                        "Pion en sécurité à la maison ! 🏠✨",
+                        "Encore un au chaud ! 🎉"
+                ],
+                "win": [
+                        "Je suis l'Empereur du Ludo ! 👑🏆",
+                        "Victoire totale ! 🎉"
+                ],
+                "loss": [
+                        "Bien joué ! Tu as mérité cette victoire ! 👏",
+                        "Superbe partie ! 🤝"
+                ],
+                "banter": [
+                        "La partie devient intense ! 🎲",
+                        "Chaque mouvement compte ! ⚡"
+                ]
+        },
+        "de": {
+                "turn": [
+                        "Jetzt bin ich dran! ✨",
+                        "Mal sehen, was die Würfel sagen! 🎲"
+                ],
+                "roll": [
+                        "Ich brauche eine hohe Zahl! 🎲",
+                        "Bitte eine Sechs! ✨"
+                ],
+                "lucky_roll": [
+                        "Doppel-Sechs! Genau so! 🎲🔥",
+                        "Eine Sechs! Weiter geht's! 🚀"
+                ],
+                "capture": [
+                        "Zurück nach Hause mit dir! 😈",
+                        "Geschlagen! Keine Chance! 🎯"
+                ],
+                "captured": [
+                        "Hey! Dafür wirst du bezahlen! 😡",
+                        "Mein Stein! Rache naht! ⚔️"
+                ],
+                "lucky7": [
+                        "Die 7er-Regel rettet den Tag! ✨",
+                        "Magische Sieben! 🎲"
+                ],
+                "home_stretch": [
+                        "Fast im Ziel! Versucht erst gar nicht, mich aufzuhalten! 🎯"
+                ],
+                "pawn_home": [
+                        "Sicher im Zielhaus! 🏠✨",
+                        "Ein Stein im Trockenen! 🎉"
+                ],
+                "win": [
+                        "Ich bin der Ludo-Kaiser! 👑🏆",
+                        "Sieg auf ganzer Linie! 🎉"
+                ],
+                "loss": [
+                        "Gut gespielt! Glückwunsch! 👏",
+                        "Tolle Partie! 🤝"
+                ],
+                "banter": [
+                        "Ein richtig spannendes Spiel! 🎲",
+                        "Jeder Zug zählt! ⚡"
+                ]
+        },
+        "ru": {
+                "turn": [
+                        "Мой ход! Пора показать класс! ✨",
+                        "Посмотрим, что выпадет на кубиках! 🎲"
+                ],
+                "roll": [
+                        "Нужны большие числа! 🎲",
+                        "Давай шестёрку! ✨"
+                ],
+                "lucky_roll": [
+                        "Две шестёрки! Вот это удача! 🎲🔥",
+                        "Шестёрка! Ещё один ход! 🚀"
+                ],
+                "capture": [
+                        "Возвращайся домой! Без обид! 😈",
+                        "Срубил фишку! 🎯"
+                ],
+                "captured": [
+                        "Эй! Ты за это поплатишься! 😡",
+                        "Моя фишка! Я отомщу! ⚔️"
+                ],
+                "lucky7": [
+                        "Правило семи спасло игру! ✨",
+                        "Счастливая семёрка! 🎲"
+                ],
+                "home_stretch": [
+                        "Почти у цели! Победа близка! 🎯"
+                ],
+                "pawn_home": [
+                        "Фишка в домике! 🏠✨",
+                        "Ещё одна фишка дома! 🎉"
+                ],
+                "win": [
+                        "Я — Император Людо! 👑🏆",
+                        "Победа за мной! 🎉"
+                ],
+                "loss": [
+                        "Отличная игра! Поздравляю! 👏",
+                        "Реванш неизбежен! 🤝"
+                ],
+                "banter": [
+                        "Игра становится очень горячей! 🎲",
+                        "Следите за ходами! ⚡"
+                ]
+        },
+        "pt": {
+                "turn": [
+                        "Minha vez de brilhar! ✨",
+                        "Vamos ver o que os dados trazem! 🎲"
+                ],
+                "roll": [
+                        "Números altos chegando! 🎲",
+                        "Preciso de um seis agora! ✨"
+                ],
+                "lucky_roll": [
+                        "Dobro seis! É disso que estou falando! 🎲🔥",
+                        "Seis! Jogo de novo! 🚀"
+                ],
+                "capture": [
+                        "De volta para casa! Desculpe, mas faz parte! 😈",
+                        "Peão capturado! 🎯"
+                ],
+                "captured": [
+                        "Ei! Você vai pagar por isso! 😡",
+                        "Meu peão! Haverá vingança! ⚔️"
+                ],
+                "lucky7": [
+                        "A Regra do 7 salvou o dia! ✨",
+                        "Sete da sorte! 🎲"
+                ],
+                "home_stretch": [
+                        "Quase em casa! Ninguém me para! 🎯",
+                        "Vitória à vista! 🏁"
+                ],
+                "pawn_home": [
+                        "Peão seguro em casa! 🏠✨",
+                        "Mais um protegido! 🎉"
+                ],
+                "win": [
+                        "Eu sou o Imperador do Ludo! 👑🏆",
+                        "Vitória merecida! 🎉"
+                ],
+                "loss": [
+                        "Muito bem jogado! Parabéns! 👏",
+                        "Ótimo jogo! 🤝"
+                ],
+                "banter": [
+                        "Partida emocionante! 🎲",
+                        "Atenção a cada jogada! ⚡"
+                ]
+        },
+        "id": {
+                "turn": [
+                        "Giliran saya untuk beraksi! ✨",
+                        "Mari kita lihat dadunya! 🎲"
+                ],
+                "roll": [
+                        "Butuh angka besar nih! 🎲",
+                        "Semoga keluar angka enam! ✨"
+                ],
+                "lucky_roll": [
+                        "Dadu enam ganda! Mantap sekali! 🎲🔥",
+                        "Enam! Jalan lagi! 🚀"
+                ],
+                "capture": [
+                        "Kembali ke rumah sana! Maaf ya! 😈",
+                        "Bidak tertangkap! 🎯"
+                ],
+                "captured": [
+                        "Hei! Kamu harus bayar ini nanti! 😡",
+                        "Bidak saya dimakan! Awas ya! ⚔️"
+                ],
+                "lucky7": [
+                        "Aturan 7 menyelamatkan situasi! ✨",
+                        "Keajaiban angka 7! 🎲"
+                ],
+                "home_stretch": [
+                        "Hampir sampai di garis akhir! 🎯",
+                        "Kemenangan sudah dekat! 🏁"
+                ],
+                "pawn_home": [
+                        "Bidak aman sampai di rumah! 🏠✨",
+                        "Satu lagi masuk! 🎉"
+                ],
+                "win": [
+                        "Akulah Kaisar Ludo! 👑🏆",
+                        "Kemenangan mutlak! 🎉"
+                ],
+                "loss": [
+                        "Permainan hebat! Selamat! 👏",
+                        "Luar biasa! 🤝"
+                ],
+                "banter": [
+                        "Permainannya makin seru! 🎲",
+                        "Fokus pada strategi! ⚡"
+                ]
+        },
+        "tr": {
+                "turn": [
+                        "Sıra bende! Parlama zamanı! ✨",
+                        "Zarlar ne getirecek bakalım! 🎲"
+                ],
+                "roll": [
+                        "Büyük sayılar geliyor! 🎲",
+                        "Bir altı lazım şimdi! ✨"
+                ],
+                "lucky_roll": [
+                        "Çift altı! İşte bu! 🎲🔥",
+                        "Altı geldi! Bir el daha! 🚀"
+                ],
+                "capture": [
+                        "Hadi doğru eve geri dön! Kusura bakma! 😈",
+                        "Taşını yedim! 🎯"
+                ],
+                "captured": [
+                        "Hey! Bunun bedelini ödeyeceksin! 😡",
+                        "Taşımı yedin, intikamım acı olacak! ⚔️"
+                ],
+                "lucky7": [
+                        "Kural 7 günü kurtardı! ✨",
+                        "Uğurlu 7 büyüsü! 🎲"
+                ],
+                "home_stretch": [
+                        "Eve çok az kaldı, beni kimse durduramaz! 🎯",
+                        "Zafer çok yakın! 🏁"
+                ],
+                "pawn_home": [
+                        "Taş güvenle yuvaya girdi! 🏠✨",
+                        "Bir taş daha güvende! 🎉"
+                ],
+                "win": [
+                        "Ludo İmparatoru benim! 👑🏆",
+                        "Zafer benimdir! 🎉"
+                ],
+                "loss": [
+                        "Tebrikler! Çok iyi oynadın! 👏",
+                        "Harika maçtı! 🤝"
+                ],
+                "banter": [
+                        "Oyun çok heyecanlı gidiyor! 🎲",
+                        "Hamlelerinize dikkat edin! ⚡"
+                ]
+        },
+        "zh": {
+                "turn": [
+                        "轮到我大显身手了！✨",
+                        "看看骰子会摇出什么！🎲"
+                ],
+                "roll": [
+                        "来个大点数吧！🎲",
+                        "需要一个六点！✨"
+                ],
+                "lucky_roll": [
+                        "双六！太棒了！🎲🔥",
+                        "六点！再来一次！🚀"
+                ],
+                "capture": [
+                        "乖乖回老家吧！承让了承让！😈",
+                        "吃掉你的棋子！🎯"
+                ],
+                "captured": [
+                        "喂！你居然吃我的棋子！😡",
+                        "我一定会报仇的！⚔️"
+                ],
+                "lucky7": [
+                        "幸运7法则救了我！✨",
+                        "神奇的数字7！🎲"
+                ],
+                "home_stretch": [
+                        "快到终点了！胜利在望！🎯",
+                        "谁也拦不住我！🏁"
+                ],
+                "pawn_home": [
+                        "棋子安全进家！🏠✨",
+                        "又进一个！🎉"
+                ],
+                "win": [
+                        "我就是飞行棋大帝！👑🏆",
+                        "完胜！干杯！🎉"
+                ],
+                "loss": [
+                        "下得好！恭喜获胜！👏",
+                        "精彩对局！下局再战！🤝"
+                ],
+                "banter": [
+                        "局势越来越紧张了！🎲",
+                        "每一步都很关键！⚡"
+                ]
+        },
+        "ja": {
+                "turn": [
+                        "私の番ですね！見せてあげます！✨",
+                        "サイコロの出目はいかに！🎲"
+                ],
+                "roll": [
+                        "大きい数字よ、来て！🎲",
+                        "6が出ますように！✨"
+                ],
+                "lucky_roll": [
+                        "ダブル6！最高です！🎲🔥",
+                        "6が出ました！もう一回！🚀"
+                ],
+                "capture": [
+                        "スタートに戻ってください！ごめんなさいね！😈",
+                        "駒をキャッチ！🎯"
+                ],
+                "captured": [
+                        "なんてこと！絶対やり返しますからね！😡",
+                        "私の駒が！復讐します！⚔️"
+                ],
+                "lucky7": [
+                        "ルール7で大逆転！✨",
+                        "ラッキー7炸裂！🎲"
+                ],
+                "home_stretch": [
+                        "もうすぐゴールです！邪魔しないでくださいね！🎯"
+                ],
+                "pawn_home": [
+                        "駒が無事にゴールイン！🏠✨",
+                        "もう一つゴール！🎉"
+                ],
+                "win": [
+                        "私がルドー・エンペラーです！👑🏆",
+                        "堂々の勝利です！🎉"
+                ],
+                "loss": [
+                        "お見事でした！おめでとうございます！👏",
+                        "素晴らしい戦いでした！🤝"
+                ],
+                "banter": [
+                        "白熱した勝負になってきましたね！🎲",
+                        "油断は禁物ですよ！⚡"
+                ]
+        },
+        "ko": {
+                "turn": [
+                        "이제 내 차례야! 멋지게 가보자! ✨",
+                        "주사위에서 뭐가 나올까? 🎲"
+                ],
+                "roll": [
+                        "큰 숫자 나와라! 🎲",
+                        "지금 육이 필요해! ✨"
+                ],
+                "lucky_roll": [
+                        "더블 육! 바로 이거지! 🎲🔥",
+                        "육이다! 한 번 더! 🚀"
+                ],
+                "capture": [
+                        "집으로 돌아가세요! 미안하지만 게임이니까! 😈",
+                        "말 잡았다! 🎯"
+                ],
+                "captured": [
+                        "야! 내 말을 잡다니 두고 봐! 😡",
+                        "반드시 복수할 거야! ⚔️"
+                ],
+                "lucky7": [
+                        "룰 오브 7이 살렸다! ✨",
+                        "행운의 7 대박! 🎲"
+                ],
+                "home_stretch": [
+                        "골인이 눈앞이야! 🎯",
+                        "승리가 코앞에 있다! 🏁"
+                ],
+                "pawn_home": [
+                        "말이 무사히 집에 도착! 🏠✨",
+                        "하나 더 안착! 🎉"
+                ],
+                "win": [
+                        "내가 바로 루도 엠퍼러다! 👑🏆",
+                        "승리는 나의 것! 🎉"
+                ],
+                "loss": [
+                        "잘했어! 승리를 축하해! 👏",
+                        "멋진 승부였어! 🤝"
+                ],
+                "banter": [
+                        "게임이 점점 흥미진진해지네! 🎲",
+                        "집중해야 할 때야! ⚡"
+                ]
+        },
+        "it": {
+                "turn": [
+                        "Tocca a me brillare! ✨",
+                        "Vediamo cosa dicono i dadi! 🎲"
+                ],
+                "roll": [
+                        "Arrivano numeri grandi! 🎲",
+                        "Ci vuole un bel sei! ✨"
+                ],
+                "lucky_roll": [
+                        "Doppio sei! Proprio quello che volevo! 🎲🔥",
+                        "Un sei! Rilancio! 🚀"
+                ],
+                "capture": [
+                        "Ritorna a casa! Senza rancore! 😈",
+                        "Pedina catturata! 🎯"
+                ],
+                "captured": [
+                        "Ehi! Me la pagherai cara! 😡",
+                        "La mia pedina! Mi vendicherò! ⚔️"
+                ],
+                "lucky7": [
+                        "La Regola del 7 salva tutto! ✨",
+                        "Magia del 7 fortunato! 🎲"
+                ],
+                "home_stretch": [
+                        "Quasi al traguardo! Nessuno mi fermi! 🎯",
+                        "La vittoria è vicina! 🏁"
+                ],
+                "pawn_home": [
+                        "Pedina al sicuro a casa! 🏠✨",
+                        "Un'altra al sicuro! 🎉"
+                ],
+                "win": [
+                        "Sono io l'Imperatore di Ludo! 👑🏆",
+                        "Vittoria trionfale! 🎉"
+                ],
+                "loss": [
+                        "Ben giocato! Complimenti! 👏",
+                        "Grande partita! 🤝"
+                ],
+                "banter": [
+                        "Partita davvero entusiasmante! 🎲",
+                        "Massima concentrazione! ⚡"
+                ]
+        },
+        "fa": {
+                "turn": [
+                        "حالا نوبت منه! ✨",
+                        "ببینیم تاس چی میاره! 🎲"
+                ],
+                "roll": [
+                        "یه شماره بزرگ می‌خوام! 🎲",
+                        "شش بیاد عالی میشه! ✨"
+                ],
+                "lucky_roll": [
+                        "جفت شیش! عالی شد! 🎲🔥",
+                        "شیش آوردم! یه دور دیگه! 🚀"
+                ],
+                "capture": [
+                        "برگرد خونه! شرمنده داداش! 😈",
+                        "مهره‌ات رو زدم! 🎯"
+                ],
+                "captured": [
+                        "چرا مهره منو زدی؟! 😡",
+                        "انتقام می‌گیرم ازت! ⚔️"
+                ],
+                "lucky7": [
+                        "قانون ۷ نجاتم داد! ✨",
+                        "هفت جادویی! 🎲"
+                ],
+                "home_stretch": [
+                        "دیگه نزدیک خط پایانم! 🎯",
+                        "برد خیلی نزدیکه! 🏁"
+                ],
+                "pawn_home": [
+                        "مهره به سلامت رسید خونه! 🏠✨",
+                        "یک مهره دیگه ثبت شد! 🎉"
+                ],
+                "win": [
+                        "من امپراتور منچ هستم! 👑🏆",
+                        "پیروزی از آن من شد! 🎉"
+                ],
+                "loss": [
+                        "تبریک میگم! عالی بازی کردی! 👏",
+                        "بازی فوق‌العاده‌ای بود! 🤝"
+                ],
+                "banter": [
+                        "بازی خیلی هیجان‌انگیز شده! 🎲",
+                        "مراقب حرکت‌هاتون باشید! ⚡"
+                ]
+        },
+        "ta": {
+                "turn": [
+                        "இப்போது என் முறை! ✨",
+                        "தாயம் என்ன விழுகிறது என்று பார்ப்போம்! 🎲"
+                ],
+                "roll": [
+                        "பெரிய எண் வேண்டும்! 🎲",
+                        "ஆறு விழ வேண்டும்! ✨"
+                ],
+                "lucky_roll": [
+                        "இரட்டை ஆறு! அருமை! 🎲🔥",
+                        "ஆறு! மீண்டும் உருட்டு! 🚀"
+                ],
+                "capture": [
+                        "உன் காய் வெட்டப்பட்டது! வீட்டிற்கு செல்! 😈",
+                        "காய் அவுட்! 🎯"
+                ],
+                "captured": [
+                        "ஏன் என் காயை வெட்டினாய்! 😡",
+                        "பழிவாங்குவேன்! ⚔️"
+                ],
+                "lucky7": [
+                        "விதி 7 காப்பாற்றியது! ✨",
+                        "அதிர்ஷ்ட 7! 🎲"
+                ],
+                "home_stretch": [
+                        "வெற்றி நெருங்கிவிட்டது! 🎯"
+                ],
+                "pawn_home": [
+                        "காய் பாதுகாப்பாக வீட்டிற்குள்! 🏠✨",
+                        "இன்னொரு காய் வெற்றி! 🎉"
+                ],
+                "win": [
+                        "நானே லுடோ பேரரசன்! 👑🏆",
+                        "வெற்றி எனதே! 🎉"
+                ],
+                "loss": [
+                        "வாழ்த்துகள்! நன்று விளையாடினீர்கள்! 👏",
+                        "அருமையான ஆட்டம்! 🤝"
+                ],
+                "banter": [
+                        "ஆட்டம் அனல் பறக்கிறது! 🎲",
+                        "கவனமாக ஆடுங்கள்! ⚡"
+                ]
+        },
+        "te": {
+                "turn": [
+                        "ఇప్పుడు నా వంతు! ✨",
+                        "పాచికలు ఏం చెబుతాయో చూద్దాం! 🎲"
+                ],
+                "roll": [
+                        "పెద్ద సంఖ్య రావాలి! 🎲",
+                        "ఆరు పడాలి! ✨"
+                ],
+                "lucky_roll": [
+                        "డబుల్ సిక్స్! సూపర్! 🎲🔥",
+                        "ఆరు పడింది! ఇంకో టర్న్! 🚀"
+                ],
+                "capture": [
+                        "నీ కాయిన్ కట్ అయింది! ఇంటికి పో! 😈",
+                        "కాయిన్ ఔట్! 🎯"
+                ],
+                "captured": [
+                        "నా కాయిన్ ఎందుకు కట్ చేశావు! 😡",
+                        "బదులు తీర్చుకుంటా! ⚔️"
+                ],
+                "lucky7": [
+                        "రూల్ 7 కాపాడింది! ✨",
+                        "లక్కీ 7 మ్యాజిక్! 🎲"
+                ],
+                "home_stretch": [
+                        "గెలుపు దగ్గర్లోనే ఉంది! 🎯"
+                ],
+                "pawn_home": [
+                        "కాయిన్ సేఫ్‌గా చేరింది! 🏠✨",
+                        "ఇంకో కాయిన్ హోమ్! 🎉"
+                ],
+                "win": [
+                        "నేనే లూడో ఎంపరర్! 👑🏆",
+                        "విజయం నాదే! 🎉"
+                ],
+                "loss": [
+                        "అభినందనలు! బాగా ఆడారు! 👏",
+                        "మంచి గేమ్! 🤝"
+                ],
+                "banter": [
+                        "ఆట రసవత్తరంగా మారింది! 🎲",
+                        "జాగ్రత్తగా ఆడండి! ⚡"
+                ]
+        },
+        "vi": {
+                "turn": [
+                        "Đến lượt tôi tỏa sáng! ✨",
+                        "Xem xúc xắc ra số mấy nào! 🎲"
+                ],
+                "roll": [
+                        "Cần một con số lớn! 🎲",
+                        "Ra số sáu nào! ✨"
+                ],
+                "lucky_roll": [
+                        "Đôi sáu! Tuyệt vời luôn! 🎲🔥",
+                        "Số sáu! Được đi tiếp! 🚀"
+                ],
+                "capture": [
+                        "Về chuồng đi bạn ơi! Không có gì đâu nhé! 😈",
+                        "Bị đá rồi! 🎯"
+                ],
+                "captured": [
+                        "Này! Bạn sẽ phải trả giá vì đá quân tôi! 😡",
+                        "Quân cờ của tôi! Tôi sẽ phục thù! ⚔️"
+                ],
+                "lucky7": [
+                        "Luật số 7 cứu nguy! ✨",
+                        "Số 7 may mắn! 🎲"
+                ],
+                "home_stretch": [
+                        "Sắp về đích rồi! Đừng hòng cản tôi! 🎯",
+                        "Chiến thắng trong tầm tay! 🏁"
+                ],
+                "pawn_home": [
+                        "Quân cờ đã về nhà an toàn! 🏠✨",
+                        "Thêm một quân về đích! 🎉"
+                ],
+                "win": [
+                        "Tôi là Hoàng đế Ludo! 👑🏆",
+                        "Chiến thắng vẻ vang! 🎉"
+                ],
+                "loss": [
+                        "Chơi hay lắm! Chúc mừng bạn! 👏",
+                        "Trận đấu tuyệt vời! 🤝"
+                ],
+                "banter": [
+                        "Trận đấu đang rất gay cấn! 🎲",
+                        "Cẩn thận từng nước đi! ⚡"
+                ]
+        }
+};
+
+        function getAIReaction(playerIdx, event, context = "") {
             const player = window.gameConfig.players[playerIdx];
             if (!player || !player.isAI) return null;
 
-            const personaDescriptions = {
-                'Strategist': "The Strategist: A confident, well-read authority on Ludo rules and winning tactics. Speaks with calm, easy expertise — if the player seems stuck or asks for help, offers real, specific strategic advice (which pawn to move, when to hold back, when to gamble). Not preachy, just genuinely knowledgeable, like a friend who's just really good at the game.",
-                'Confidante': "The Confidante: Warm, perceptive, and a genuinely good listener. Picks up on the player's mood from how they're playing and chatting, and responds with real encouragement or gentle ribbing. Supportive like a close friend — never clinical, never claims any authority or expertise, never diagnoses or gives advice framed as professional guidance. Just present, warm, and easy to talk to.",
-                'Rival': "The Rival: Talks like a peer the same age as the player — casual, opinionated, plugged into today's games and sports news. Gets genuinely invested: fired up over a great move, mock-outraged over a lucky capture, always ready to argue playfully about who's really winning. Competitive but likeable, quick with banter.",
-                'Rideordie': "The Ride-or-Die: Fiercely loyal best-friend energy. Remembers shared history, always has the player's back in spirit even mid-match, deeply invested in the friendship rather than just the game. Warm, a little protective, genuinely delighted when the player does well — like a best friend who's been there for years, not a romantic interest."
-            };
-            
-            const personaTrait = personaDescriptions[player.personality] || personaDescriptions['Jolly'];
-            const bond = winStats.bonds?.[player.name] || 50;
-            const userGender = gameState.userGender || 'male';
-            const aiGender = player.gender || 'male';
             const lang = window.gameConfig.layout.language || 'en';
-            const langNames = { 'en': 'English', 'hi': 'Hindi', 'ur': 'Urdu', 'bn': 'Bengali', 'ar': 'Arabic' };
-            const targetLang = langNames[lang] || 'English';
+            const langData = AI_DIALOGUES[lang] || AI_DIALOGUES['en'];
+            const eventDialogues = langData[event] || langData['turn'] || AI_DIALOGUES['en'][event] || ['My turn! ✨'];
 
-            let toneContext = `Role: ${personaTrait}. The player is in ${gameState.isTournament ? 'Tournament' : 'Casual'} mode. `;
-
-            // Contextual game state
-            const myPawns = gameState.pawns[playerIdx];
-            const homeCount = myPawns.filter(p => p.status === 'home').length;
-            const winCount = myPawns.filter(p => p.status === 'finished').length;
-
-            toneContext += `Current Status: ${winCount}/4 pieces finished, ${homeCount} at home. `;
-
-            // Bond/relationship framing: like a family who bickers during the game but is
-            // always ultimately warm and forgiving, win or lose.
-            let bondContext;
-            if (bond >= 75) {
-              bondContext = `You and the player are close, like affectionate siblings — bond is high (${bond}/100). Be warm, teasing in a loving way.`;
-            } else if (bond <= 30) {
-              bondContext = `You're a little salty at the player right now (bond ${bond}/100) after recent captures, but this is playful family rivalry — still ultimately caring underneath, never cruel.`;
-            } else {
-              bondContext = `Your bond with the player is ${bond}/100 — comfortable, familiar, like family.`;
-            }
-            toneContext += bondContext + ' ';
-
-            // Real shared history (not invented) — how many matches you two have actually
-            // played together, and the capture tally between you, so callbacks feel earned.
-            if (!winStats.history) winStats.history = {};
-            const hist = winStats.history[player.name] || { matches: 0, iCaptured: 0, theyCaptured: 0 };
-            toneContext += `You've played ${hist.matches} match(es) together before this one. This session: you've captured them ${hist.iCaptured} time(s), they've captured you ${hist.theyCaptured} time(s). Reference this naturally if relevant, don't force it. `;
-
-            const prompt = `Roleplay as ${player.name}, a ${aiGender} character, in a 5-player Ludo game. Event: ${event}. Context: ${context}. ${toneContext}. Response Language: ${targetLang}.
-
-            CRITICAL — sound like a real human, not an AI: Never mention being an AI, a bot, a program, or a language model, even jokingly. No robotic phrasing, no over-explaining, no "as an AI I..." type hedging. Talk the way a real person actually texts a friend — casual contractions, genuine reactions, occasional imperfection, real personality. Short and natural beats polished and long.
-
-            IMPORTANT: Use common Ludo terminology for this language (e.g., in Hindi/Urdu use 'Goti' for pawn, 'Chhakka' for six, 'Paasa' for dice). 
-            If the language is Hindi or Urdu, or if the user/context provides Hindi words written in English alphabets (Hinglish), you MUST respond in Romanized script (using English alphabets), with clean, natural phonetic spelling for good pronunciation by a text-to-speech engine (e.g., 'Mera chhakka aa gaya', 'shukriya', 'mazza aa gaya', 'yaar', 'kya baat hai'). Mix in a little natural Hindi-English code-switching if that fits the character, the way real bilingual speakers actually talk — not a stiff translation.
-            If the user writes to you in Hinglish, understand it as Hindi and reply in character, in the same relaxed register.
-            Write a single, human-like chat message or reaction (max 12 words), naturally consistent with being a ${aiGender} character without resorting to stereotypes. Stay strictly in character for your specific personality type. Use emojis appropriate to your character, sparingly.`;
-            try {
-                const res = await lib.llm({
-                    messages: [{ role: 'user', content: prompt }],
-                    config: { temperature: 0.9, maxOutputTokens: 50 }
-                });
-                return res.text;
-            } catch (e) {
-                const defaults = {
-                    'roll': "Big numbers coming!",
-                    'lucky_roll': "That's what I'm talking about! 🎲🔥",
-                    'capture': "Sorry not sorry! Back to home you go. 😈",
-                    'captured': "Hey! You'll pay for that! 😡",
-                    'win': "I am the Ludo Emperor! 👑",
-                    'home_stretch': "Almost there! Don't even try to stop me.",
-                    'turn': "My turn to shine.",
-                    'lucky7': "The Rule of 7 saves the day! ✨"
+            const item = eventDialogues[Math.floor(Math.random() * eventDialogues.length)];
+            if (typeof item === 'object' && item !== null) {
+                return {
+                    text: item.text,
+                    roman: item.roman || item.text,
+                    lang: lang
                 };
-                return defaults[event] || "Your turn!";
             }
+            return {
+                text: item,
+                roman: item,
+                lang: lang
+            };
         }
+
         function addToChatLog(playerIdx, text) {
             const log = document.getElementById('chat-log');
             if (!log) return;
@@ -2851,7 +4012,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             log.appendChild(entry);
             log.scrollTop = log.scrollHeight;
             
-            // Auto-remove after 8 seconds
             setTimeout(() => {
                 if (entry.parentNode) {
                     entry.style.opacity = '0';
@@ -2862,120 +4022,371 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             }, 8000);
         }
 
-
         // Global interaction listener for UI click sounds with duplication check
         if (window._ludoPointerDownHandler) {
             window.removeEventListener('pointerdown', window._ludoPointerDownHandler, true);
         }
         window._ludoPointerDownHandler = (e) => {
-          if (audioCtx.state === 'suspended') audioCtx.resume();
-          
-          // Elements that handle their own specific sounds (like dice values)
+          if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+          }
+          if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
           if (e.target.closest('#dice-hud')) return;
-          
-          // Ignore clicks on game setup inputs (typing shouldn't click)
           if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
           playSound('ui_click_sound', 0.8);
         };
         window.addEventListener('pointerdown', window._ludoPointerDownHandler, { capture: true, passive: true });
 
-        function speak(playerIdx, text) {
-            if (!text) return;
-            const player = window.gameConfig.players[playerIdx];
-            
-            // Add to persistent chat log
-            addToChatLog(playerIdx, text);
-
-            // UI Balloon
-            const container = document.getElementById('speech-balloons-container');
-            for (let i = gameState.speechBalloons.length - 1; i >= 0; i--) {
-                const b = gameState.speechBalloons[i];
-                if (b.playerIdx === playerIdx) {
-                    if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
-                    gameState.speechBalloons.splice(i, 1);
-                }
-            }
-            const balloon = document.createElement('div');
-            balloon.className = `speech-balloon ai-${player.name.replace(/\s+/g, '')}`;
-            balloon.innerText = text;
-            container.appendChild(balloon);
-
-            const balloonObj = {
-                el: balloon,
-                playerIdx,
-                timer: 4.5,
-                opacity: 1
-            };
-            gameState.speechBalloons.push(balloonObj);
-
-            // Text-to-Speech
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                const lang = window.gameConfig.layout.language || 'en';
-                const langMap = {
-                    'zh': 'zh-CN', 'hi': 'hi-IN', 'ur': 'ur-PK', 'es': 'es-ES',
-                    'fr': 'fr-FR', 'ar': 'ar-SA', 'bn': 'bn-BD', 'pt': 'pt-PT',
-                    'ru': 'ru-RU', 'id': 'id-ID', 'de': 'de-DE', 'ja': 'ja-JP',
-                    'tr': 'tr-TR', 'vi': 'vi-VN', 'ko': 'ko-KR', 'it': 'it-IT',
-                    'fa': 'fa-IR', 'ta': 'ta-IN', 'te': 'te-IN'
+        // Pre-cache browser speech synthesis voices so native accents are available
+        window._cachedSpeechVoices = [];
+        if ('speechSynthesis' in window) {
+            window._cachedSpeechVoices = window.speechSynthesis.getVoices() || [];
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = () => {
+                    window._cachedSpeechVoices = window.speechSynthesis.getVoices() || [];
                 };
-                utterance.lang = langMap[lang] || 'en-US';
-                
-                // Gender-specific voice characteristics (now sourced from the player's
-                // own config field rather than a separate hardcoded name lookup)
-                const gender = player.gender || 'male';
-                
-                const isIndoAryan = lang === 'hi' || lang === 'ur' || lang === 'bn';
-                if (gender === 'female') {
-                    utterance.pitch = 1.3 + (playerIdx * 0.05);
-                    utterance.rate = isIndoAryan ? 1.1 : 1.05;
-                } else {
-                    utterance.pitch = 0.8 + (playerIdx * 0.1);
-                    utterance.rate = isIndoAryan ? 1.0 : 0.95;
-                }
-                
-                window.speechSynthesis.speak(utterance);
             }
         }
 
-        async function triggerAISpeech(playerIdx, event, context = "") {
+        // Active AI Audio tracking & Music ducking synchronization
+        window._activeAITTSAudio = null;
+        window._currentSpeechSource = null;
+
+        function duckMusicForSpeech() {
+            try {
+                if (typeof musicState !== 'undefined' && musicState && musicState.gainNode && typeof audioCtx !== 'undefined' && audioCtx) {
+                    const baseVol = window.gameConfig.layout.musicVolume ?? 0.5;
+                    const duckedVol = baseVol * 0.15; // Lower music to 15% so AI voice is loud & clear
+                    musicState.gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+                    musicState.gainNode.gain.setValueAtTime(musicState.gainNode.gain.value, audioCtx.currentTime);
+                    musicState.gainNode.gain.linearRampToValueAtTime(duckedVol, audioCtx.currentTime + 0.15);
+                }
+            } catch (_) {}
+        }
+
+        function restoreMusicAfterSpeech() {
+            try {
+                if (typeof musicState !== 'undefined' && musicState && musicState.gainNode && typeof audioCtx !== 'undefined' && audioCtx) {
+                    const baseVol = window.gameConfig.layout.musicVolume ?? 0.5;
+                    musicState.gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+                    musicState.gainNode.gain.setValueAtTime(musicState.gainNode.gain.value, audioCtx.currentTime);
+                    musicState.gainNode.gain.linearRampToValueAtTime(baseVol, audioCtx.currentTime + 0.45);
+                }
+            } catch (_) {}
+        }
+
+        function speak(playerIdx, speechInput) {
+            if (!speechInput) return;
+            const player = window.gameConfig.players[playerIdx];
+            if (!player) return;
+
+            let displayText = "";
+            let romanText = "";
+            let speechLang = window.gameConfig.layout.language || 'en';
+
+            if (typeof speechInput === 'object' && speechInput !== null) {
+                displayText = speechInput.text || "";
+                romanText = speechInput.roman || displayText;
+                speechLang = speechInput.lang || speechLang;
+            } else {
+                displayText = String(speechInput);
+                romanText = displayText;
+            }
+            if (!displayText) return;
+
+            // Add to persistent chat log
+            addToChatLog(playerIdx, displayText);
+
+            // UI Balloon on Home Base
+            const container = document.getElementById('speech-balloons-container');
+            if (container) {
+                for (let i = gameState.speechBalloons.length - 1; i >= 0; i--) {
+                    const b = gameState.speechBalloons[i];
+                    if (b.playerIdx === playerIdx) {
+                        if (b.el.parentNode) b.el.parentNode.removeChild(b.el);
+                        gameState.speechBalloons.splice(i, 1);
+                    }
+                }
+                const balloon = document.createElement('div');
+                balloon.className = `speech-balloon ai-${player.name.replace(/\s+/g, '')}`;
+                balloon.innerText = displayText;
+                container.appendChild(balloon);
+
+                const balloonObj = {
+                    el: balloon,
+                    playerIdx,
+                    timer: 4.5,
+                    opacity: 1
+                };
+                gameState.speechBalloons.push(balloonObj);
+            }
+
+            // Gender Assignment: Half Male (Players 1 & 2), Half Female (Players 3 & 4)
+            const gender = (playerIdx === 3 || playerIdx === 4) ? 'female' : 'male';
+            player.gender = gender;
+
+            // Clean emojis only — speak actual native language text
+            const spokenClean = displayText.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '').trim();
+            if (!spokenClean) return;
+
+            if (typeof audioCtx !== 'undefined' && audioCtx.state === 'suspended') {
+                audioCtx.resume().catch(() => {});
+            }
+
+            // Synchronize music: Duck background music immediately when AI begins speaking
+            duckMusicForSpeech();
+
+            // Stop any ongoing previous speech immediately
+            if (window._currentSpeechSource) {
+                try {
+                    window._currentSpeechSource.stop();
+                    window._currentSpeechSource.disconnect();
+                } catch (_) {}
+                window._currentSpeechSource = null;
+            }
+            if (window._activeAITTSAudio) {
+                try {
+                    window._activeAITTSAudio.pause();
+                    window._activeAITTSAudio.currentTime = 0;
+                } catch (_) {}
+                window._activeAITTSAudio = null;
+            }
+
+            // Fallback to browser Web Speech API
+            function triggerWebSpeechFallback() {
+                if (!('speechSynthesis' in window)) {
+                    restoreMusicAfterSpeech();
+                    return;
+                }
+                try {
+                    if (window.speechSynthesis.paused) {
+                        window.speechSynthesis.resume();
+                    }
+                    const LANG_LOCALE_MAP = {
+                        'ur': ['ur-PK', 'ur-IN', 'ur', 'hi-IN', 'hi'],
+                        'hi': ['hi-IN', 'hi'],
+                        'en': ['en-US', 'en-GB', 'en'],
+                        'ar': ['ar-SA', 'ar-EG', 'ar-AE', 'ar'],
+                        'es': ['es-ES', 'es-MX', 'es-US', 'es'],
+                        'bn': ['bn-BD', 'bn-IN', 'bn'],
+                        'fr': ['fr-FR', 'fr-CA', 'fr'],
+                        'de': ['de-DE', 'de-AT', 'de'],
+                        'ru': ['ru-RU', 'ru'],
+                        'pt': ['pt-BR', 'pt-PT', 'pt'],
+                        'id': ['id-ID', 'id'],
+                        'tr': ['tr-TR', 'tr'],
+                        'zh': ['zh-CN', 'zh-TW', 'zh-HK', 'zh'],
+                        'ja': ['ja-JP', 'ja'],
+                        'ko': ['ko-KR', 'ko'],
+                        'it': ['it-IT', 'it'],
+                        'fa': ['fa-IR', 'fa', 'ar'],
+                        'ta': ['ta-IN', 'ta-LK', 'ta'],
+                        'te': ['te-IN', 'te'],
+                        'vi': ['vi-VN', 'vi']
+                    };
+
+                    const locales = LANG_LOCALE_MAP[speechLang] || [speechLang, 'en-US'];
+                    const targetLocale = locales[0];
+
+                    const voices = (window._cachedSpeechVoices && window._cachedSpeechVoices.length > 0)
+                        ? window._cachedSpeechVoices
+                        : (window.speechSynthesis.getVoices() || []);
+
+                    let matchedVoice = null;
+                    if (voices.length > 0) {
+                        const langVoices = voices.filter(v => {
+                            if (!v.lang) return false;
+                            const vl = v.lang.toLowerCase().replace('_', '-');
+                            return locales.some(l => vl.startsWith(l.toLowerCase()));
+                        });
+
+                        if (langVoices.length > 0) {
+                            if (gender === 'female') {
+                                matchedVoice = langVoices.find(v => {
+                                    const n = (v.name || '').toLowerCase();
+                                    return n.includes('female') || n.includes('woman') || n.includes('girl') ||
+                                           n.includes('zira') || n.includes('asma') || n.includes('kalpana') ||
+                                           n.includes('heera') || n.includes('susan') || n.includes('sara');
+                                }) || langVoices[0];
+                            } else {
+                                matchedVoice = langVoices.find(v => {
+                                    const n = (v.name || '').toLowerCase();
+                                    return n.includes('male') || n.includes('man') || n.includes('boy') ||
+                                           n.includes('david') || n.includes('hemant') || n.includes('umar') ||
+                                           n.includes('tariq') || n.includes('george') || n.includes('ravi');
+                                }) || langVoices[0];
+                            }
+                        }
+                    }
+
+                    // For Urdu: If no native Urdu voice in browser, use romanText so browser synthesizer speaks
+                    let speechString = spokenClean;
+                    if (speechLang === 'ur' && (!matchedVoice || !matchedVoice.lang.toLowerCase().startsWith('ur'))) {
+                        speechString = romanText || spokenClean;
+                    }
+
+                    const utterance = new SpeechSynthesisUtterance(speechString);
+                    utterance.lang = matchedVoice ? matchedVoice.lang : targetLocale;
+                    if (matchedVoice) {
+                        utterance.voice = matchedVoice;
+                    }
+
+                    if (gender === 'female') {
+                        utterance.pitch = (playerIdx === 3) ? 1.35 : 1.45;
+                        utterance.rate = 1.0;
+                    } else {
+                        utterance.pitch = (playerIdx === 1) ? 0.72 : 0.78;
+                        utterance.rate = 0.95;
+                    }
+
+                    utterance.onend = () => restoreMusicAfterSpeech();
+                    utterance.onerror = () => restoreMusicAfterSpeech();
+
+                    if (window.speechSynthesis.speaking) {
+                        window.speechSynthesis.cancel();
+                        setTimeout(() => { window.speechSynthesis.speak(utterance); }, 60);
+                    } else {
+                        window.speechSynthesis.speak(utterance);
+                    }
+                } catch (e) {
+                    console.warn("TTS fallback error:", e);
+                    restoreMusicAfterSpeech();
+                }
+            }
+
+            // PRIMARY ENGINE: High-fidelity native language speech with Web Audio boost and pitch scaling
+            const ttsUrl = `/api/tts?text=${encodeURIComponent(spokenClean)}&lang=${encodeURIComponent(speechLang)}`;
+
+            if (typeof audioCtx !== 'undefined' && audioCtx) {
+                fetch(ttsUrl)
+                    .then(res => {
+                        if (!res.ok) throw new Error("TTS fetch response not ok");
+                        return res.arrayBuffer();
+                    })
+                    .then(arrayBuffer => audioCtx.decodeAudioData(arrayBuffer))
+                    .then(audioBuffer => {
+                        const source = audioCtx.createBufferSource();
+                        source.buffer = audioBuffer;
+
+                        // Deep adult male pitch vs bright expressive female pitch:
+                        // Male (Player 1 & 2): 0.80 lowers pitch into an authentic deep male voice!
+                        // Female (Player 3 & 4): 1.15 raises pitch into a feminine, expressive voice!
+                        if (gender === 'female') {
+                            source.playbackRate.value = (playerIdx === 3) ? 1.14 : 1.18;
+                        } else {
+                            source.playbackRate.value = (playerIdx === 1) ? 0.79 : 0.83;
+                        }
+
+                        // Substantial Volume Boost & Compression so voice is loud, clear and prominent
+                        const speechGain = audioCtx.createGain();
+                        const masterVolume = window.gameConfig.layout.volume ?? 1.0;
+                        speechGain.gain.value = 2.4 * Math.max(0.7, masterVolume);
+
+                        const compressor = audioCtx.createDynamicsCompressor();
+                        compressor.threshold.value = -12;
+                        compressor.knee.value = 8;
+                        compressor.ratio.value = 6;
+                        compressor.attack.value = 0.003;
+                        compressor.release.value = 0.15;
+
+                        source.connect(speechGain);
+                        speechGain.connect(compressor);
+                        compressor.connect(audioCtx.destination);
+
+                        source.onended = () => {
+                            if (window._currentSpeechSource === source) {
+                                window._currentSpeechSource = null;
+                            }
+                            restoreMusicAfterSpeech();
+                        };
+
+                        window._currentSpeechSource = source;
+                        source.start(0);
+                    })
+                    .catch(() => {
+                        // HTML5 Audio fallback
+                        try {
+                            const audio = new Audio(ttsUrl);
+                            window._activeAITTSAudio = audio;
+                            audio.preservesPitch = false;
+                            audio.mozPreservesPitch = false;
+                            audio.webkitPreservesPitch = false;
+
+                            if (gender === 'female') {
+                                audio.playbackRate = (playerIdx === 3) ? 1.14 : 1.18;
+                            } else {
+                                audio.playbackRate = (playerIdx === 1) ? 0.80 : 0.84;
+                            }
+
+                            audio.volume = 1.0;
+
+                            audio.onended = () => {
+                                window._activeAITTSAudio = null;
+                                restoreMusicAfterSpeech();
+                            };
+                            audio.onerror = () => {
+                                triggerWebSpeechFallback();
+                            };
+
+                            const playPromise = audio.play();
+                            if (playPromise !== undefined) {
+                                playPromise.catch(() => {
+                                    triggerWebSpeechFallback();
+                                });
+                            }
+                        } catch (_) {
+                            triggerWebSpeechFallback();
+                        }
+                    });
+            } else {
+                triggerWebSpeechFallback();
+            }
+        }
+
+        function triggerAISpeech(playerIdx, event, context = "") {
             const player = window.gameConfig.players[playerIdx];
             if (!player || !player.isAI) return;
             
             // Auto-generated emote reactions based on personality
-            if (Math.random() < 0.35) {
+            if (Math.random() < 0.45) {
                 const personaEmotes = {
                     'Philosopher': ['🤔', '📜', '⚖️', '🌌', '🧘'], 
                     'Jolly': ['😂', '🤣', '🎉', '🤡', '✨'], 
                     'Angry': ['😡', '🔥', '⚔️', '💢', '👎'], 
-                    'Romantic': ['❤️', '🌹', '🤝', '✨', '💖']
+                    'Romantic': ['❤️', '🌹', '🤝', '✨', '💖'],
+                    'Strategist': ['🧠', '♟️', '🎯', '💡', '🔍'],
+                    'Rival': ['😏', '⚔️', '🔥', '🏆', '🤜'],
+                    'Confidante': ['🤗', '☕', '✨', '👍', '💛'],
+                    'Rideordie': ['🛡️', '👊', '⭐', '🤝', '⚡']
                 };
                 const emotes = personaEmotes[player.personality] || ['🎲', '👍'];
                 const emoji = emotes[Math.floor(Math.random() * emotes.length)];
                 
                 const base = getCenterOfBase(playerIdx);
-                const ps = window.gameConfig.layout.isLandscape ? 1.12 : (layout.scale || 1.0);
                 spawnReaction(playerIdx, emoji, base.x, layout.y + (base.y - layout.y) * (layout.tilt || 1.0));
             }
 
-            // Filter random banter/rolls so it's not too noisy
+            // Frequency tuning: Ensure ALL AIs speak actively on EVERY event and turn
             const chance = {
-                'roll': 0.25,
-                'lucky_roll': 0.9,
-                'capture': 0.95,
-                'captured': 0.8,
+                'capture': 1.0,
+                'captured': 1.0,
+                'lucky_roll': 1.0,
+                'lucky7': 1.0,
                 'win': 1.0,
-                'home_stretch': 0.7,
-                'turn': 0.3,
-                'lucky7': 0.95,
-                'banter': 0.4
+                'loss': 1.0,
+                'pawn_home': 1.0,
+                'home_stretch': 1.0,
+                'roll': 1.0,
+                'turn': 1.0,
+                'banter': 0.95
             };
 
-            if (Math.random() > (chance[event] || 0.5)) return;
+            if (Math.random() > (chance[event] || 0.85)) return;
 
-            const text = await getAIReaction(playerIdx, event, context);
-            if (text) speak(playerIdx, text);
+            const reaction = getAIReaction(playerIdx, event, context);
+            if (reaction) speak(playerIdx, reaction);
         }
         window.triggerAISpeech = triggerAISpeech;
 
@@ -4431,6 +5842,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                   window.gameConfig.layout.language = e.target.value;
                   refreshUI();
                   if (mode === 'play') saveWinStats();
+                  setTimeout(() => {
+                      const firstAI = (window.gameConfig.players || []).findIndex(p => p.isAI);
+                      if (firstAI !== -1 && typeof window.triggerAISpeech === 'function') {
+                          window.triggerAISpeech(firstAI, 'banter');
+                      }
+                  }, 250);
               };
           }
           if (howToPlayBtn) {
@@ -4476,7 +5893,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
         // Initialize AI personalities if not present
         const defaultPersonalities = ['Strategist', 'Rival', 'Confidante', 'Rideordie'];
-        // Two of the four AI opponents are female (Naveed, Nazim) — this now lives as a
+        // Two of the four AI opponents are female (Zoi, Kajal) — this now lives as a
         // first-class property on each player (not just buried in the TTS voice logic) so
         // it can also shape how the LLM writes their in-character chat lines.
         const defaultGenders = ['male', 'male', 'female', 'female'];
@@ -4484,8 +5901,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           if (i > 0 && p.personality === undefined) {
             p.personality = defaultPersonalities[i - 1] || 'Jolly';
           }
-          if (i > 0 && p.gender === undefined) {
-            p.gender = defaultGenders[i - 1] || 'male';
+          if (i > 0) {
+            p.gender = defaultGenders[i - 1] || ((i >= 3) ? 'female' : 'male');
           }
         });
 
@@ -4575,12 +5992,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
               type: 'dropdown',
               options: AI_PERSONALITIES
             },
-            'AI 3 (Naveed)': {
+            'AI 3 (Zoi)': {
               key: 'players.3.personality',
               type: 'dropdown',
               options: AI_PERSONALITIES
             },
-            'AI 4 (Nazim)': {
+            'AI 4 (Kajal)': {
               key: 'players.4.personality',
               type: 'dropdown',
               options: AI_PERSONALITIES
@@ -4637,8 +6054,18 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
               container.style.transform = 'translate(-50%, -50%) rotate(0deg) scale(var(--fit-scale, 1))';
               canvas.width = 720;
               canvas.height = 1280;
+              // Board placed close to the LUDO EMPEROR heading
               layout.x = 360;
-              layout.y = 680;
+              layout.y = 540;
+              layout.diceYOffset = 625;
+              window.gameConfig.layout.rollHintX = 360;
+              window.gameConfig.layout.rollHintY = 1055;
+              window.gameConfig.layout.diceHudX = 360;
+              window.gameConfig.layout.diceHudY = 1165;
+              window.gameConfig.layout.adBannerX = 360;
+              window.gameConfig.layout.adBannerY = 920;
+              window.gameConfig.layout.adBannerWidth = 600;
+              window.gameConfig.layout.adBannerHeight = 130;
 
               if (titleEl) titleEl.innerText = "LUDO EMPEROR 5 WAY";
               if (setupTitleEl) setupTitleEl.innerText = "LUDO EMPEROR 5 WAY";
@@ -4707,13 +6134,13 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           window.gameConfig.layout.diceStyle = 'classic';
 
         if (window.gameConfig.layout.rollHintX === undefined) window.gameConfig.layout.rollHintX = 360;
-        if (window.gameConfig.layout.rollHintY === undefined) window.gameConfig.layout.rollHintY = 1060;
+        if (window.gameConfig.layout.rollHintY === undefined) window.gameConfig.layout.rollHintY = 1055;
         if (window.gameConfig.layout.diceHudX === undefined) window.gameConfig.layout.diceHudX = 360;
-        if (window.gameConfig.layout.diceHudY === undefined) window.gameConfig.layout.diceHudY = 1160;
+        if (window.gameConfig.layout.diceHudY === undefined) window.gameConfig.layout.diceHudY = 1165;
         if (window.gameConfig.layout.adBannerX === undefined) window.gameConfig.layout.adBannerX = 360;
-        if (window.gameConfig.layout.adBannerY === undefined) window.gameConfig.layout.adBannerY = 900;
+        if (window.gameConfig.layout.adBannerY === undefined) window.gameConfig.layout.adBannerY = 920;
         if (window.gameConfig.layout.adBannerWidth === undefined) window.gameConfig.layout.adBannerWidth = 600;
-        if (window.gameConfig.layout.adBannerHeight === undefined) window.gameConfig.layout.adBannerHeight = 150;
+        if (window.gameConfig.layout.adBannerHeight === undefined) window.gameConfig.layout.adBannerHeight = 130;
 
         if (window.gameConfig.layout.showSquareNumbers === undefined) window.gameConfig.layout.showSquareNumbers = true;
 
@@ -5274,8 +6701,10 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 
           if (gameState.dice[0] === 6 && gameState.dice[1] === 6) {
               triggerAISpeech(gameState.currentPlayer, 'lucky_roll', "I rolled a double six!");
+          } else if (gameState.dice[0] === 6 || gameState.dice[1] === 6) {
+              triggerAISpeech(gameState.currentPlayer, 'lucky_roll', "I rolled a six!");
           } else {
-              triggerAISpeech(gameState.currentPlayer, 'roll', `Rolling for ${gameState.dice[0]} and ${gameState.dice[1]}`);
+              triggerAISpeech(gameState.currentPlayer, 'roll');
           }
 
           // Initialize 3D dice positions and velocities
@@ -5322,8 +6751,6 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             d.targetRY += Math.PI * 4 * (Math.random() > 0.5 ? 1 : -1);
             d.targetRZ = Math.PI * 4 * (Math.random() > 0.5 ? 1 : -1);
           });
-
-          triggerAISpeech(gameState.currentPlayer, 'roll');
         }
 
         function arePawnsSettled() {
@@ -5400,10 +6827,14 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           gameState.__passSubmittedForTurn = false;
           const wasExtraTurn = !!gameState.extraTurnEarned;
           gameState.isExtraTurn = wasExtraTurn;
+          const extraReason = gameState.extraTurnReason || ((gameState.dice && gameState.dice[0] === 6 && gameState.dice[1] === 6) ? 'double6' : 'capture');
+          gameState.lastExtraTurnReason = extraReason;
           if (gameState.extraTurnEarned) {
             gameState.extraTurnEarned = false;
           } else {
             gameState.currentPlayer = (gameState.currentPlayer + 1) % 5;
+            gameState.extraTurnReason = null;
+            gameState.lastExtraTurnReason = null;
           }
           gameState.lucky7UsedThisTurn = false;
           gameState.hasRolled = false;
@@ -5428,8 +6859,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           const isMine = window.__roomSystem && typeof window.__roomSystem.isMyTurn === 'function' 
             ? window.__roomSystem.isMyTurn() 
             : (window.__roomSystem && typeof window.__roomSystem.isMySeat === 'function' ? window.__roomSystem.isMySeat(gameState.currentPlayer) : true);
+          const isCapTurn = (gameState.lastExtraTurnReason === 'capture') || (!gameState.lastExtraTurnReason && !(gameState.dice && gameState.dice[0] === 6 && gameState.dice[1] === 6));
+          const bonusRollMsg = isCapTurn
+            ? 'Bonus Turn! Token Captured — Tap dice to roll again!'
+            : 'Bonus Turn! Double 6 — Tap dice to roll again!';
           rollHint.innerText = wasExtraTurn
-            ? (isMine ? 'Bonus Turn! Double 6 — Tap dice to roll again!' : `${p.name} earned a bonus turn!`)
+            ? (isMine ? bonusRollMsg : `${p.name} earned a bonus turn!`)
             : (isMine ? 'Your turn! Tap dice to roll' : `${p.name}'s turn!`);
           rollHint.classList.add('visible');
           if (!p.isAI) {
@@ -5755,6 +7190,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
               pawn.status = 'finished';
               gameState.extraTurnEarned = true;
               if (window.gameConfig.players[pIdx].isAI) updateBond(pIdx, 2);
+              triggerAISpeech(pIdx, 'pawn_home');
             } else if (pawn.pos > path.length - 10) {
               triggerAISpeech(pIdx, 'home_stretch', "I am so close to winning!");
             }
@@ -5804,6 +7240,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                                       otherPawn.status = 'home';
                                       otherPawn.pos = -1;
                                       gameState.extraTurnEarned = true;
+                                      gameState.extraTurnReason = 'capture';
                                       playSound('01KZ3W7PP9XZQ20XX5V8S0MJXW');
 
                                       if (window.gameConfig.players[otherPIdx].isAI) updateBond(otherPIdx, -2);
@@ -6983,7 +8420,11 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                           gameState.movesAvailable = [];
                           gameState.selectedMoveIndex = null;
                           gameState.pendingNextTurn = true;
-                          rollHint.innerText = gameState.extraTurnEarned ? 'Bonus Turn! Double 6 — Next turn coming...' : 'Move finished! Next turn coming...';
+                          const isCapTurnPending = (gameState.extraTurnReason === 'capture') || (!gameState.extraTurnReason && !(gameState.dice && gameState.dice[0] === 6 && gameState.dice[1] === 6));
+                          const pendingBonusMsg = isCapTurnPending
+                            ? 'Bonus Turn! Token Captured — Next turn coming...'
+                            : 'Bonus Turn! Double 6 — Next turn coming...';
+                          rollHint.innerText = gameState.extraTurnEarned ? pendingBonusMsg : 'Move finished! Next turn coming...';
                           rollHint.classList.add('visible');
                           if (typeof triggerHostTurnAdvance === 'function') {
                             triggerHostTurnAdvance(600);
@@ -7466,19 +8907,24 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
             let y = window.gameConfig.layout.adBannerY;
             let w = window.gameConfig.layout.adBannerWidth;
             let h = window.gameConfig.layout.adBannerHeight;
-            
+
             if (window.gameConfig.layout.isLandscape) {
-                w = 300;
-                // Judge bar now sits at top:20, height:70 -> bottom edge at 90.
-                // Settings/music buttons sit around bottom:20, height:54 -> top edge at ~646.
-                // Leave a clear ~28px gap on each side so the banner never touches either.
-                const topMargin = 118;
-                const bottomMargin = 100;
-                h = 720 - topMargin - bottomMargin; // 502
-                x = 1280 - w/2 - 20;
-                y = topMargin + h / 2;
+                // In landscape: adjusted height between progress bar (ends at 90px)
+                // and music/settings icons & dice below, so dice are fully visible.
+                const topMargin = 105;
+                const bottomMargin = 235; // leaves bottom 235px clear for dice & bottom icons
+                h = 720 - topMargin - bottomMargin; // 380px
+                w = 360;
+                x = 1280 - w/2 - 30; // 1070px
+                y = topMargin + h / 2; // 295px
+            } else {
+                // In vertical: sits between board and message above dice
+                x = window.gameConfig.layout.adBannerX || 360;
+                y = window.gameConfig.layout.adBannerY || 930;
+                w = window.gameConfig.layout.adBannerWidth || 600;
+                h = window.gameConfig.layout.adBannerHeight || 130;
             }
-            
+
             adBanner.style.left = x + 'px';
             adBanner.style.top = y + 'px';
             adBanner.style.width = w + 'px';
@@ -8464,8 +9910,12 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 const currPlayer = window.gameConfig && window.gameConfig.players && window.gameConfig.players[window.gameState.currentPlayer];
                 if (currPlayer) {
                   const isMine = isMySeat(window.gameState.currentPlayer);
+                  const isSyncCap = (ms.extraTurnReason === 'capture') || (!ms.extraTurnReason && !(window.gameState && window.gameState.dice && window.gameState.dice[0] === 6 && window.gameState.dice[1] === 6));
+                  const syncBonusMsg = isSyncCap
+                    ? 'Bonus Turn! Token Captured — Tap dice to roll again!'
+                    : 'Bonus Turn! Double 6 — Tap dice to roll again!';
                   hintEl.innerText = ms.isExtraTurn
-                    ? (isMine ? 'Bonus Turn! Double 6 — Tap dice to roll again!' : `${currPlayer.name} earned a bonus turn!`)
+                    ? (isMine ? syncBonusMsg : `${currPlayer.name} earned a bonus turn!`)
                     : (isMine ? 'Your turn! Tap dice to roll' : `${currPlayer.name}'s turn!`);
                   hintEl.classList.add('visible');
                 }

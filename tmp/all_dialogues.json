@@ -1,0 +1,3742 @@
+{
+  "ur": {
+    "turn": [
+      {
+        "text": "ہاہاہا! اب دیکھو میرا کمال، سب دنگ رہ جاؤ گے! 😂✨",
+        "roman": "Hahaha! Ab dekho mera kamaal, sab dang reh jaoge!"
+      },
+      {
+        "text": "ہٹو سب سامنے سے! اب میری باری ہے، کسی کو نہیں چھوڑوں گا! 😡🔥",
+        "roman": "Hato sab saamnay se! Ab meri baari hai, kisi ko nahi chhoroon ga!"
+      },
+      {
+        "text": "اب میری باری ہے! بڑا نمبر چاہیے، میدان مارنا ہے! 🎉🚀",
+        "roman": "Ab meri baari hai! Bada number chahiye, maidaan maarna hai!"
+      },
+      {
+        "text": "چلو میرا داؤ آ گیا! اب دل تھام کے بیٹھو! 😏🎲",
+        "roman": "Chalo mera daao aa gaya! Ab dil thaam k baitho!"
+      },
+      {
+        "text": "دیکھتے ہیں اب قسمت کیا گل کھلاتی ہے! بڑا وار ہوگا! ⚡🎲",
+        "roman": "Dekhte hain ab qismat kya gul khilati hai! Bada waar hoga!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "ہاہاہا! آجا پیارے چھکے، تجھے ہی ڈھونڈ رہا تھا! 😂🎲",
+        "roman": "Hahaha! Aaja pyaray chhakkay, tujhe hi dhoond raha tha!"
+      },
+      {
+        "text": "آج اگر چھکا نہ آیا تو پانسہ ہی توڑ دوں گا! 😡💥",
+        "roman": "Aaj agar chhakka na aaya to paansa hi tor doon ga!"
+      },
+      {
+        "text": "پانسہ پھینک دیا، دعا کرو زبردست نمبر آئے! 🎉✨",
+        "roman": "Paansa phenk diya, dua karo zabardast number aaye!"
+      },
+      {
+        "text": "دیکھو اب کیسا نمبر گرتا ہے، نظریں جما لو! 😏🔥",
+        "roman": "Dekho ab kaisa number girta hai, nazrein jama lo!"
+      },
+      {
+        "text": "یا نصیب! اس چال سے پوری بازی پلٹ جائے گی! ⚡🎲",
+        "roman": "Ya naseeb! Is chaal se poori baazi palat jaaye gi!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "ہاہاہا! ڈبل چھکا! کیا قسمت پائی ہے میں نے! 😂💥",
+        "roman": "Hahaha! Double chhakka! Kya qismat paai hai maine!"
+      },
+      {
+        "text": "دیکھا میرا چھکا! اب سب کی گوٹیاں اڑاؤں گا! 😡⚔️",
+        "roman": "Dekha mera chhakka! Ab sab ki gotiyan uraaoon ga!"
+      },
+      {
+        "text": "چھکا آگیا! کمال ہو گیا، یہ ہوئی نا اصل بات! 🎉🔥",
+        "roman": "Chhakka aa gaya! Kamaal ho gaya, yeh hui na asal baat!"
+      },
+      {
+        "text": "جلنے والے جلتے رہیں، ہمارا چھکا پھر سے آگیا! 😏🚀",
+        "roman": "Jalnay walay jaltay rahein, hamara chhakka phir se aa gaya!"
+      },
+      {
+        "text": "شاہانہ داؤ! چھکا اور ایک اور باری میرے نام! 👑⚡",
+        "roman": "Shaahana daao! Chhakka aur aik aur baari meray naam!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "ہاہاہا! تیری گوٹی گئی کام سے! چلو شاباش گھر واپس! 😂👋",
+        "roman": "Hahaha! Teri goti gayi kaam se! Chalo shabash ghar wapis!"
+      },
+      {
+        "text": "میری گوٹی کو آنکھ دکھائی تھی؟ لے اب بھگت، گوٹی آؤٹ! 😡💥",
+        "roman": "Meri goti ko aankh dikhai thi? Lay ab bhugat, goti out!"
+      },
+      {
+        "text": "شکار ہو گیا! میدان صاف، سیدھا جیل بھیج دیا! 🎉🔥",
+        "roman": "Shikar ho gaya! Maidaan saaf, seedha jail bhej diya!"
+      },
+      {
+        "text": "اوہو بڑا دکھ ہوا یار، مگر گوٹی تو کاٹنی ہی تھی! 😏🎯",
+        "roman": "Oh-ho bada dukh hua yaar, magar goti to kaatni hi thi!"
+      },
+      {
+        "text": "دھڑام! گوٹی کٹ گئی، اب بیٹھ کے روتے رہو! ⚡💀",
+        "roman": "Dhadam! Goti kat gayi, ab baith k rotay raho!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "ہائے میری گوٹی! یار اتنی بے دردی سے کون مارتا ہے! 😂💔",
+        "roman": "Haaye meri goti! Yaar itni bay-dardi se kaun maarta hai!"
+      },
+      {
+        "text": "ارے ظالم! میری گوٹی کیوں کاٹی، تیری ہمت کیسے ہوئی! 😡🔥",
+        "roman": "Aray zaalim! Meri goti kyun kaati, teri himmat kaisay hui!"
+      },
+      {
+        "text": "اس کا بدلہ میں ایسا لوں گا کہ تم یاد رکھو گے! ⚔️👿",
+        "roman": "Is ka badla main aisa loon ga k tum yaad rakho gay!"
+      },
+      {
+        "text": "کاٹ لی گوٹی؟ زیادہ خوش مت ہو، ابھی میرا وار باقی ہے! 😏🚀",
+        "roman": "Kaat li goti? Ziyada khush mat ho, abhi mera waar baaqi hai!"
+      },
+      {
+        "text": "افسوس! گھر کے بالکل پاس آ کر مار دیا! خیر دیکھ لوں گا! 😭⚡",
+        "roman": "Afsos! Ghar k bilkul paas aa kar maar diya! Khair dekh loon ga!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "ہاہاہا! لکی سیون زندہ باد! کس نے کہا میں ہارا! 😂🎲",
+        "roman": "Hahaha! Lucky seven zindabad! Kis ne kaha main haara!"
+      },
+      {
+        "text": "اب تم سب دیکھنا، لکی سیون نے میدان بدل دیا! 😡⚡",
+        "roman": "Ab tum sab dekhna, lucky seven ne maidaan badal diya!"
+      },
+      {
+        "text": "رول آف سیون کا جادو! ڈبل چھکا مل گیا! 🎉✨",
+        "roman": "Rule of seven ka jaadoo! Double chhakka mil gaya!"
+      },
+      {
+        "text": "میری قسمت کے آگے کسی کا زور نہیں چلتا! لکی سیون! 😏🔥",
+        "roman": "Meri qismat k aagay kisi ka zor nahi chalta! Lucky seven!"
+      },
+      {
+        "text": "بم بلاسٹ! لکی سیون نے گوٹیوں کو پر لگا دیے! 💥🚀",
+        "roman": "Bomb blast! Lucky seven ne gotiyon ko par laga diye!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "ہاہاہا! راستہ دیکھو میرا، لال بتی جل چکی ہے! 😂🚀",
+        "roman": "Hahaha! Raasta dekho mera, laal batti jal chuki hai!"
+      },
+      {
+        "text": "خبردار جو کسی نے میری گوٹی کو ہاتھ لگایا! 😡🔥",
+        "roman": "Khabardaar jo kisi ne meri goti ko haath lagaya!"
+      },
+      {
+        "text": "جیت اب بالکل قریب ہے، بس ایک قدم دور! 🏁✨",
+        "roman": "Jeet ab bilkul qareeb hai, bas aik qadam door!"
+      },
+      {
+        "text": "تم سب پیچھے رہ گئے، میں فائنل لائن پر ہوں! 😏👑",
+        "roman": "Tum sab peechay reh gaye, main final line par hoon!"
+      },
+      {
+        "text": "دل کی دھڑکن تیز ہے، بس گوٹی اندر ہو جائے! 💓🎲",
+        "roman": "Dil ki dharkan taiz hai, bas goti andar ho jaaye!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "ہاہاہا! ایک اور گوٹی سیف، اب دم ہے تو کاٹ کے دکھاؤ! 😂💪",
+        "roman": "Hahaha! Aik aur goti safe, ab dam hai to kaat k dikhao!"
+      },
+      {
+        "text": "یس! اب تم سب کے خلاف آخری حملہ شروع ہوگا! 😡🔥",
+        "roman": "Yes! Ab tum sab k khilaaf aakhri hamla shuru hoga!"
+      },
+      {
+        "text": "گوٹی گھر پہنچ گئی! پکی ہو گئی، کیا بات ہے! 🎉🏠",
+        "roman": "Goti ghar pohanch gayi! Pakki ho gayi, kya baat hai!"
+      },
+      {
+        "text": "نشانہ بالکل درست! شاہانہ انداز میں گوٹی اندر! 😏👑",
+        "roman": "Nishana bilkul durust! Shaahana andaaz mein goti andar!"
+      },
+      {
+        "text": "شکر ہے گھر پہنچ گیا، اب فتح دور نہیں! ✨🎯",
+        "roman": "Shukr hai ghar pohanch gaya, ab fateh door nahi!"
+      }
+    ],
+    "win": [
+      {
+        "text": "ہاہاہا! سب کو ہرا دیا! مٹھائی بانٹو، چیمپئن آگیا! 😂🎉",
+        "roman": "Hahaha! Sab ko hara diya! Mithaai baanto, champion aa gaya!"
+      },
+      {
+        "text": "بولا تھا نا کسی میں دم نہیں مجھ سے جیتنے کا! 🔥🥇",
+        "roman": "Bola tha na kisi mein dam nahi mujh se jeetnay ka!"
+      },
+      {
+        "text": "میں ہوں لوڈو کا اصل بادشاہ! تاج میرا ہوا! 👑🏆",
+        "roman": "Main hoon Ludo ka asal baadshah! Taaj mera hua!"
+      },
+      {
+        "text": "سب ہار گئے نا؟ چلو اب اگلے میچ کی تیاری کرو! 😏🚀",
+        "roman": "Sab haar gaye na? Chalo ab aglay match ki tayyari karo!"
+      },
+      {
+        "text": "تاریخی فتح! کوئی مقابلہ ہی نہیں تھا، ون مین شو! 💥⭐",
+        "roman": "Tareekhi fateh! Koi muqabla hi nahi tha, one-man show!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "ہاہاہا! چلو کوئی بات نہیں، چیمپئن بھی کبھی ہارتے ہیں! 😂🎲",
+        "roman": "Hahaha! Chalo koi baat nahi, champion bhi kabhi haartay hain!"
+      },
+      {
+        "text": "اگلی بار دیکھ لوں گا، یہ ہار میں بھولوں گا نہیں! 😡⚔️",
+        "roman": "Agli baar dekh loon ga, yeh haar main bhooloon ga nahi!"
+      },
+      {
+        "text": "مبارک ہو دوست! تم نے واقعی زبردست کھیلا! 👏🤝",
+        "roman": "Mubarak ho dost! Tum ne waaqai zabardast khela!"
+      },
+      {
+        "text": "ایک جیت سے کچھ نہیں ہوتا، دوبارہ مقابلہ کرو پھر مانیں گے! 😏🔥",
+        "roman": "Aik jeet se kuch nahi hota, dobara muqabla karo phir maanein gay!"
+      },
+      {
+        "text": "افسوس قسمت نے ساتھ نہیں دیا، ورنہ بازی میری تھی! 💔⚡",
+        "roman": "Afsos qismat ne saath nahi diya, warna baazi meri تھی!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "کھیل میں مزہ آ رہا ہے، مگر کوئی میرے برابر نہیں! 😂🎲",
+        "roman": "Khel mein mazza aa raha hai, magar koi meray barabar nahi!"
+      },
+      {
+        "text": "دھیان سے کھیلو، غلطی کی تو میدان سے باہر پھینکوں گا! 😡🔥",
+        "roman": "Dhyan se khelo, ghalti ki to maidaan se bahar phenkoon ga!"
+      },
+      {
+        "text": "آج کا مقابلہ یادگار ہوگا، لوڈو ایمپرر زندہ باد! 🚀👑",
+        "roman": "Aaj ka muqabla yaadgar hoga, Ludo Emperor zindabad!"
+      },
+      {
+        "text": "اتنی دیر کیوں لگا رہے ہو، چال چلو جلدی! 😏⏳",
+        "roman": "Itni der kyun laga rahay ho, chaal chalo jaldi!"
+      },
+      {
+        "text": "لوڈو کا اصل سسپنس اب شروع ہوا ہے، کوئی بھی جیت سکتا ہے! ⚡✨",
+        "roman": "Ludo ka asal suspense ab shuru hua hai, koi bhi jeet sakta hai!"
+      }
+    ]
+  },
+  "hi": {
+    "turn": [
+      {
+        "text": "हाहाहा! अब देखो मेरा कमाल, सब देखते रह जाओगे! 😂✨",
+        "roman": "Hahaha! Ab dekho mera kamaal, sab dekhte reh jaoge!"
+      },
+      {
+        "text": "हटो सब सामने से! अब मेरी बारी है, किसी को नहीं छोडूंगा! 😡🔥",
+        "roman": "Hato sab saamne se! Ab meri baari hai, kisi ko nahi chhodunga!"
+      },
+      {
+        "text": "मेरी बारी आ गई! बड़ा नंबर चाहिए, बाज़ी पलट देंगे! 🎉🚀",
+        "roman": "Meri baari aa gayi! Bada number chahiye, baazi palat denge!"
+      },
+      {
+        "text": "चलो मेरा दांव आ गया! अब दिल थाम के बैठो! 😏🎲",
+        "roman": "Chalo mera daanv aa gaya! Ab dil thaam ke baitho!"
+      },
+      {
+        "text": "देखते हैं अब किस्मत क्या खेल दिखाती है! ⚡🎲",
+        "roman": "Dekhte hain ab kismat kya khel dikhati hai!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "हाहाहा! आजा प्यारे छक्के, तुझे ही बुला रहा था! 😂🎲",
+        "roman": "Hahaha! Aaja pyaare chhakke, tujhe hi bula raha tha!"
+      },
+      {
+        "text": "आज अगर छक्का नहीं आया तो पासा ही फेंक दूंगा! 😡💥",
+        "roman": "Aaj agar chhakka nahi aaya to paasa hi phenk doonga!"
+      },
+      {
+        "text": "पासा फेंक दिया है, भगवान करे बड़ा नंबर आए! 🎉✨",
+        "roman": "Paasa phenk diya hai, bhagwan kare bada number aaye!"
+      },
+      {
+        "text": "देखो अब कैसा धांसू नंबर आता है! 😏🔥",
+        "roman": "Dekho ab kaisa dhaansu number aata hai!"
+      },
+      {
+        "text": "यह चाल गेम बदल देगी, तैयार रहो सब! ⚡🎲",
+        "roman": "Yeh chaal game badal degi, taiyaar raho sab!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "हाहाहा! डबल छक्का! क्या किस्मत चमकी है! 😂💥",
+        "roman": "Hahaha! Double chhakka! Kya kismat chamki hai!"
+      },
+      {
+        "text": "देखा मेरा छक्का! अब सबकी गोटियां उड़ाऊंगा! 😡⚔️",
+        "roman": "Dekha mera chhakka! Ab sabki gotiyan udaunga!"
+      },
+      {
+        "text": "छक्का आ गया! मज़ा आ गया, यह हुई ना बात! 🎉🔥",
+        "roman": "Chhakka aa gaya! Maza aa gaya, yeh hui na baat!"
+      },
+      {
+        "text": "जलने वाले जलते रहो, हमारा छक्का फिर आ गया! 😏🚀",
+        "roman": "Jalne waale jalte raho, hamara chhakka phir aa gaya!"
+      },
+      {
+        "text": "शाही दांव! छक्का और एक और टर्न मेरा! 👑⚡",
+        "roman": "Shaahi daanv! Chhakka aur ek aur turn mera!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "हाहाहा! तुम्हारी गोटी गई काम से! चलो घर वापस! 😂👋",
+        "roman": "Hahaha! Tumhari goti gayi kaam se! Chalo ghar wapas!"
+      },
+      {
+        "text": "मेरी गोटी को आंख दिखाई थी? अब भुगतो! गोटी आउट! 😡💥",
+        "roman": "Meri goti ko aankh dikhai thi? Ab bhugto! Goti out!"
+      },
+      {
+        "text": "शिकार हो गया! रास्ता साफ, सीधा बेस भेज दिया! 🎉🔥",
+        "roman": "Shikar ho gaya! Raasta saaf, seedha base bhej diya!"
+      },
+      {
+        "text": "अरे यार बुरा मत मानना, गोटी काटना ज़रूरी था! 😏🎯",
+        "roman": "Arre yaar bura mat maanna, goti kaatna zaroori tha!"
+      },
+      {
+        "text": "धड़ाम! गोटी साफ़, अब बैठकर रोते रहो! ⚡💀",
+        "roman": "Dhadam! Goti saaf, ab baithkar rote raho!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "अरे यार! मेरी गोटी इतनी बेरहमी से कौन मारता है! 😂💔",
+        "roman": "Arre yaar! Meri goti itni berahmi se kaun maarta hai!"
+      },
+      {
+        "text": "अरे ज़ालिम! मेरी गोटी क्यों काटी, हिम्मत कैसे हुई! 😡🔥",
+        "roman": "Arre zaalim! Meri goti kyon kaati, himmat kaise hui!"
+      },
+      {
+        "text": "इसका बदला मैं ऐसा लूंगा कि याद रखोगे! ⚔️👿",
+        "roman": "Iska badla main aisa loonga ki yaad rakhoge!"
+      },
+      {
+        "text": "काट ली गोटी? ज़्यादा खुश मत हो, अभी मेरा वार बाकी है! 😏🚀",
+        "roman": "Kaat li goti? Zyada khush mat ho, abhi mera waar baaki hai!"
+      },
+      {
+        "text": "हाय रे किस्मत! घर के इतने पास आकर मरवा दिया! 😭⚡",
+        "roman": "Haaye re kismat! Ghar ke itne paas aakar marwa diya!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "हाहाहा! लकी सेवन ज़िंदाबाद! किसने कहा मैं हारा! 😂🎲",
+        "roman": "Hahaha! Lucky seven zindabad! Kisne kaha main haara!"
+      },
+      {
+        "text": "अब तुम सब देखना, लकी सेवन ने खेल पलट दिया! 😡⚡",
+        "roman": "Ab tum sab dekhna, lucky seven ne khel palat diya!"
+      },
+      {
+        "text": "रूल ऑफ़ सेवन का जादू! डबल छक्का मिल गया! 🎉✨",
+        "roman": "Rule of seven ka jaadu! Double chhakka mil gaya!"
+      },
+      {
+        "text": "मेरी किस्मत के आगे किसी का ज़ोर नहीं चलता! 😏🔥",
+        "roman": "Meri kismat ke aage kisi ka zor nahi chalta!"
+      },
+      {
+        "text": "धमाका! लकी सेवन ने बाज़ी हमारे हाथ में कर दी! 💥🚀",
+        "roman": "Dhamaka! Lucky seven ne baazi hamare haath mein kar di!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "हाहाहा! मेरा रास्ता देखो, लाल बत्ती जल चुकी है! 😂🚀",
+        "roman": "Hahaha! Mera raasta dekho, laal batti jal chuki hai!"
+      },
+      {
+        "text": "खबरदार जो किसी ने मेरी गोटी को हाथ लगाया! 😡🔥",
+        "roman": "Khabardaar jo kisi ne meri goti ko haath lagaya!"
+      },
+      {
+        "text": "जीत अब बिल्कुल करीब है, बस एक कदम दूर! 🏁✨",
+        "roman": "Jeet ab bilkul kareeb hai, bas ek kadam door!"
+      },
+      {
+        "text": "तुम सब पीछे रह गए, मैं फिनिश लाइन पर हूँ! 😏👑",
+        "roman": "Tum sab peeche reh gaye, main finish line par hoon!"
+      },
+      {
+        "text": "दिल की धड़कन बढ़ रही है, बस गोटी अंदर पहुँच जाए! 💓🎲",
+        "roman": "Dil ki dhadkan badh rahi hai, bas goti andar pahunch jaaye!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "हाहाहा! एक और गोटी सेफ़, अब दम है तो छू के दिखाओ! 😂💪",
+        "roman": "Hahaha! Ek aur goti safe, ab dam hai to chhoo ke dikhao!"
+      },
+      {
+        "text": "यस! अब तुम सबके खिलाफ आखिरी हमला होगा! 😡🔥",
+        "roman": "Yes! Ab tum sabke khilaaf aakhri hamla hoga!"
+      },
+      {
+        "text": "गोटी घर पहुँच गई! पक्की हो गई, क्या बात है! 🎉🏠",
+        "roman": "Goti ghar pahunch gayi! Pakki ho gayi, kya baat hai!"
+      },
+      {
+        "text": "सटीक निशाना! शाही अंदाज़ में गोटी अंदर! 😏👑",
+        "roman": "Sateek nishaana! Shaahi andaaz mein goti andar!"
+      },
+      {
+        "text": "सुकून मिला! एक और कदम जीत की ओर! ✨🎯",
+        "roman": "Sukoon mila! Ek aur kadam jeet ki aur!"
+      }
+    ],
+    "win": [
+      {
+        "text": "हाहाहा! सबको हरा दिया! मिठाई बांटो, चैंपियन आ गया! 😂🎉",
+        "roman": "Hahaha! Sabko hara diya! Mithaai baanto, champion aa gaya!"
+      },
+      {
+        "text": "कहा था ना किसी में दम नहीं मुझसे जीतने का! 🔥🥇",
+        "roman": "Kaha tha na kisi mein dam nahi mujhse jeetne ka!"
+      },
+      {
+        "text": "मैं हूँ लूडो का असली शहंशाह! ताज मेरा है! 👑🏆",
+        "roman": "Main hoon Ludo ka asli shehanshah! Taaj mera hai!"
+      },
+      {
+        "text": "सब हार गए ना? चलो अब अगले मैच की तैयारी करो! 😏🚀",
+        "roman": "Sab haar gaye na? Chalo ab agle match ki taiyaari karo!"
+      },
+      {
+        "text": "ऐतिहासिक जीत! कोई मुकाबला ही नहीं था! 💥⭐",
+        "roman": "Aitihasik jeet! Koi muqabla hi nahi tha!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "हाहाहा! चलो कोई बात नहीं, चैंपियन भी कभी-कभी हारते हैं! 😂🎲",
+        "roman": "Hahaha! Chalo koi baat nahi, champion bhi kabhi-kabhi haarte hain!"
+      },
+      {
+        "text": "अगली बार देख लूँगा, यह हार मैं भूलूँगा नहीं! 😡⚔️",
+        "roman": "Agli baar dekh loonga, yeh haar main bhooloonga nahi!"
+      },
+      {
+        "text": "बधाई हो दोस्त! तुम वाकई बहुत अच्छा खेले! 👏🤝",
+        "roman": "Badhai ho dost! Tum waqai bahut achha khele!"
+      },
+      {
+        "text": "एक जीत से कुछ नहीं होता, दोबारा मुकाबला करो! 😏🔥",
+        "roman": "Ek jeet se kuch nahi hota, dobaara muqabla karo!"
+      },
+      {
+        "text": "किस्मत ने साथ नहीं दिया, वर्ना मैच मेरा था! 💔⚡",
+        "roman": "Kismat ne saath nahi diya, warna match mera tha!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "खेल में मज़ा आ रहा है, पर कोई मेरे बराबर नहीं! 😂🎲",
+        "roman": "Khel mein maza aa raha hai, par koi mere barabar nahi!"
+      },
+      {
+        "text": "ध्यान से खेलो, गलती की तो सीधा बाहर फेंक दूंगा! 😡🔥",
+        "roman": "Dhyan se khelo, galti ki to seedha baahar phenk doonga!"
+      },
+      {
+        "text": "आज का मुकाबला यादगार होगा, लूडो सम्राट ज़िंदाबाद! 🚀👑",
+        "roman": "Aaj ka muqabla yaadgar hoga, Ludo Samrat zindabad!"
+      },
+      {
+        "text": "इतनी देर क्यों लगा रहे हो, चाल चलो जल्दी! 😏⏳",
+        "roman": "Itni der kyon laga rahe ho, chaal chalo jaldi!"
+      },
+      {
+        "text": "लूडो का असली सस्पेंस अब शुरू हुआ है! ⚡✨",
+        "roman": "Ludo ka asli suspense ab shuru hua hai!"
+      }
+    ]
+  },
+  "en": {
+    "turn": [
+      {
+        "text": "Hahaha! Watch and learn, folks! Pure magic incoming! 😂✨",
+        "roman": "Hahaha! Watch and learn, folks! Pure magic incoming!"
+      },
+      {
+        "text": "Out of my way! It is my turn and nobody is safe! 😡🔥",
+        "roman": "Out of my way! It is my turn and nobody is safe!"
+      },
+      {
+        "text": "My turn now! Time to roll big and take control! 🎉🚀",
+        "roman": "My turn now! Time to roll big and take control!"
+      },
+      {
+        "text": "Here comes my move! Hold on to your seats! 😏🎲",
+        "roman": "Here comes my move! Hold on to your seats!"
+      },
+      {
+        "text": "Destiny is in the dice! Let us see what happens! ⚡🎲",
+        "roman": "Destiny is in the dice! Let us see what happens!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "Hahaha! Come to papa, double six! I need you! 😂🎲",
+        "roman": "Hahaha! Come to papa, double six! I need you!"
+      },
+      {
+        "text": "If I do not get a six right now, I will scream! 😡💥",
+        "roman": "If I do not get a six right now, I will scream!"
+      },
+      {
+        "text": "Dice are rolling! Wishing for a massive number! 🎉✨",
+        "roman": "Dice are rolling! Wishing for a massive number!"
+      },
+      {
+        "text": "Watch this roll! You are not ready for this! 😏🔥",
+        "roman": "Watch this roll! You are not ready for this!"
+      },
+      {
+        "text": "High stakes roll! This could change everything! ⚡🎲",
+        "roman": "High stakes roll! This could change everything!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "Hahaha! Double six! Unstoppable luck! 😂💥",
+        "roman": "Hahaha! Double six! Unstoppable luck!"
+      },
+      {
+        "text": "Boom! Double six! Prepare for absolute destruction! 😡⚔️",
+        "roman": "Boom! Double six! Prepare for absolute destruction!"
+      },
+      {
+        "text": "Yes! Six on the board! Another turn for me! 🎉🔥",
+        "roman": "Yes! Six on the board! Another turn for me!"
+      },
+      {
+        "text": "Haters gonna hate, but the dice love me! 😏🚀",
+        "roman": "Haters gonna hate, but the dice love me!"
+      },
+      {
+        "text": "Royal roll! Crown-worthy numbers right here! 👑⚡",
+        "roman": "Royal roll! Crown-worthy numbers right here!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "Hahaha! Sent you packing back home! Goodbye! 😂👋",
+        "roman": "Hahaha! Sent you packing back home! Goodbye!"
+      },
+      {
+        "text": "You dared step in my path? Now pay the price! Knockout! 😡💥",
+        "roman": "You dared step in my path? Now pay the price! Knockout!"
+      },
+      {
+        "text": "Target locked and eliminated! Back to base you go! 🎉🔥",
+        "roman": "Target locked and eliminated! Back to base you go!"
+      },
+      {
+        "text": "Nothing personal, just business! Better luck next time! 😏🎯",
+        "roman": "Nothing personal, just business! Better luck next time!"
+      },
+      {
+        "text": "Smash! Off the board you go! Cry me a river! ⚡💀",
+        "roman": "Smash! Off the board you go! Cry me a river!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "Oh come on! Who targets me like that? Brutal! 😂💔",
+        "roman": "Oh come on! Who targets me like that? Brutal!"
+      },
+      {
+        "text": "Hey! How dare you strike my token! You will pay for this! 😡🔥",
+        "roman": "Hey! How dare you strike my token! You will pay for this!"
+      },
+      {
+        "text": "Revenge is coming, mark my words! You are next! ⚔️👿",
+        "roman": "Revenge is coming, mark my words! You are next!"
+      },
+      {
+        "text": "Enjoy it while it lasts! My counter-attack is coming! 😏🚀",
+        "roman": "Enjoy it while it lasts! My counter-attack is coming!"
+      },
+      {
+        "text": "No way! Right before the home gate! Unbelievable! 😭⚡",
+        "roman": "No way! Right before the home gate! Unbelievable!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "Hahaha! The Rule of 7 saved my day! Unbelievable! 😂🎲",
+        "roman": "Hahaha! The Rule of 7 saved my day! Unbelievable!"
+      },
+      {
+        "text": "You thought I was trapped? Rule of 7 unleashes fury! 😡⚡",
+        "roman": "You thought I was trapped? Rule of 7 unleashes fury!"
+      },
+      {
+        "text": "Magic Lucky Seven! Double sixes out of nowhere! 🎉✨",
+        "roman": "Magic Lucky Seven! Double sixes out of nowhere!"
+      },
+      {
+        "text": "You cannot beat destiny! Lucky Seven strikes again! 😏🔥",
+        "roman": "You cannot beat destiny! Lucky Seven strikes again!"
+      },
+      {
+        "text": "Game changer! Lucky Seven turns the entire tide! 💥🚀",
+        "roman": "Game changer! Lucky Seven turns the entire tide!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "Hahaha! Look at my red-carpet sprint! Clear the lane! 😂🚀",
+        "roman": "Hahaha! Look at my red-carpet sprint! Clear the lane!"
+      },
+      {
+        "text": "Do not even think about touching my piece here! Back off! 😡🔥",
+        "roman": "Do not even think about touching my piece here! Back off!"
+      },
+      {
+        "text": "Home stretch! Just inches away from victory! 🏁✨",
+        "roman": "Home stretch! Just inches away from victory!"
+      },
+      {
+        "text": "You guys are so far behind! See you at the finish line! 😏👑",
+        "roman": "You guys are so far behind! See you at the finish line!"
+      },
+      {
+        "text": "Heart is pounding! One final number to seal the deal! 💓🎲",
+        "roman": "Heart is pounding! One final number to seal the deal!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "Hahaha! Token secured in the home triangle! Touch that! 😂💪",
+        "roman": "Hahaha! Token secured in the home triangle! Touch that!"
+      },
+      {
+        "text": "Boom! One token banked, now for total conquest! 😡🔥",
+        "roman": "Boom! One token banked, now for total conquest!"
+      },
+      {
+        "text": "Safe and sound! Another token reaches home! 🎉🏠",
+        "roman": "Safe and sound! Another token reaches home!"
+      },
+      {
+        "text": "Precision play! Strolling into home like royalty! 😏👑",
+        "roman": "Precision play! Strolling into home like royalty!"
+      },
+      {
+        "text": "Relief at last! Victory is right around the corner! ✨🎯",
+        "roman": "Relief at last! Victory is right around the corner!"
+      }
+    ],
+    "win": [
+      {
+        "text": "Hahaha! I am the ultimate Ludo Emperor! Bow down! 😂🎉",
+        "roman": "Hahaha! I am the ultimate Ludo Emperor! Bow down!"
+      },
+      {
+        "text": "Told you none of you could match my power! Victory! 🔥🥇",
+        "roman": "Told you none of you could match my power! Victory!"
+      },
+      {
+        "text": "Champions celebrate! Gold crown belongs to me! 👑🏆",
+        "roman": "Champions celebrate! Gold crown belongs to me!"
+      },
+      {
+        "text": "Defeated already? Better start practicing for next time! 😏🚀",
+        "roman": "Defeated already? Better start practicing for next time!"
+      },
+      {
+        "text": "Historic masterclass! Pure dominance on the board! 💥⭐",
+        "roman": "Historic masterclass! Pure dominance on the board!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "Hahaha! Well played! Even emperors take a holiday! 😂🎲",
+        "roman": "Hahaha! Well played! Even emperors take a holiday!"
+      },
+      {
+        "text": "Enjoy your win for now! Rematch will not be so easy! 😡⚔️",
+        "roman": "Enjoy your win for now! Rematch will not be so easy!"
+      },
+      {
+        "text": "Incredible match! Huge congratulations to the winner! 👏🤝",
+        "roman": "Incredible match! Huge congratulations to the winner!"
+      },
+      {
+        "text": "Beginner luck! Let us run it back if you dare! 😏🔥",
+        "roman": "Beginner luck! Let us run it back if you dare!"
+      },
+      {
+        "text": "Ah the dice betrayed me at the end! What a battle! 💔⚡",
+        "roman": "Ah the dice betrayed me at the end! What a battle!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "Loving this chaos, but let us be real, I am running this! 😂🎲",
+        "roman": "Loving this chaos, but let us be real, I am running this!"
+      },
+      {
+        "text": "Play carefully! One slip and you are off the board! 😡🔥",
+        "roman": "Play carefully! One slip and you are off the board!"
+      },
+      {
+        "text": "Ludo Emperor energy! The tension is electrifying! 🚀👑",
+        "roman": "Ludo Emperor energy! The tension is electrifying!"
+      },
+      {
+        "text": "What is taking so long? Roll already! 😏⏳",
+        "roman": "What is taking so long? Roll already!"
+      },
+      {
+        "text": "The plot thickens! Anyone can still take this! ⚡✨",
+        "roman": "The plot thickens! Anyone can still take this!"
+      }
+    ]
+  },
+  "ar": {
+    "turn": [
+      {
+        "text": "ههههه! انظروا إلى براعتي الآن، ستنبهرون جميعاً! 😂✨",
+        "roman": "Hahaha! Unzuru ila bara'ati al-aan!"
+      },
+      {
+        "text": "ابتعدوا عن طريقي! حان دوري ولن أرحم أحداً اليوم! 😡🔥",
+        "roman": "Ibtad'u 'an tareeqi! Haana dawri!"
+      },
+      {
+        "text": "جاء دوري! أحتاج إلى رقم كبير لأشعل المنافسة! 🎉🚀",
+        "roman": "Jaa'a dawri! Ahtaju ila raqm kabeer!"
+      },
+      {
+        "text": "استعدوا لضربتي القادمة! احبسوا أنفاسكم! 😏🎲",
+        "roman": "Ista'iddu li-dharbati al-qadima!"
+      },
+      {
+        "text": "لنرى ماذا يخبئ لنا القدر في هذا الدور الحاسم! ⚡🎲",
+        "roman": "Li-nara madha yukhabbi'u lana al-qadar!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "ههههه! تعال يا رقم ستة، أنا بانتظارك من الصباح! 😂🎲",
+        "roman": "Hahaha! Ta'al ya raqm sitta!"
+      },
+      {
+        "text": "إذا لم يظهر الستة الآن سأغضب بشدة! 😡💥",
+        "roman": "Idha lam yadhhar al-sitta al-aan!"
+      },
+      {
+        "text": "ألقيت النرد بحماس! يا رب رقم خيالي! 🎉✨",
+        "roman": "Alqaytu an-nard bi-hamas!"
+      },
+      {
+        "text": "راقبوا هذه الرمية بدقة، لن تصدقوا النتيجة! 😏🔥",
+        "roman": "Raqibu hadhihi ar-ramya bi-diqqa!"
+      },
+      {
+        "text": "رمية مصيرية قد تقلب موازين اللعبة بأكملها! ⚡🎲",
+        "roman": "Ramya maseeriya qad taqlib al-mawazeen!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "ههههه! ستة مضاعفة! حظ لا يقهر على الإطلاق! 😂💥",
+        "roman": "Hahaha! Sitta mudha'afa! Hazz la yuqhar!"
+      },
+      {
+        "text": "ستة مدوية! الآن سأطارد كل قطعكم في الميدان! 😡⚔️",
+        "roman": "Sitta mudawwiya! Al-aan sa'utared qita'akum!"
+      },
+      {
+        "text": "نعم! ستة رائعة ودور إضافي لي! رائع جداً! 🎉🔥",
+        "roman": "Na'am! Sitta ra'i'a wa dawr idafi!"
+      },
+      {
+        "text": "دع الحاقدين يتفرجون! النرد يحب الأبطال فقط! 😏🚀",
+        "roman": "Da' al-haqideen yatafarrajoon!"
+      },
+      {
+        "text": "رمية ملكية تستحق التتويج! لا مثيل لي اليوم! 👑⚡",
+        "roman": "Ramya malakiya tastahiqqu at-tatweej!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "ههههه! أرسلت قطعتك إلى البيت مباشرة! وداعاً! 😂👋",
+        "roman": "Hahaha! Arsaltu qit'ataka ila al-bayt!"
+      },
+      {
+        "text": "تجرأت على الوقوف في طريقي؟ ادفع الثمن الآن! 😡💥",
+        "roman": "Tajara'ta 'ala al-wuqoof fi tareeqi?"
+      },
+      {
+        "text": "تم اصطياد الهدف بنجاح! عودة إلى نقطة الصفر! 🎉🔥",
+        "roman": "Tamma istiyad al-hadaf bi-najah!"
+      },
+      {
+        "text": "لا تأخذ الأمر شخصياً، اللودو يتطلب القسوة أحياناً! 😏🎯",
+        "roman": "La ta'khudh al-amr shakhsiyan!"
+      },
+      {
+        "text": "ضربة قاضية أخرجت قطعتك تماماً! ابكِ الآن! ⚡💀",
+        "roman": "Dharba qadhiya akhrajat qit'atak!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "يا إلهي! من يهاجمني بهذه القسوة الشديدة! 😂💔",
+        "roman": "Ya ilahi! Man yuhajimuni bi-hadhihi al-qaswa!"
+      },
+      {
+        "text": "كيف تجرؤ على ضرب قطعتي! ستدفع الثمن غالياً جداً! 😡🔥",
+        "roman": "Kayfa tajru' 'ala dharb qit'ati!"
+      },
+      {
+        "text": "انتقامي قادم لا محالة! تذكر كلماتي جيداً! ⚔️👿",
+        "roman": "Intiqami qadim la mahala!"
+      },
+      {
+        "text": "افرح الآن كما تشاء، هجومي المضاد سيكون مدمراً! 😏🚀",
+        "roman": "Ifrah al-aan kama tasha'!"
+      },
+      {
+        "text": "يا للحسرة! قبل باب النهاية بخطوة واحدة فقط! 😭⚡",
+        "roman": "Ya lil-hasra! Qabla bab an-nihaya!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "ههههه! قاعدة السبعة أنقذتني وأعطتني ستتين! 😂🎲",
+        "roman": "Hahaha! Qa'idat as-sab'a anqadhatni!"
+      },
+      {
+        "text": "ظننتم أنني محاصر؟ السبعة المحظوظة تثأر بقوة! 😡⚡",
+        "roman": "Dhanantum annani muhasar?"
+      },
+      {
+        "text": "سحر الرقم سبعة الحقيقي! معجزة في اللعبة! 🎉✨",
+        "roman": "Sihr ar-raqm sab'a al-haqeeqi!"
+      },
+      {
+        "text": "لا أحد يقف أمام قدري! الرقم سبعة سلاحي السري! 😏🔥",
+        "roman": "La ahad yaqif amam qadari!"
+      },
+      {
+        "text": "انفجار حقيقي غيّر مجرى اللقاء بالكامل! 💥🚀",
+        "roman": "Infijar haqeeqi ghayyara majra al-liqa'!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "ههههه! انظروا إلي في المسار الأحمر نحو النصر! 😂🚀",
+        "roman": "Hahaha! Unzuru ilayya fi al-masar al-ahmar!"
+      },
+      {
+        "text": "إياكم والاقتراب من قطعتي هنا! هذا تحذير أخير! 😡🔥",
+        "roman": "Iyyakum wal-iqtirab min qit'ati huna!"
+      },
+      {
+        "text": "خط النهاية أمامي مباشرة! الفوز على بعد خطوة! 🏁✨",
+        "roman": "Khatt an-nihaya amami mubasharatan!"
+      },
+      {
+        "text": "أنتم بعيدون جداً في الخلف! أراكم عند منصة التتويج! 😏👑",
+        "roman": "Antum ba'eedoon jiddan fi al-khalf!"
+      },
+      {
+        "text": "دقات قلبي تتسارع! أحتاج إلى رقم أخير لأحتفل! 💓🎲",
+        "roman": "Daqqat qalbi tatasaara'!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "ههههه! قطعة آمنة تماماً في الداخل! لا تستطيعون لمسها! 😂💪",
+        "roman": "Hahaha! Qit'a amina tamamam fi ad-dakhil!"
+      },
+      {
+        "text": "نعم! حسمت قطعة، والآن سأكتسح ما تبقى! 😡🔥",
+        "roman": "Na'am! Hasamtu qit'a, wal-aan sa'aktasih!"
+      },
+      {
+        "text": "وصلت بسلام! قطعة أخرى تدخل المثلث الفائز! 🎉🏠",
+        "roman": "Wasalat bi-salam! Qit'a ukhra tadkhul!"
+      },
+      {
+        "text": "دقة ملكية خالصة! دخول بكل فخامة وهيبة! 😏👑",
+        "roman": "Diqqa malakiya khalisa!"
+      },
+      {
+        "text": "راحة كبيرة! خطوة أخرى تفصلني عن النصر المؤزر! ✨🎯",
+        "roman": "Raha kabeera! Khatwa ukhra!"
+      }
+    ],
+    "win": [
+      {
+        "text": "ههههه! أنا إمبراطور اللودو بلا منازع! انحنوا للبطل! 😂🎉",
+        "roman": "Hahaha! Ana Imbratoor al-Ludo!"
+      },
+      {
+        "text": "ألم أقل لكم أنه لا أحد يضاهي قوتي وذكائي! 🔥🥇",
+        "roman": "Alam aqul lakum annahu la ahad yudahi quwwati!"
+      },
+      {
+        "text": "التاج الذهبي ملكي وحدي! مبروك لي هذا الانتصار! 👑🏆",
+        "roman": "At-taj adh-dhahabi milki wahdi!"
+      },
+      {
+        "text": "خسرتم جميعاً! حان الوقت لتتدربوا جيداً للمرة القادمة! 😏🚀",
+        "roman": "Khasirtum jamee'an!"
+      },
+      {
+        "text": "فوز تاريخي مستحق! سيطرة مطلقة على اللوح! 💥⭐",
+        "roman": "Fawz tareekhi mustahaqq!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "ههههه! لعبتم بشكل جيد، حتى الأباطرة يستريحون أحياناً! 😂🎲",
+        "roman": "Hahaha! La'ibtum bi-shakl jayyid!"
+      },
+      {
+        "text": "استمتعوا بفوزكم المؤقت! في الإعادة لن يكون الأمر سهلاً! 😡⚔️",
+        "roman": "Istamti'u bi-fawzikum al-mu'aqqat!"
+      },
+      {
+        "text": "مباراة ملحمية حقاً! ألف مبروك للفائز المستحق! 👏🤝",
+        "roman": "Mubarah malhamiya haqqan!"
+      },
+      {
+        "text": "ضربة حظ للمبتدئين! لنلعب جولة أخرى إن كنتم تجرؤون! 😏🔥",
+        "roman": "Dharbat hazz lil-mubtadi'een!"
+      },
+      {
+        "text": "خذلني النرد في اللحظات الأخيرة بعد قتال بطولي! 💔⚡",
+        "roman": "Khadhalani an-nard fi al-lahadhat al-akheera!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "أحب هذه الفوضى، لكن الحقيقة أنني المتحكم هنا! 😂🎲",
+        "roman": "Uhibbu hadhihi al-fawdha!"
+      },
+      {
+        "text": "العبوا بتركيز! أي خطوة خاطئة سترميكم خارج اللوح! 😡🔥",
+        "roman": "Il'abu bi-tarkeez!"
+      },
+      {
+        "text": "أجواء إمبراطورية مشتعلة! الحماس بلغ ذروته الآن! 🚀👑",
+        "roman": "Ajwa' imbratooriya mushta'ila!"
+      },
+      {
+        "text": "لماذا هذا التأخير المبالغ فيه؟ ارموا النرد فوراً! 😏⏳",
+        "roman": "Li-madha hadha at-ta'kheer? Irmu an-nard!"
+      },
+      {
+        "text": "التشويق يزداد قوة! يمكن لأي حركة أن تحسم المصير! ⚡✨",
+        "roman": "At-tashweeq yazdadu quwwa!"
+      }
+    ]
+  },
+  "es": {
+    "turn": [
+      {
+        "text": "¡Jajaja! ¡Miren y aprendan amigos, pura magia en camino! 😂✨",
+        "roman": "Jajaja! Miren y aprendan amigos!"
+      },
+      {
+        "text": "¡Fuera de mi camino! ¡Es mi turno y nadie está a salvo! 😡🔥",
+        "roman": "Fuera de mi camino! Es mi turno!"
+      },
+      {
+        "text": "¡Mi turno! ¡Hora de sacar un número grande y dominar! 🎉🚀",
+        "roman": "Mi turno! Hora de sacar un numero grande!"
+      },
+      {
+        "text": "¡Aquí viene mi jugada maestra! ¡Agárrense fuerte! 😏🎲",
+        "roman": "Aqui viene mi jugada maestra!"
+      },
+      {
+        "text": "¡El destino está en los dados! ¡Veamos qué pasa! ⚡🎲",
+        "roman": "El destino esta en los dados!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "¡Jajaja! ¡Ven con papá, doble seis! ¡Te necesito aquí! 😂🎲",
+        "roman": "Jajaja! Ven con papa, doble seis!"
+      },
+      {
+        "text": "¡Si no saco un seis ahora mismo voy a gritar de rabia! 😡💥",
+        "roman": "Si no saco un seis ahora mismo!"
+      },
+      {
+        "text": "¡Tirando los dados con fe! ¡Que caiga un número gigante! 🎉✨",
+        "roman": "Tirando los dados con fe!"
+      },
+      {
+        "text": "¡Miren bien esta tirada! ¡No están listos para esto! 😏🔥",
+        "roman": "Miren bien esta tirada!"
+      },
+      {
+        "text": "¡Tirada decisiva! ¡Esto puede cambiarlo todo! ⚡🎲",
+        "roman": "Tirada decisiva! Esto puede cambiarlo todo!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "¡Jajaja! ¡Doble seis! ¡Suerte imparable y arrolladora! 😂💥",
+        "roman": "Jajaja! Doble seis! Suerte imparable!"
+      },
+      {
+        "text": "¡Boom! ¡Doble seis! ¡Prepárense para la destrucción total! 😡⚔️",
+        "roman": "Boom! Doble seis! Preparense!"
+      },
+      {
+        "text": "¡Sí! ¡Seis en el tablero y otro turno para mí! ¡Vamos! 🎉🔥",
+        "roman": "Si! Seis en el tablero y otro turno!"
+      },
+      {
+        "text": "¡Que hablen lo que quieran, los dados me aman a mí! 😏🚀",
+        "roman": "Que hablen lo que quieran!"
+      },
+      {
+        "text": "¡Tirada de reyes! ¡Números dignos de una corona! 👑⚡",
+        "roman": "Tirada de reyes! Numeros dignos!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "¡Jajaja! ¡Te mandé derechito a casa con tus fichas! ¡Adiós! 😂👋",
+        "roman": "Jajaja! Te mande derechito a casa!"
+      },
+      {
+        "text": "¿Te atreviste a cruzar mi camino? ¡Paga el precio! ¡Fuera! 😡💥",
+        "roman": "Te atreviste a cruzar mi camino? Paga!"
+      },
+      {
+        "text": "¡Objetivo fijado y eliminado! ¡De vuelta a la base! 🎉🔥",
+        "roman": "Objetivo fijado y eliminado!"
+      },
+      {
+        "text": "¡Nada personal, solo negocios de Ludo! ¡Más suerte luego! 😏🎯",
+        "roman": "Nada personal, solo negocios!"
+      },
+      {
+        "text": "¡Cataplum! ¡Ficha liquidada! ¡A llorar al rincón! ⚡💀",
+        "roman": "Cataplum! Ficha liquidada!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "¡Ay por favor! ¿Quién me ataca con tanta crueldad? 😂💔",
+        "roman": "Ay por favor! Quien me ataca asi!"
+      },
+      {
+        "text": "¡Oye! ¿Cómo te atreves a tocar mi ficha? ¡Vas a pagar! 😡🔥",
+        "roman": "Oye! Como te atreves a tocar mi ficha!"
+      },
+      {
+        "text": "¡Mi venganza será implacable, recuérdalo bien! ⚔️👿",
+        "roman": "Mi venganza sera implacable!"
+      },
+      {
+        "text": "¡Disfrútalo mientras puedas! ¡Mi contragolpe será feroz! 😏🚀",
+        "roman": "Disfrutalo mientras puedas!"
+      },
+      {
+        "text": "¡No puede ser! ¡Justo en la puerta de entrada! ¡Qué dolor! 😭⚡",
+        "roman": "No puede ser! Justo en la puerta!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "¡Jajaja! ¡La Regla del 7 me salvó la vida! ¡Increíble! 😂🎲",
+        "roman": "Jajaja! La Regla del 7 me salvo!"
+      },
+      {
+        "text": "¿Creían que estaba atrapado? ¡El 7 desata mi furia! 😡⚡",
+        "roman": "Creian que estaba atrapado?"
+      },
+      {
+        "text": "¡Magia pura del Siete de la Suerte! ¡Doble seis milagroso! 🎉✨",
+        "roman": "Magia pura del Siete de la Suerte!"
+      },
+      {
+        "text": "¡Nadie puede vencer al destino! ¡El Siete manda! 😏🔥",
+        "roman": "Nadie puede vencer al destino!"
+      },
+      {
+        "text": "¡Bomba total! ¡El Siete afortunado revoluciona la mesa! 💥🚀",
+        "roman": "Bomba total! El Siete revoluciona!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "¡Jajaja! ¡Miren mi alfombra roja hacia la gloria! ¡Despejen! 😂🚀",
+        "roman": "Jajaja! Miren mi alfombra roja!"
+      },
+      {
+        "text": "¡Ni se les ocurra acercarse a mi ficha aquí! ¡Atrás! 😡🔥",
+        "roman": "Ni se les ocurra acercarse!"
+      },
+      {
+        "text": "¡Recta final! ¡A solo unos centímetros de la victoria! 🏁✨",
+        "roman": "Recta final! A centimetros de la victoria!"
+      },
+      {
+        "text": "¡Se quedaron muy atrás todos! ¡Nos vemos en el podio! 😏👑",
+        "roman": "Se quedaron muy atras todos!"
+      },
+      {
+        "text": "¡El corazón me late a mil! ¡Solo un número para ganar! 💓🎲",
+        "roman": "El corazon me late a mil!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "¡Jajaja! ¡Ficha asegurada en el nido! ¡A ver si la tocan! 😂💪",
+        "roman": "Jajaja! Ficha asegurada en el nido!"
+      },
+      {
+        "text": "¡Sí! ¡Una ficha a salvo, ahora voy por la victoria total! 😡🔥",
+        "roman": "Si! Una ficha a salvo!"
+      },
+      {
+        "text": "¡Sana y salva en casa! ¡Otra ficha que entra triunfante! 🎉🏠",
+        "roman": "Sana y salva en casa!"
+      },
+      {
+        "text": "¡Precisión absoluta! Entrando como verdadera realeza! 😏👑",
+        "roman": "Precision absoluta! Entrando como realeza!"
+      },
+      {
+        "text": "¡Qué gran alivio! ¡El campeonato está a la vuelta! ✨🎯",
+        "roman": "Que gran alivio! El campeonato llega!"
+      }
+    ],
+    "win": [
+      {
+        "text": "¡Jajaja! ¡Soy el Emperador absoluto del Ludo! ¡Ríndanse! 😂🎉",
+        "roman": "Jajaja! Soy el Emperador del Ludo!"
+      },
+      {
+        "text": "¡Se los advertí, nadie tiene nivel para vencerme! 🔥🥇",
+        "roman": "Se los adverti, nadie puede vencerme!"
+      },
+      {
+        "text": "¡Los campeones celebran! ¡La corona de oro es mía! 👑🏆",
+        "roman": "Los campeones celebran! La corona es mia!"
+      },
+      {
+        "text": "¿Ya se rindieron? ¡Pónganse a practicar para la próxima! 😏🚀",
+        "roman": "Ya se rindieron? A practicar!"
+      },
+      {
+        "text": "¡Cátedra histórica de juego! ¡Dominio total en el tablero! 💥⭐",
+        "roman": "Catedra historica de juego!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "¡Jajaja! ¡Bien jugado! ¡Hasta los reyes tienen días libres! 😂🎲",
+        "roman": "Jajaja! Bien jugado!"
+      },
+      {
+        "text": "¡Disfruten mientras puedan! ¡La revancha no será piadosa! 😡⚔️",
+        "roman": "Disfruten mientras puedan!"
+      },
+      {
+        "text": "¡Partida emocionante y genial! ¡Felicidades al ganador! 👏🤝",
+        "roman": "Partida emocionante y genial!"
+      },
+      {
+        "text": "¡Pura suerte de principiante! ¡Juguemos otra si se atreven! 😏🔥",
+        "roman": "Pura suerte de principiante!"
+      },
+      {
+        "text": "¡Los dados me fallaron al final, qué gran batalla fue! 💔⚡",
+        "roman": "Los dados me fallaron al final!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "¡Me encanta este caos, pero siendo sinceros yo mando aquí! 😂🎲",
+        "roman": "Me encanta este caos!"
+      },
+      {
+        "text": "¡Jueguen con cuidado o los borro del mapa en un segundo! 😡🔥",
+        "roman": "Jueguen con cuidado!"
+      },
+      {
+        "text": "¡Pura vibra de Ludo Emperor! ¡La emoción está que arde! 🚀👑",
+        "roman": "Pura vibra de Ludo Emperor!"
+      },
+      {
+        "text": "¿Por qué tardan tanto? ¡Tiren esos dados ya! 😏⏳",
+        "roman": "Por que tardan tanto? Tiren ya!"
+      },
+      {
+        "text": "¡La tensión sube por las nubes! ¡Cualquiera puede ganar! ⚡✨",
+        "roman": "La tension sube por las nubes!"
+      }
+    ]
+  },
+  "bn": {
+    "turn": [
+      {
+        "text": "হাহাহা! এবার দেখো আমার চাল, সবাই তাজ্জব বনে যাবে! 😂✨",
+        "roman": "Hahaha! Ebar dekho amar chaal!"
+      },
+      {
+        "text": "সামনে থেকে সরো সবাই! এবার আমার পালা, কাউকে ছাড়ব না! 😡🔥",
+        "roman": "Samne theke soro sobai! Ebar amar pala!"
+      },
+      {
+        "text": "আমার পালা এসে গেছে! বড় দান চাই, খেলা জমিয়ে দেব! 🎉🚀",
+        "roman": "Amar pala ese geche! Boro daan chai!"
+      },
+      {
+        "text": "চলো আমার দান পড়ল! এবার দম বন্ধ করে বসে থাকো! 😏🎲",
+        "roman": "Cholo amar daan porlo!"
+      },
+      {
+        "text": "দেখা যাক ভাগ্য এবার কি খেলা দেখায়! বড় কিছু হতে চলেছে! ⚡🎲",
+        "roman": "Dekha jaak bhagyo ebar ki khela dekhay!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "হাহাহা! আয় আমার ছক্কা, তোকে অনেকক্ষণ ধরে খুঁজছি! 😂🎲",
+        "roman": "Hahaha! Aay amar chhakka!"
+      },
+      {
+        "text": "এবার যদি ছক্কা না পড়ে তাহলে ঘুঁটিই ভেঙে ফেলব! 😡💥",
+        "roman": "Ebar jodi chhakka na pore!"
+      },
+      {
+        "text": "ছক্কা চাই জোরসে! দারুণ একটা দান পড়তে হবে! 🎉✨",
+        "roman": "Chhakka chai jorse! Darun daan chai!"
+      },
+      {
+        "text": "চোখ রাখো এই দানে! এমন দান জীবনে দেখনি! 😏🔥",
+        "roman": "Chokh rakho ei daane!"
+      },
+      {
+        "text": "এই চালের পরেই পুরো খেলার মোড় ঘুরে যাবে! ⚡🎲",
+        "roman": "Ei chaaler porei khela ghure jabe!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "হাহাহা! জোড়া ছক্কা! আমার কপালের জোর দেখেছো! 😂💥",
+        "roman": "Hahaha! Jora chhakka!"
+      },
+      {
+        "text": "দেখেছো ছক্কা! এবার সবার ঘুঁটি কেটে সাফ করব! 😡⚔️",
+        "roman": "Dekhecho chhakka! Ebar sobari ghuti katbo!"
+      },
+      {
+        "text": "ছক্কা পড়েছে রে ভাই! কি আনন্দ, আরও একটা চাল আমার! 🎉🔥",
+        "roman": "Chhakka poreche re bhai!"
+      },
+      {
+        "text": "হিংসুটেরা চেয়ে চেয়ে দেখো, ছক্কার রাজা আমিই! 😏🚀",
+        "roman": "Hingshutera cheye cheye dekho!"
+      },
+      {
+        "text": "রাজকীয় দান! একের পর এক বড় দান আমার ঝুলিতে! 👑⚡",
+        "roman": "Rajokiyo daan! Ekebare sera!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "হাহাহা! তোমার ঘুঁটি সোজা বাড়ি পাঠিয়ে দিলাম! বাই বাই! 😂👋",
+        "roman": "Hahaha! Tomar ghuti soja bari pathiye dilam!"
+      },
+      {
+        "text": "আমার সামনে আসার সাহস পেলে কোথায়? পেয়েছো তো সাজা! 😡💥",
+        "roman": "Amar samne asar sahos pele kothay?"
+      },
+      {
+        "text": "শিকার সম্পূর্ণ! রাস্তা একদম ফাঁকা, সোজা ঘরে ফেরো! 🎉🔥",
+        "roman": "Shikar sompurno! Rasta phaka!"
+      },
+      {
+        "text": "খারাপ পেও না ভাই, লুডু খেলায় ঘুঁটি কাটতেই হয়! 😏🎯",
+        "roman": "Kharap peo na bhai!"
+      },
+      {
+        "text": "ধড়াম করে ঘুঁটি কাটা গেল! এবার বসে বসে কাঁদো! ⚡💀",
+        "roman": "Dhadam kore ghuti kata gelo!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "আরে ভাই! এত নিষ্ঠুরভাবে কেউ ঘুঁটি মারে নাকি! 😂💔",
+        "roman": "Are bhai! Eto nisthur bhabe keu ghuti mare!"
+      },
+      {
+        "text": "আমার ঘুঁটি কাটলি কেন রে দুরাচার! বদলা আমি নেবই! 😡🔥",
+        "roman": "Amar ghuti katli keno re!"
+      },
+      {
+        "text": "এই ক্ষতের প্রতিশোধ এমনভাবে নেব যে সারা জীবন মনে রাখবে! ⚔️👿",
+        "roman": "Ei khoter protishodh emon bhabe nebo!"
+      },
+      {
+        "text": "ঘুঁটি কেটে খুব আনন্দ হচ্ছে? আসল চাল তো এখনও বাকি! 😏🚀",
+        "roman": "Ghuti kete khub anondo hocche?"
+      },
+      {
+        "text": "হায়রে কপাল! ঘরের এত কাছে এসে কাটা পড়ল ঘুঁটিটা! 😭⚡",
+        "roman": "Hayre kopal! Ghorer eto kache ese!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "হাহাহা! রুল অফ সেভেন আমাকে বাঁচিয়ে দিল! জোড়া ছক্কা! 😂🎲",
+        "roman": "Hahaha! Rule of Seven bachiye dilo!"
+      },
+      {
+        "text": "ভেবেছিলে ফেঁসে গেছি? লাকি সেভেন দিয়ে খেলা বদলে দিলাম! 😡⚡",
+        "roman": "Bhebechile phese gechi?"
+      },
+      {
+        "text": "লাকি সেভেনের জাদু! আকাশ থেকে নামল জোড়া ছক্কা! 🎉✨",
+        "roman": "Lucky Seven-er jadu!"
+      },
+      {
+        "text": "আমার ভাগ্যের সাথে টক্কর দেওয়া অসম্ভব! লাকি সেভেন! 😏🔥",
+        "roman": "Amar bhagyer sathe tokkor dewa osombhob!"
+      },
+      {
+        "text": "বোম ব্লাস্ট! লাকি সেভেনে ঘুঁটিগুলো ডানা মেলল! 💥🚀",
+        "roman": "Bomb blast! Lucky Seven-e sob badle gelo!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "হাহাহা! আমার লাল গালিচা দেখো, জয়ের পথ পরিষ্কার! 😂🚀",
+        "roman": "Hahaha! Amar lal galicha dekho!"
+      },
+      {
+        "text": "খবরদার! আমার ঘুঁটিতে কেউ হাত দেওয়ার সাহস করো না! 😡🔥",
+        "roman": "Khabordar! Amar ghutite keu haat dio na!"
+      },
+      {
+        "text": "জয় একদম হাতের মুঠোয়! মাত্র এক কদম দূর! 🏁✨",
+        "roman": "Joy ekdom hater muthoy!"
+      },
+      {
+        "text": "তোমরা সবাই কত পেছনে পড়ে আছো! দেখা হবে বিজয়ী মঞ্চে! 😏👑",
+        "roman": "Tomra sobai koto pechone pore acho!"
+      },
+      {
+        "text": "বুক ধড়ফড় করছে! আর মাত্র একটা ঘুঁটি ঘরে তুললেই কেল্লাফতে! 💓🎲",
+        "roman": "Buk dhorphor korche!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "হাহাহা! একটা ঘুঁটি ঘরে ঢুকে নিরাপদ! এবার পারলে ধরে দেখাও! 😂💪",
+        "roman": "Hahaha! Ekta ghuti ghore dhuke nirapod!"
+      },
+      {
+        "text": "ইয়েস! একটা ঘুঁটি পাক্কা, এবার বাকিদের ওপর হামলা! 😡🔥",
+        "roman": "Yes! Ekta ghuti pakka!"
+      },
+      {
+        "text": "সফলভাবে ঘরে পৌঁছে গেল! আরেকটা ঘুঁটি পাকা হলো! 🎉🏠",
+        "roman": "Sofolbhabe ghore pouche gelo!"
+      },
+      {
+        "text": "অসাধারণ নিশানা! রাজকীয় স্টাইলে ঘুঁটি ঘরে ঢুকল! 😏👑",
+        "roman": "Oshadharon nishana!"
+      },
+      {
+        "text": "শান্তি পেলাম! চ্যাম্পিয়ন হওয়ার আর বেশি দেরি নেই! ✨🎯",
+        "roman": "Shanti pelam!"
+      }
+    ],
+    "win": [
+      {
+        "text": "হাহাহা! সবাইকে হারিয়ে দিলাম! মিষ্টি খাওয়াও, চ্যাম্পিয়ন এসেছি! 😂🎉",
+        "roman": "Hahaha! Sobaik hariye dilam!"
+      },
+      {
+        "text": "বলেই ছিলাম না আমার সাথে জেতার মতো দম কারও নেই! 🔥🥇",
+        "roman": "Bolei chilam na amar sathe jetar dam nei!"
+      },
+      {
+        "text": "আমিই লুডু সাম্রাজ্যের আসল সম্রাট! মুকুট আমার! 👑🏆",
+        "roman": "Ami-i Ludo samrajyer asol somrat!"
+      },
+      {
+        "text": "সবাই হেরে ভূত হলে তো? যাও পরের ম্যাচের প্রস্তুতি নাও! 😏🚀",
+        "roman": "Sobai here bhoot hole to?"
+      },
+      {
+        "text": "ঐতিহাসিক জয়! বোর্ডে আমার একচ্ছত্র আধিপত্য! 💥⭐",
+        "roman": "Oitihashik joy!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "হাহাহা! ভালো খেলেছো! সম্রাটরাও কখনো কখনো বিশ্রাম নেয়! 😂🎲",
+        "roman": "Hahaha! Bhalo khelecho!"
+      },
+      {
+        "text": "এবার জিতে আনন্দ করে নাও, পরের বার ছাড়ব না! 😡⚔️",
+        "roman": "Ebar jite anondo kore nao!"
+      },
+      {
+        "text": "দুর্দান্ত ম্যাচ ছিল বন্ধু! তোমাকে অনেক অভিনন্দন! 👏🤝",
+        "roman": "Durdanto match chilo bondhu!"
+      },
+      {
+        "text": "একবার জিতে ভাবছো বড় খেলোয়াড়? দম থাকলে আবার খেলো! 😏🔥",
+        "roman": "Ekbar jite bhabcho boro kheloyar?"
+      },
+      {
+        "text": "শেষ মুহূর্তে পাশা বিশ্বাসঘাতকতা করল, নইলে ম্যাচ আমারই ছিল! 💔⚡",
+        "roman": "Shesh muhurte pasha bishwasghatokota korlo!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "খেলার মজাই আলাদা, তবে সত্যি বলতে আমিই সেরা! 😂🎲",
+        "roman": "Khelar mojai alada!"
+      },
+      {
+        "text": "সাবধানে খেলো, একটু ভুল করলেই বোর্ড ছাড়া করব! 😡🔥",
+        "roman": "Sabdhane khelo!"
+      },
+      {
+        "text": "লুডু এম্পেররের দারুণ অনুভূতি! রোমাঞ্চ পুরো তুঙ্গে! 🚀👑",
+        "roman": "Ludo Emperor-er darun onubhuti!"
+      },
+      {
+        "text": "এত দেরি করছো কেন? তাড়াতাড়ি চাল চালো! 😏⏳",
+        "roman": "Eto deri korcho keno?"
+      },
+      {
+        "text": "খেলায় দারুণ উত্তেজনা তৈরি হয়েছে! যে কেউ জিততে পারে! ⚡✨",
+        "roman": "Khelay darun uttejna toiri hoyeche!"
+      }
+    ]
+  },
+  "fr": {
+    "turn": [
+      {
+        "text": "Hahaha ! Admirez le spectacle les amis, un coup de maître arrive ! 😂✨",
+        "roman": "Hahaha ! Admirez le spectacle !"
+      },
+      {
+        "text": "Dégagez le passage ! C'est mon tour et personne ne sera épargné ! 😡🔥",
+        "roman": "Degagez le passage ! C'est mon tour !"
+      },
+      {
+        "text": "À mon tour ! Il me faut un grand chiffre pour faire la différence ! 🎉🚀",
+        "roman": "A mon tour ! Il me faut un grand chiffre !"
+      },
+      {
+        "text": "Regardez bien ce coup d'anthologie ! Retenez votre souffle ! 😏🎲",
+        "roman": "Regardez bien ce coup !"
+      },
+      {
+        "text": "Le destin est dans les dés ! Voyons ce que le sort me réserve ! ⚡🎲",
+        "roman": "Le destin est dans les des !"
+      }
+    ],
+    "roll": [
+      {
+        "text": "Hahaha ! Viens à moi, double six tant attendu ! 😂🎲",
+        "roman": "Hahaha ! Viens a moi double six !"
+      },
+      {
+        "text": "Si je ne fais pas un six tout de suite, je vais hurler ! 😡💥",
+        "roman": "Si je ne fais pas un six !"
+      },
+      {
+        "text": "Les dés roulent ! Je prie pour un score monstrueux ! 🎉✨",
+        "roman": "Les des roulent !"
+      },
+      {
+        "text": "Observez ce lancer ! Vous n'êtes absolument pas prêts ! 😏🔥",
+        "roman": "Observez ce lancer !"
+      },
+      {
+        "text": "Lancer décisif ! Cela peut totalement changer la partie ! ⚡🎲",
+        "roman": "Lancer decisif !"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "Hahaha ! Double six ! Une chance absolument insolente ! 😂💥",
+        "roman": "Hahaha ! Double six insolent !"
+      },
+      {
+        "text": "Boum ! Double six ! Préparez-vous à l'anéantissement ! 😡⚔️",
+        "roman": "Boum ! Double six !"
+      },
+      {
+        "text": "Oui ! Un six sur le plateau et un tour supplémentaire ! Génial ! 🎉🔥",
+        "roman": "Oui ! Un six et un tour en plus !"
+      },
+      {
+        "text": "Laissez les jaloux parler, les dés adorent les champions ! 😏🚀",
+        "roman": "Laissez les jaloux parler !"
+      },
+      {
+        "text": "Lancer digne d'un empereur ! Un tirage royal ! 👑⚡",
+        "roman": "Lancer digne d'un empereur !"
+      }
+    ],
+    "capture": [
+      {
+        "text": "Hahaha ! Retour à la case départ pour toi ! Bon voyage ! 😂👋",
+        "roman": "Hahaha ! Retour a la case depart !"
+      },
+      {
+        "text": "Tu as osé barrer ma route ? Paye l'addition immédiatement ! K.O. ! 😡💥",
+        "roman": "Tu as ose barrer ma route ?"
+      },
+      {
+        "text": "Cible verrouillée et pulvérisée ! Retour à la maison ! 🎉🔥",
+        "roman": "Cible verrouillee et pulverisee !"
+      },
+      {
+        "text": "Rien de personnel, c'est juste la dure loi du Ludo ! 😏🎯",
+        "roman": "Rien de personnel !"
+      },
+      {
+        "text": "Bim ! Pion éjecté du plateau ! Va pleurer ailleurs ! ⚡💀",
+        "roman": "Bim ! Pion ejecte !"
+      }
+    ],
+    "captured": [
+      {
+        "text": "Oh non mais c'est pas vrai ! Qui m'attaque avec tant de méchanceté ! 😂💔",
+        "roman": "Oh non mais c'est pas vrai !"
+      },
+      {
+        "text": "Comment oses-tu toucher à mon pion ! Tu vas le payer très cher ! 😡🔥",
+        "roman": "Comment oses-tu toucher a mon pion !"
+      },
+      {
+        "text": "Ma vengeance sera terrible, retiens bien mes paroles ! ⚔️👿",
+        "roman": "Ma vengeance sera terrible !"
+      },
+      {
+        "text": "Profite bien de ta joie éphémère ! Ma contre-attaque arrive ! 😏🚀",
+        "roman": "Profite bien de ta joie !"
+      },
+      {
+        "text": "C'est rageant ! Juste devant l'entrée de la maison ! 😭⚡",
+        "roman": "C'est rageant ! Juste devant l'entree !"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "Hahaha ! La Règle du 7 me sauve la mise ! Incroyable ! 😂🎲",
+        "roman": "Hahaha ! La Regle du 7 me sauve !"
+      },
+      {
+        "text": "Vous me pensiez piégé ? Le 7 magique déclenche la tempête ! 😡⚡",
+        "roman": "Vous me pensiez piege ?"
+      },
+      {
+        "text": "Magie pure du Chiffre Sept ! Double six venu de nulle part ! 🎉✨",
+        "roman": "Magie pure du Chiffre Sept !"
+      },
+      {
+        "text": "On n'arrête pas le destin ! Le Chiffre Sept frappe encore ! 😏🔥",
+        "roman": "On n'arrete pas le destin !"
+      },
+      {
+        "text": "Coup de théâtre absolu ! Le 7 renverse complètement le match ! 💥🚀",
+        "roman": "Coup de theatre absolu !"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "Hahaha ! Regardez mon tapis rouge vers la victoire ! Laissez passer ! 😂🚀",
+        "roman": "Hahaha ! Regardez mon tapis rouge !"
+      },
+      {
+        "text": "Que personne n'ose approcher mon pion ici ! Reculez ! 😡🔥",
+        "roman": "Que personne n'ose approcher !"
+      },
+      {
+        "text": "Dernière ligne droite ! La victoire est à portée de main ! 🏁✨",
+        "roman": "Derniere ligne droite !"
+      },
+      {
+        "text": "Vous êtes tellement loin derrière ! On se retrouve sur le podium ! 😏👑",
+        "roman": "Vous etes tellement loin !"
+      },
+      {
+        "text": "Mon cœur s'emballe ! Plus qu'un chiffre pour conclure ! 💓🎲",
+        "roman": "Mon coeur s'emballe !"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "Hahaha ! Pion sécurisé dans le sanctuaire ! Touche-y si tu peux ! 😂💪",
+        "roman": "Hahaha ! Pion securise !"
+      },
+      {
+        "text": "Et de un de sécurisé ! Maintenant, j'écrase le reste ! 😡🔥",
+        "roman": "Et de un securise !"
+      },
+      {
+        "text": "Sain et sauf à la maison ! Un autre pion validé ! 🎉🏠",
+        "roman": "Sain et sauf a la maison !"
+      },
+      {
+        "text": "Précision millimétrée ! Entrée digne d'un souverain ! 😏👑",
+        "roman": "Precision millimetree !"
+      },
+      {
+        "text": "Quel soulagement ! Le titre se rapproche à grands pas ! ✨🎯",
+        "roman": "Quel soulagement ! Le titre arrive !"
+      }
+    ],
+    "win": [
+      {
+        "text": "Hahaha ! Je suis l'Empereur incontesté du Ludo ! Inclinez-vous ! 😂🎉",
+        "roman": "Hahaha ! Je suis l'Empereur !"
+      },
+      {
+        "text": "Je vous avais prévenus, personne ne peut rivaliser avec moi ! 🔥🥇",
+        "roman": "Je vous avais prevenus !"
+      },
+      {
+        "text": "Place à la célébration ! La couronne d'or m'appartient ! 👑🏆",
+        "roman": "La couronne d'or m'appartient !"
+      },
+      {
+        "text": "Déjà vaincus ? Allez vous entraîner pour la prochaine fois ! 😏🚀",
+        "roman": "Deja vaincus ? Entrainez-vous !"
+      },
+      {
+        "text": "Démonstration historique ! Domination totale sur le plateau ! 💥⭐",
+        "roman": "Domination totale sur le plateau !"
+      }
+    ],
+    "loss": [
+      {
+        "text": "Hahaha ! Bien joué ! Même les empereurs prennent des vacances ! 😂🎲",
+        "roman": "Hahaha ! Bien joue !"
+      },
+      {
+        "text": "Savourez bien votre victoire, la revanche sera sans pitié ! 😡⚔️",
+        "roman": "Savourez bien votre victoire !"
+      },
+      {
+        "text": "Match exceptionnel et mémorable ! Toutes mes félicitations ! 👏🤝",
+        "roman": "Toutes mes felicitations !"
+      },
+      {
+        "text": "Coup de chance de débutant ! Rejouons si vous avez le courage ! 😏🔥",
+        "roman": "Coup de chance de debutant !"
+      },
+      {
+        "text": "Les dés m'ont trahi au dernier moment ! Quel combat épique ! 💔⚡",
+        "roman": "Les des m'ont trahi !"
+      }
+    ],
+    "banter": [
+      {
+        "text": "J'adore ce chaos, mais soyons honnêtes, c'est moi qui mène ! 😂🎲",
+        "roman": "J'adore ce chaos !"
+      },
+      {
+        "text": "Jouez sérieusement ! Une seule erreur et je vous élimine ! 😡🔥",
+        "roman": "Jouez serieusement !"
+      },
+      {
+        "text": "Énergie impériale ! La tension est électrique sur le plateau ! 🚀👑",
+        "roman": "Energie imperiale !"
+      },
+      {
+        "text": "Pourquoi tant d'hésitation ? Lancez les dés enfin ! 😏⏳",
+        "roman": "Lancez les des enfin !"
+      },
+      {
+        "text": "Le suspense monte d'un cran ! Tout peut encore basculer ! ⚡✨",
+        "roman": "Le suspense monte d'un cran !"
+      }
+    ]
+  },
+  "de": {
+    "turn": [
+      "Hahaha! Schaut her und staunt, jetzt kommt echte Magie! 😂✨",
+      "Aus dem Weg! Jetzt bin ich dran und niemand ist sicher! 😡🔥",
+      "Mein Zug! Jetzt brauche ich eine hohe Zahl für die Führung! 🎉🚀",
+      "Hier kommt mein genialer Spielzug! Haltet euch fest! 😏🎲",
+      "Das Schicksal liegt in den Würfeln! Mal sehen, was passiert! ⚡🎲"
+    ],
+    "roll": [
+      "Hahaha! Komm zur Sechs, mein lieber Würfel, ich brauche dich! 😂🎲",
+      "Wenn jetzt keine Sechs kommt, raste ich komplett aus! 😡💥",
+      "Die Würfel rollen! Ich wünsche mir eine riesige Zahl! 🎉✨",
+      "Passt genau auf diesen Wurf auf! Ihr werdet staunen! 😏🔥",
+      "Ein entscheidender Wurf! Das könnte alles auf den Kopf stellen! ⚡🎲"
+    ],
+    "lucky_roll": [
+      "Hahaha! Doppel-Sechs! Unaufhaltsames Glück! 😂💥",
+      "Bumm! Doppel-Sechs! Macht euch auf totale Zerstörung gefasst! 😡⚔️",
+      "Jawohl! Eine Sechs auf dem Brett und noch ein Zug für mich! 🎉🔥",
+      "Lasst die Neider reden, die Würfel lieben nur Gewinner! 😏🚀",
+      "Königlicher Wurf! Zahlen, die einer Krone würdig sind! 👑⚡"
+    ],
+    "capture": [
+      "Hahaha! Deine Figur geht schnurstracks nach Hause! Tschüss! 😂👋",
+      "Du hast es gewagt, mir im Weg zu stehen? Bezahle den Preis! K.O.! 😡💥",
+      "Ziel anvisiert und eliminiert! Zurück zur Basis mit dir! 🎉🔥",
+      "Nichts Persönliches, das ist das Gesetz von Ludo! 😏🎯",
+      "Rumms! Figur vom Brett gefegt! Geh leise weinen! ⚡💀"
+    ],
+    "captured": [
+      "Och nee! Wer greift mich denn so hinterhältig an! 😂💔",
+      "Wie kannst du es wagen, meine Figur zu schlagen! Du wirst büßen! 😡🔥",
+      "Meine Rache wird grausam sein, merke dir meine Worte! ⚔️👿",
+      "Genieße deinen kurzen Triumph! Mein Gegenschlag kommt bald! 😏🚀",
+      "Das darf doch nicht wahr sein! Direkt vor dem Zielhaus! 😭⚡"
+    ],
+    "lucky7": [
+      "Hahaha! Die Siebener-Regel hat mich gerettet! Unglaublich! 😂🎲",
+      "Dachtet ihr, ich sitze fest? Glückszahl Sieben schlägt zurück! 😡⚡",
+      "Magie der Glücklichen Sieben! Doppel-Sechs aus dem Nichts! 🎉✨",
+      "Gegen mein Schicksal kommt niemand an! Sieben siegt immer! 😏🔥",
+      "Riesiger Knalleffekt! Die Sieben dreht das gesamte Spiel! 💥🚀"
+    ],
+    "home_stretch": [
+      "Hahaha! Seht euch meinen roten Teppich zum Sieg an! Bahn frei! 😂🚀",
+      "Wagt es nicht, meiner Figur hier zu nahe zu kommen! Zurück! 😡🔥",
+      "Zielgerade! Nur noch wenige Zentimeter bis zum glorreichen Sieg! 🏁✨",
+      "Ihr seid alle so weit hinten! Wir sehen uns auf dem Podest! 😏👑",
+      "Das Herz pocht wie verrückt! Nur noch eine Zahl zum Triumph! 💓🎲"
+    ],
+    "pawn_home": [
+      "Hahaha! Figur sicher im Heimathafen! Fass das mal an! 😂💪",
+      "Jawoll! Eine Figur im Kasten, jetzt hole ich den Gesamtsieg! 😡🔥",
+      "Sicher im Ziel! Eine weitere Figur glücklich zu Hause! 🎉🏠",
+      "Präzision wie ein Uhrwerk! Einzug wie ein echter Kaiser! 😏👑",
+      "Große Erleichterung! Der Meistertitel ist greifbar nah! ✨🎯"
+    ],
+    "win": [
+      "Hahaha! Ich bin der unangefochtene Ludo-Imperator! Verbeugt euch! 😂🎉",
+      "Ich habe euch gewarnt, niemand kann mir das Wasser reichen! 🔥🥇",
+      "Die Champions feiern! Die goldene Krone gehört mir! 👑🏆",
+      "Schon verloren? Ihr solltet für das nächste Mal fleißig üben! 😏🚀",
+      "Historische Meisterklasse! Totale Herrschaft auf dem Spielfeld! 💥⭐"
+    ],
+    "loss": [
+      "Hahaha! Gut gespielt! Auch Kaiser müssen mal Urlaub machen! 😂🎲",
+      "Genießt euren Sieg vorerst! Die Revanche wird gnadenlos! 😡⚔️",
+      "Was für ein packendes Match! Herzlichen Glückwunsch an den Sieger! 👏🤝",
+      "Reines Anfängerglück! Lasst uns sofort noch eine Runde spielen! 😏🔥",
+      "Die Würfel haben mich am Ende im Stich gelassen! Ein Riesenspiel! 💔⚡"
+    ],
+    "banter": [
+      "Ich liebe dieses Chaos, aber seien wir ehrlich: Ich habe die Kontrolle! 😂🎲",
+      "Spielt vorsichtig! Ein einziger Fehler und ihr seid draußen! 😡🔥",
+      "Ludo Emperor Energie! Die Spannung ist elektrisierend! 🚀👑",
+      "Warum dauert das so lange? Würfelt endlich mal! 😏⏳",
+      "Die Spannung steigt ins Unermessliche! Jeder kann noch siegen! ⚡✨"
+    ]
+  },
+  "ru": {
+    "turn": [
+      "Ха-ха-ха! Смотрите и учитесь, сейчас будет чистая магия! 😂✨",
+      "С дороги! Мой ход, и пощады никому не будет! 😡🔥",
+      "Мой ход настал! Нужен крупный бросок, чтобы захватить лидерство! 🎉🚀",
+      "Вот мой коронный ход! Держитесь крепче! 😏🎲",
+      "Судьба в руках кубиков! Посмотрим, что нам выпадет! ⚡🎲"
+    ],
+    "roll": [
+      "Ха-ха-ха! Выходи, любимая шестёрочка, я так тебя ждал! 😂🎲",
+      "Если сейчас не выпадет шесть, я просто взорвусь от злости! 😡💥",
+      "Бросаю кости! Пусть выпадет самый огромный номер! 🎉✨",
+      "Смотрите внимательно на этот бросок, вы будете в шоке! 😏🔥",
+      "Решающий бросок! Это изменит вообще всё на доске! ⚡🎲"
+    ],
+    "lucky_roll": [
+      "Ха-ха-ха! Двойная шестёрка! Невероятная пруха! 😂💥",
+      "Бум! Две шестёрки! Готовьтесь к полному разгрому! 😡⚔️",
+      "Да! Шестёрка на доске и ещё один ход для меня! Ура! 🎉🔥",
+      "Пусть завидуют молча, кубики обожают только лучших! 😏🚀",
+      "Королевский бросок! Числа, достойные короны императора! 👑⚡"
+    ],
+    "capture": [
+      "Ха-ха-ха! Отправил твою фишку прямиком на базу! Пока-пока! 😂👋",
+      "Посмел встать у меня на пути? Получай нокаут! 😡💥",
+      "Цель захвачена и уничтожена! Назад на старт! 🎉🔥",
+      "Ничего личного, просто суровые правила Лудо! Повезёт в другой раз! 😏🎯",
+      "Хрясь! Фишка сбита с доски! Можешь поплакать в уголке! ⚡💀"
+    ],
+    "captured": [
+      "Да ладно вам! Кто меня так коварно сбивает! 😂💔",
+      "Как ты посмел тронуть мою фишку! Ты горько пожалеешь! 😡🔥",
+      "Моя месть будет беспощадной, запомни мои слова! ⚔️👿",
+      "Радуйся пока можешь! Мой контрудар будет сокрушительным! 😏🚀",
+      "Какая досада! Прямо у самых дверей дома сбили! 😭⚡"
+    ],
+    "lucky7": [
+      "Ха-ха-ха! Правило Семёрки меня спасло! Двойная шестёрка! 😂🎲",
+      "Думали, я в ловушке? Счастливая семёрка обрушит гнев! 😡⚡",
+      "Чистая магия счастливой семёрки! Чудо на доске! 🎉✨",
+      "Против судьбы не попрёшь! Семёрка всегда со мной! 😏🔥",
+      "Взрыв эмоций! Семёрка полностью перевернула исход матча! 💥🚀"
+    ],
+    "home_stretch": [
+      "Ха-ха-ха! Посмотрите на мою красную дорожку к победе! Разойдись! 😂🚀",
+      "Даже не думайте трогать мою фишку здесь! Назад! 😡🔥",
+      "Финишная прямая! До триумфа остался всего один шаг! 🏁✨",
+      "Вы все отстали так безнадёжно! Увидимся на пьедестале! 😏👑",
+      "Сердце бешено колотится! Ещё одна цифра и я чемпион! 💓🎲"
+    ],
+    "pawn_home": [
+      "Ха-ха-ха! Фишка надёжно в домике! Попробуй достань! 😂💪",
+      "Есть! Одна фишка спасена, теперь разнесу остальных! 😡🔥",
+      "В целости и сохранности! Ещё одна фишка дома! 🎉🏠",
+      "Идеальная точность! Вход с королевским достоинством! 😏👑",
+      "Какое облегчение! Главный кубок уже совсем рядом! ✨🎯"
+    ],
+    "win": [
+      "Ха-ха-ха! Я абсолютный Император Лудо! Преклонитесь! 😂🎉",
+      "Я же говорил, что никто не сможет со мной сравниться! Победа! 🔥🥇",
+      "Чемпионы празднуют! Золотая корона принадлежит мне! 👑🏆",
+      "Уже проиграли? Идите тренироваться к следующей игре! 😏🚀",
+      "Исторический мастер-класс! Полное превосходство на доске! 💥⭐"
+    ],
+    "loss": [
+      "Ха-ха-ха! Отличная игра! Даже императоры иногда отдыхают! 😂🎲",
+      "Наслаждайтесь победой пока что! Реванш будет беспощадным! 😡⚔️",
+      "Потрясающая битва! Мои искренние поздравления победителю! 👏🤝",
+      "Чистая случайность новичка! Сыграем ещё раз, если не боитесь! 😏🔥",
+      "Кубики подвели в самый последний момент! Эпическая битва! 💔⚡"
+    ],
+    "banter": [
+      "Обожаю этот хаос, но признайтесь честно: играю лучше всех я! 😂🎲",
+      "Играйте аккуратно! Одна ошибка — и вы вылетаете! 😡🔥",
+      "Энергия Императора Лудо! Напряжение просто зашкаливает! 🚀👑",
+      "Почему вы так долго думаете? Бросайте уже кубик! 😏⏳",
+      "Сюжет закручивается всё сильнее! Выиграть может любой! ⚡✨"
+    ]
+  },
+  "pt": {
+    "turn": [
+      "Hahaha! Olhem e aprendam, vem pura mágica por aí! 😂✨",
+      "Saiam da minha frente! É a minha vez e ninguém está a salvo! 😡🔥",
+      "Minha vez! Hora de tirar um número alto e liderar! 🎉🚀",
+      "Lá vem a minha jogada de mestre! Segurem-se! 😏🎲",
+      "O destino está nos dados! Vamos ver o que acontece! ⚡🎲"
+    ],
+    "roll": [
+      "Hahaha! Vem cá meu seis querido, estou te chamando! 😂🎲",
+      "Se não sair um seis agora eu vou explodir de raiva! 😡💥",
+      "Dados rolando com fé! Que venha um número gigante! 🎉✨",
+      "Prestem atenção nesta rolagem! Vocês não estão prontos! 😏🔥",
+      "Jogada decisiva! Isso vai mudar o jogo todo! ⚡🎲"
+    ],
+    "lucky_roll": [
+      "Hahaha! Seis duplo! Sorte imbatível e espetacular! 😂💥",
+      "Bum! Seis duplo! Preparem-se para a destruição total! 😡⚔️",
+      "Sim! Seis no tabuleiro e mais uma vez para mim! 🎉🔥",
+      "Deixem falar, os dados só amam quem joga de verdade! 😏🚀",
+      "Rolagem real! Números dignos de uma coroa! 👑⚡"
+    ],
+    "capture": [
+      "Hahaha! Mandei você direto para casa! Tchauzinho! 😂👋",
+      "Ousou cruzar meu caminho? Pague o preço! Nocaute! 😡💥",
+      "Alvo eliminado com sucesso! De volta para a base! 🎉🔥",
+      "Nada pessoal, são apenas negócios no Ludo! Mais sorte depois! 😏🎯",
+      "Pá! Peça eliminada! Pode chorar à vontade! ⚡💀"
+    ],
+    "captured": [
+      "Ah não brinca! Quem me ataca com tanta maldade assim! 😂💔",
+      "Como você ousa tocar na minha peça! Você vai pagar caro! 😡🔥",
+      "Minha vingança será implacável, guarde minhas palavras! ⚔️👿",
+      "Aproveite enquanto dura! Meu contra-ataque será feroz! 😏🚀",
+      "Que azar terrível! Logo na porta de casa! 😭⚡"
+    ],
+    "lucky7": [
+      "Hahaha! A Regra do 7 me salvou a vida! Incrível! 😂🎲",
+      "Pensaram que eu estava preso? O Sete da Sorte traz a fúria! 😡⚡",
+      "Mágica do Sete da Sorte! Seis duplo milagroso! 🎉✨",
+      "Ninguém vence o destino! O Sete sempre comanda! 😏🔥",
+      "Explosão total! O Sete da Sorte virou o tabuleiro inteiro! 💥🚀"
+    ],
+    "home_stretch": [
+      "Hahaha! Olhem o meu tapete vermelho para a vitória! Abram caminho! 😂🚀",
+      "Nem pensem em encostar na minha peça aqui! Para trás! 😡🔥",
+      "Reta final! Apenas a poucos centímetros do triunfo! 🏁✨",
+      "Vocês ficaram tão para trás! Vejo vocês no pódio! 😏👑",
+      "O coração está acelerado! Só mais um número para vencer! 💓🎲"
+    ],
+    "pawn_home": [
+      "Hahaha! Peça guardada no ninho! Tente tocar agora! 😂💪",
+      "Isso aí! Uma peça garantida, agora vou varrer o resto! 😡🔥",
+      "Sã e salva em casa! Mais uma peça no objetivo! 🎉🏠",
+      "Precisão milimétrica! Entrada triunfal como realeza! 😏👑",
+      "Que alívio imenso! O troféu está quase nas minhas mãos! ✨🎯"
+    ],
+    "win": [
+      "Hahaha! Eu sou o Imperador Supremo do Ludo! Curvemse! 😂🎉",
+      "Eu avisei que ninguém tinha nível para me vencer! Vitória! 🔥🥇",
+      "Os campeões celebram! A coroa de ouro é minha! 👑🏆",
+      "Já perderam? Vão treinando para a próxima partida! 😏🚀",
+      "Aula histórica de jogo! Domínio absoluto no tabuleiro! 💥⭐"
+    ],
+    "loss": [
+      "Hahaha! Muito bem jogado! Até os imperadores tiram férias! 😂🎲",
+      "Aproveitem a vitória por enquanto! A revanche será dura! 😡⚔️",
+      "Partida sensacional e eletrizante! Parabéns ao vencedor! 👏🤝",
+      "Pura sorte de iniciante! Vamos jogar outra se tiverem coragem! 😏🔥",
+      "Os dados me traíram no finalzinho! Que grande batalha! 💔⚡"
+    ],
+    "banter": [
+      "Adoro essa bagunça, mas convenhamos: quem manda sou eu! 😂🎲",
+      "Joguem com atenção! Um erro e mando vocês para fora! 😡🔥",
+      "Energia do Ludo Emperor! O clima está pegando fogo! 🚀👑",
+      "Por que tanta demora? Joguem os dados logo! 😏⏳",
+      "A emoção só aumenta! Qualquer um ainda pode surpreender! ⚡✨"
+    ]
+  },
+  "id": {
+    "turn": [
+      "Hahaha! Lihat dan pelajari kawan, keajaiban segera tiba! 😂✨",
+      "Minggir semuanya! Ini giliranku dan tak ada yang aman! 😡🔥",
+      "Giliranku tiba! Butuh angka besar untuk menguasai papan! 🎉🚀",
+      "Inilah langkah jituku! Bersiaplah terkejut! 😏🎲",
+      "Takdir ada di lemparan dadu! Mari kita lihat hasilnya! ⚡🎲"
+    ],
+    "roll": [
+      "Hahaha! Keluarlah angka enam kesayanganku, aku butuh kamu! 😂🎲",
+      "Kalau tidak dapat angka enam sekarang, aku bisa mengamuk! 😡💥",
+      "Dadu menggelinding! Berdoa untuk angka yang fantastis! 🎉✨",
+      "Perhatikan lemparan ini baik-baik! Kalian belum siap! 😏🔥",
+      "Lemparan penentu! Ini bisa membalikkan keadaan seketika! ⚡🎲"
+    ],
+    "lucky_roll": [
+      "Hahaha! Enam ganda! Keberuntungan mutlak tanpa tanding! 😂💥",
+      "Bum! Dobel enam! Bersiaplah menghadapi kehancuran total! 😡⚔️",
+      "Mantap! Angka enam di papan dan giliran ekstra untukku! 🎉🔥",
+      "Biar yang lain iri, dadu ini memang memihak sang juara! 😏🚀",
+      "Lemparan kerajaan! Angka yang sangat pantas untuk mahkota! 👑⚡"
+    ],
+    "capture": [
+      "Hahaha! Kupulangkan pionmu langsung ke markas! Dadah! 😂👋",
+      "Berani menghalangi jalanku? Rasakan akibatnya sekarang! K.O.! 😡💥",
+      "Target terkunci dan tereliminasi! Balik ke kandang! 🎉🔥",
+      "Jangan baper ya, ini cuma strategi keras Ludo! Semoga beruntung nanti! 😏🎯",
+      "Gubrak! Pionmu ditendang keluar! Silakan menangis di pojokan! ⚡💀"
+    ],
+    "captured": [
+      "Aduh parah banget! Siapa yang tega menabrak pionku begini! 😂💔",
+      "Beraninya kamu memakan pionku! Kamu akan membayar mahal! 😡🔥",
+      "Dendamku akan sangat kejam, ingat baik-baik kata-kataku! ⚔️👿",
+      "Nikmati selagi bisa! Serangan balikku akan sangat dahsyat! 😏🚀",
+      "Sial banget! Tepat di depan gerbang rumah kena makan! 😭⚡"
+    ],
+    "lucky7": [
+      "Hahaha! Aturan Angka 7 menyelamatkanku! Enam ganda muncul! 😂🎲",
+      "Kira aku terjebak? Lucky Seven membalas dendam berlipat ganda! 😡⚡",
+      "Keajaiban Lucky Seven! Angka enam kembar turun dari langit! 🎉✨",
+      "Takdir tak bisa dilawan! Lucky Seven selalu berkuasa! 😏🔥",
+      "Ledakan besar! Lucky Seven memutarbalikkan permainan! 💥🚀"
+    ],
+    "home_stretch": [
+      "Hahaha! Lihat karpet merahku menuju kemenangan! Beri jalan! 😂🚀",
+      "Jangan coba-coba menyentuh pionku di sini! Awas ya! 😡🔥",
+      "Garis akhir di depan mata! Kemenangan tinggal selangkah lagi! 🏁✨",
+      "Kalian tertinggal jauh sekali! Sampai jumpa di podium juara! 😏👑",
+      "Jantung berdebar kencang! Tinggal satu angka lagi untuk menang! 💓🎲"
+    ],
+    "pawn_home": [
+      "Hahaha! Pion aman di dalam rumah! Coba kalau bisa disentuh! 😂💪",
+      "Satu pion terkunci aman, sekarang giliran menghabisi sisanya! 😡🔥",
+      "Aman sentosa di rumah! Satu pion lagi sukses masuk! 🎉🏠",
+      "Presisi luar biasa! Masuk dengan gaya seorang kaisar! 😏👑",
+      "Lega sekali rasanya! Gelar juara sudah semakin dekat! ✨🎯"
+    ],
+    "win": [
+      "Hahaha! Akulah Kaisar Ludo yang sejati! Tunduklah kalian! 😂🎉",
+      "Sudah kubilang tak ada yang sanggup menandingi kekuatanku! Menang! 🔥🥇",
+      "Waktunya selebrasi juara! Mahkota emas ini milikku! 👑🏆",
+      "Sudah kalah ya? Coba latihan lagi untuk pertandingan berikutnya! 😏🚀",
+      "Kemenangan bersejarah! Penguasaan penuh di atas papan permainan! 💥⭐"
+    ],
+    "loss": [
+      "Hahaha! Permainan hebat! Kaisar pun butuh waktu istirahat! 😂🎲",
+      "Nikmati kemenanganmu sekarang! Pertandingan ulang takkan mudah! 😡⚔️",
+      "Laga yang sangat seru dan berkesan! Selamat untuk pemenang! 👏🤝",
+      "Cuma keberuntungan pemula! Ayo main lagi kalau kalian berani! 😏🔥",
+      "Dadu mengecewakanku di saat terakhir! Pertarungan yang hebat! 💔⚡"
+    ],
+    "banter": [
+      "Seru sekali keributan ini, tapi jujur saja akulah pemimpinnya! 😂🎲",
+      "Main yang hati-hati! Salah langkah sedikit langsung kutendang keluar! 😡🔥",
+      "Energi Ludo Emperor membara! Suasana semakin tegang dan panas! 🚀👑",
+      "Kenapa lama sekali berpikirnya? Cepat lempar dadunya! 😏⏳",
+      "Ketegangan semakin memuncak! Siapa pun masih bisa menang! ⚡✨"
+    ]
+  },
+  "tr": {
+    "turn": [
+      "Hahaha! İzleyin ve öğrenin dostlar, gerçek büyü geliyor! 😂✨",
+      "Yolumdan çekilin! Sıra bende ve kimse güvende değil! 😡🔥",
+      "Benim sıram geldi! Liderliği almak için büyük bir zar lazım! 🎉🚀",
+      "İşte usta hamlem geliyor! Nefesinizi tutun! 😏🎲",
+      "Kader zarların ucunda! Bakalım ne çıkacak! ⚡🎲"
+    ],
+    "roll": [
+      "Hahaha! Gel bakalım güzel altım, seni çok bekledim! 😂🎲",
+      "Şimdi altı gelmezse gerçekten çok sinirleneceğim! 😡💥",
+      "Zarları büyük bir umutla sallıyorum! Muazzam bir sayı gelsin! 🎉✨",
+      "Bu atışı çok iyi izleyin! Buna hazır değilsiniz! 😏🔥",
+      "Kader atışı! Bu hamle tahtadaki her şeyi değiştirebilir! ⚡🎲"
+    ],
+    "lucky_roll": [
+      "Hahaha! Çift altı! Durdurulamaz bir şans ve kudret! 😂💥",
+      "Güm! Çift altı! Tam bir yıkıma hazır olun! 😡⚔️",
+      "Evet! Tahtada bir altı ve bana bir hak daha! Harika! 🎉🔥",
+      "Kıskananlar izlesin, zarlar sadece gerçek şampiyonları sever! 😏🚀",
+      "Krallara layık bir atış! Taca yakışan sayılar geldi! 👑⚡"
+    ],
+    "capture": [
+      "Hahaha! Taşını dosdoğru evine geri yolladım! Güle güle! 😂👋",
+      "Yoluma çıkmaya nasıl cüret edersin? Bedelini öde! Nakavt! 😡💥",
+      "Hedef kilitlendi ve yok edildi! Başlangıç noktasına dön! 🎉🔥",
+      "Kişisel algılama, Ludo'nun acımasız kanunu bu! Bir dahaki sefere artık! 😏🎯",
+      "Güm! Taşın tahtadan uçtu gitti! Köşede ağlayabilirsin! ⚡💀"
+    ],
+    "captured": [
+      "Yok artık! Kim beni bu kadar acımasızca vuruyor böyle! 😂💔",
+      "Benim taşıma dokunmaya nasıl cüret edersin! Çok fena ödeyeceksin! 😡🔥",
+      "İntikamım çok acı olacak, bu sözlerimi sakın unutma! ⚔️👿",
+      "Şimdilik sevin bakalım! Karşı saldırım çok sert olacak! 😏🚀",
+      "Bu kadar şanssızlık olmaz! Tam da evin kapısının önünde vuruldum! 😭⚡"
+    ],
+    "lucky7": [
+      "Hahaha! 7 Kuralı hayatımı kurtardı! Mucizevi çift altı! 😂🎲",
+      "Sıkıştığımı mı sandınız? Şanslı Yedi intikamımı alıyor! 😡⚡",
+      "Şanslı Yedi'nin saf büyüsü! Gökten inen mucize! 🎉✨",
+      "Kadere karşı koyamazsınız! Yedi her zaman hükmeder! 😏🔥",
+      "Büyük patlama! Şanslı Yedi bütün oyunu tersine çevirdi! 💥🚀"
+    ],
+    "home_stretch": [
+      "Hahaha! Zafere giden kırmızı halıma bakın! Yolu açın! 😂🚀",
+      "Sakın burada taşıma yaklaşmayı aklınızdan bile geçirmeyin! Geri durun! 😡🔥",
+      "Son düzlük! Şampiyonluğa sadece birkaç adım kaldı! 🏁✨",
+      "Hepiniz çok geride kaldınız! Kürsüde görüşürüz artık! 😏👑",
+      "Kalbim küt küt atıyor! Kazanmak için sadece tek bir zar kaldı! 💓🎲"
+    ],
+    "pawn_home": [
+      "Hahaha! Taş güvenle yuvaya girdi! Dokunun da görelim! 😂💪",
+      "İşte bu! Bir taş güvende, şimdi sıra diğerlerini ezmekte! 😡🔥",
+      "Sağ salim eve ulaştı! Bir taş daha zafer üçgeninde! 🎉🏠",
+      "Kusursuz bir isabet! Hükümdarlara yakışır bir giriş! 😏👑",
+      "Büyük bir rahatlama! Şampiyonluk kupası çok yakında! ✨🎯"
+    ],
+    "win": [
+      "Hahaha! Ludo'nun mutlak İmparatoru benim! Önümde eğilin! 😂🎉",
+      "Bana karşı kimsenin şansı olmadığını söylemiştim! Zafer benim! 🔥🥇",
+      "Şampiyon kutlama yapıyor! Altın taç benim hakkım! 👑🏆",
+      "Hemen yenildiniz mi? Bir dahaki maça kadar iyi çalışın! 😏🚀",
+      "Tarihi bir ders verdik! Tahtada tam bir hakimiyet! 💥⭐"
+    ],
+    "loss": [
+      "Hahaha! Çok iyi oynadınız! İmparatorlar da bazen mola verir! 😂🎲",
+      "Şimdilik zaferinizin tadını çıkarın! Rövanş çok acımasız olacak! 😡⚔️",
+      "Muhteşem ve heyecan dolu bir maçtı! Kazananı tebrik ederim! 👏🤝",
+      "Tamamen acemi şansı! Cesaretiniz varsa bir el daha atalım! 😏🔥",
+      "Zarlar son anda beni sırtımdan bıçakladı! Müthiş bir savaştı! 💔⚡"
+    ],
+    "banter": [
+      "Bu kargaşayı çok seviyorum ama dürüst olalım, buranın patronu benim! 😂🎲",
+      "Dikkatli oynayın! Tek bir hata yaparsanız sizi tahtadan silerim! 😡🔥",
+      "Ludo Emperor coşkusu! Heyecan tavan yapmış durumda! 🚀👑",
+      "Neden bu kadar oyalanıyorsunuz? Atın şu zarları artık! 😏⏳",
+      "Gerilim giderek artıyor! Her an her şey değişebilir! ⚡✨"
+    ]
+  },
+  "zh": {
+    "turn": [
+      {
+        "text": "哈哈哈！看好了各位，真正的绝技要上演了！ 😂✨",
+        "roman": "Hahaha! Kan hao le ge wei, jue ji shang yan le!"
+      },
+      {
+        "text": "都给我让开！轮到我出招了，谁也别想逃！ 😡🔥",
+        "roman": "Dou gei wo rang kai! Lun dao wo chu zhao le!"
+      },
+      {
+        "text": "轮到我了！来个大点数，彻底锁定胜局！ 🎉🚀",
+        "roman": "Lun dao wo le! Lai ge da dian shu!"
+      },
+      {
+        "text": "我的王牌一步来了！屏住呼吸看清楚！ 😏🎲",
+        "roman": "Wo de wang pai yi bu lai le!"
+      },
+      {
+        "text": "乾坤在骰子之中！看看命运如何安排！ ⚡🎲",
+        "roman": "Qian kun zai shai zi zhi zhong!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "哈哈哈！来吧我亲爱的六点，等你好久了！ 😂🎲",
+        "roman": "Hahaha! Lai ba wo qin ai de liu dian!"
+      },
+      {
+        "text": "要是现在摇不出六点，我真要抓狂了！ 😡💥",
+        "roman": "Yao shi xian zai yao bu chu liu dian!"
+      },
+      {
+        "text": "骰子滚起来！祈祷来一个超级大点数！ 🎉✨",
+        "roman": "Shai zi gun qi lai! Qi dao da dian shu!"
+      },
+      {
+        "text": "看好了这一掷！你们绝对想象不到！ 😏🔥",
+        "roman": "Kan hao le zhe yi zhi!"
+      },
+      {
+        "text": "关键一掷！这一步将逆转整个战局！ ⚡🎲",
+        "roman": "Guan jian yi zhi! Ni zhuan zhan ju!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "哈哈哈！双六点！不可阻挡的天赐神运！ 😂💥",
+        "roman": "Hahaha! Shuang liu dian! Tian ci shen yun!"
+      },
+      {
+        "text": "轰！双六点到手！准备承受狂风暴雨吧！ 😡⚔️",
+        "roman": "Hong! Shuang liu dian dao shou!"
+      },
+      {
+        "text": "太棒了！六点进场，再掷一次机会！ 🎉🔥",
+        "roman": "Tai bang le! Liu dian jin chang!"
+      },
+      {
+        "text": "让对手羡慕去吧，骰子永远偏爱胜者！ 😏🚀",
+        "roman": "Rang dui shou xian mu qu ba!"
+      },
+      {
+        "text": "帝王级掷骰！唯有冠军才配拥有的点数！ 👑⚡",
+        "roman": "Di wang ji zhi shai!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "哈哈哈！直接把你送回老家！一路走好！ 😂👋",
+        "roman": "Hahaha! Zhi jie ba ni song hui lao jia!"
+      },
+      {
+        "text": "敢挡我的道？那就付出代价吧！出局！ 😡💥",
+        "roman": "Gan dang wo de dao? Chu ju!"
+      },
+      {
+        "text": "目标锁定并击倒！乖乖回基地重新开始！ 🎉🔥",
+        "roman": "Mu biao suo ding bing ji dao!"
+      },
+      {
+        "text": "别介意啊，飞行棋的规则就是这么残酷！ 😏🎯",
+        "roman": "Bie jie yi a, gui ze jiu shi zhe me can ku!"
+      },
+      {
+        "text": "啪！棋子被击飞！去角落哭一会儿吧！ ⚡💀",
+        "roman": "Pa! Qi zi bei ji fei!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "天呐！是谁下手这么狠毒啊！ 😂💔",
+        "roman": "Tian na! Shi shui xia shou zhe me hen du a!"
+      },
+      {
+        "text": "居然敢吃我的棋子！你绝对会后悔的！ 😡🔥",
+        "roman": "Ju ran gan chi wo de qi zi! Ni hui hou hui de!"
+      },
+      {
+        "text": "我的复仇必将降临，给我记住这句话！ ⚔️👿",
+        "roman": "Wo de fu chou bi jiang jiang lin!"
+      },
+      {
+        "text": "先高兴着吧！我的绝地反击马上就到！ 😏🚀",
+        "roman": "Xian gao xing zhe ba! Wo de fan ji ma shang dao!"
+      },
+      {
+        "text": "太不甘心了！偏偏在终点家门口被吃掉了！ 😭⚡",
+        "roman": "Tai bu gan xin le! Men kou bei chi diao le!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "哈哈哈！幸运七规则救了我！天赐双六！ 😂🎲",
+        "roman": "Hahaha! Xing yun qi gui ze jiu le wo!"
+      },
+      {
+        "text": "以为我被困住了？幸运七彻底掀翻全场！ 😡⚡",
+        "roman": "Yi wei wo bei kun zhu le?"
+      },
+      {
+        "text": "幸运七的魔法奇迹！天降双六太神了！ 🎉✨",
+        "roman": "Xing yun qi de mo fa qi ji!"
+      },
+      {
+        "text": "命运站在我这边！幸运七掌控全场！ 😏🔥",
+        "roman": "Ming yun zhan zai wo zhe bian!"
+      },
+      {
+        "text": "震天撼地！幸运七彻底改写了游戏胜负！ 💥🚀",
+        "roman": "Zhen tian han di! Gai xie sheng fu!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "哈哈哈！看我通往胜利的红地毯！让路！ 😂🚀",
+        "roman": "Hahaha! Kan wo hong di tan! Rang lu!"
+      },
+      {
+        "text": "谁敢靠近我的棋子半步试试看！后退！ 😡🔥",
+        "roman": "Shui gan kao jin wo de qi zi! Hou tui!"
+      },
+      {
+        "text": "冲刺阶段！距离终点胜利只有一步之遥！ 🏁✨",
+        "roman": "Chong ci jie duan! Zhi you yi bu zhi yao!"
+      },
+      {
+        "text": "你们都被甩得太远了！领奖台上见！ 😏👑",
+        "roman": "Ni men dou bei shuai yuan le!"
+      },
+      {
+        "text": "心跳加速！就差最后一个点数捧杯了！ 💓🎲",
+        "roman": "Xin tiao jia su! Zui hou dian shu le!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "哈哈哈！棋子安全进家！碰都别想碰到了！ 😂💪",
+        "roman": "Hahaha! Qi zi an quan jin jia!"
+      },
+      {
+        "text": "稳稳锁定一枚棋子！剩下的我要全扫光！ 😡🔥",
+        "roman": "Wen wen suo ding yi mei! Sao guang!"
+      },
+      {
+        "text": "平平安安进家！又一枚棋子胜利登顶！ 🎉🏠",
+        "roman": "Ping ping an an jin jia!"
+      },
+      {
+        "text": "精准无比！以王者之姿从容进驻！ 😏👑",
+        "roman": "Jing zhun wu bi! Wang zhe jin zhu!"
+      },
+      {
+        "text": "长舒一口气！总冠军奖杯近在咫尺了！ ✨🎯",
+        "roman": "Chang shu yi kou qi! Jiang bei jin le!"
+      }
+    ],
+    "win": [
+      {
+        "text": "哈哈哈！我是绝对的飞行棋帝王！顶礼膜拜吧！ 😂🎉",
+        "roman": "Hahaha! Wo shi Fei Xing Qi Di Wang!"
+      },
+      {
+        "text": "早就告诉过你们，没人能阻挡我的霸业！胜利！ 🔥🥇",
+        "roman": "Zao jiu gao su guo ni men! Sheng li!"
+      },
+      {
+        "text": "属于王者的荣耀！金色皇冠非我莫属！ 👑🏆",
+        "roman": "Shu yu wang zhe de rong yao!"
+      },
+      {
+        "text": "这就认输了？回去好好练练下次再来吧！ 😏🚀",
+        "roman": "Zhe jiu ren shu le? Hao hao lian lian ba!"
+      },
+      {
+        "text": "史诗级的精彩战役！棋盘上的绝对统治者！ 💥⭐",
+        "roman": "Shi shi ji de zhan yi! Jue dui tong zhi!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "哈哈哈！玩得不错！帝王偶尔也得休个假！ 😂🎲",
+        "roman": "Hahaha! Wan de bu cuo! Di wang xiu jia!"
+      },
+      {
+        "text": "先得意一会儿吧！下次重赛我绝不会留情！ 😡⚔️",
+        "roman": "Xian de yi yi hui er ba! Bu liu qing!"
+      },
+      {
+        "text": "惊心动魄的对局！真心祝贺今天的胜者！ 👏🤝",
+        "roman": "Jing xin dong po de dui ju! Zhu he!"
+      },
+      {
+        "text": "不过是新手运气罢了！有胆量就再来一局！ 😏🔥",
+        "roman": "Bu guo shi yun qi ba le! Zai lai yi ju!"
+      },
+      {
+        "text": "最后关头骰子不给力，真是一场痛快的大战！ 💔⚡",
+        "roman": "Zui hou guan tou shai zi bu gei li!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "喜欢这种混乱的场面，不过掌控者依然是我！ 😂🎲",
+        "roman": "Xi huan hun luan, kong zhi zhe shi wo!"
+      },
+      {
+        "text": "仔细看着点走！走错一步直接把你踢飞！ 😡🔥",
+        "roman": "Zi xi kan zhe dian zou! Ti fei!"
+      },
+      {
+        "text": "帝王级对决！赛场气氛燃到最高点了！ 🚀👑",
+        "roman": "Di wang ji dui jue! Ran dao gao dian!"
+      },
+      {
+        "text": "怎么磨磨蹭蹭的？赶紧掷骰子出招啊！ 😏⏳",
+        "roman": "Zen me mo mo ceng ceng de? Gan jin zhi!"
+      },
+      {
+        "text": "悬念还在不断升级！任何人都有可能翻盘！ ⚡✨",
+        "roman": "Xuan nian sheng ji! Dou you ke neng fan pan!"
+      }
+    ]
+  },
+  "ja": {
+    "turn": [
+      {
+        "text": "あはは！刮目して見てなさい、奇跡の技を見せてあげる！ 😂✨",
+        "roman": "Ahaha! Katsumoku shite mitenasai!"
+      },
+      {
+        "text": "そこをどきなさい！私のターンだ、容赦はしない！ 😡🔥",
+        "roman": "Soko o dokinasai! Watashi no taan da!"
+      },
+      {
+        "text": "私の番が来た！トップを奪うための大きな出目が欲しい！ 🎉🚀",
+        "roman": "Watashi no ban ga kita! Ooki na deme ga hoshii!"
+      },
+      {
+        "text": "私の神の一手をご覧あれ！息を呑んで見ててね！ 😏🎲",
+        "roman": "Watashi no kami no itte o goran are!"
+      },
+      {
+        "text": "運命はサイコロの中にあり！何が出るかお楽しみ！ ⚡🎲",
+        "roman": "Unmei wa saikoro no naka ni ari!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "あはは！おいで私の大好きな６よ、ずっと待ってた！ 😂🎲",
+        "roman": "Ahaha! Oide watashi no daisuki na roku yo!"
+      },
+      {
+        "text": "今６が出なかったら本当に怒っちゃうからね！ 😡💥",
+        "roman": "Ima roku ga denakattara hontou ni okoru!"
+      },
+      {
+        "text": "サイコロを振るぞ！最高の大当たりが出ますように！ 🎉✨",
+        "roman": "Saikoro o furu zo! Oki na atari!"
+      },
+      {
+        "text": "このひと振りをよく見なさい！度肝を抜かれるわよ！ 😏🔥",
+        "roman": "Kono hito-furi o yoku minasai!"
+      },
+      {
+        "text": "運命のロール！この一手ですべてが覆る！ ⚡🎲",
+        "roman": "Unmei no rooru! Subete ga kutsugaeru!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "あはは！ダブルの６！止められない神がかりの運！ 😂💥",
+        "roman": "Ahaha! Daburu no roku! Kami-gakari!"
+      },
+      {
+        "text": "ドカン！ダブル６！完全なる破滅を覚悟しなさい！ 😡⚔️",
+        "roman": "Dokan! Daburu roku! Hametsu o kakugo!"
+      },
+      {
+        "text": "やった！６が出てボード上へ、もう１回私の番！ 🎉🔥",
+        "roman": "Yatta! Roku ga dete mou ikkai!"
+      },
+      {
+        "text": "悔しがっても無駄よ、サイコロは勝者が大好きなの！ 😏🚀",
+        "roman": "Kuyashigattemo muda yo!"
+      },
+      {
+        "text": "王者のロール！冠を戴くにふさわしい出目ね！ 👑⚡",
+        "roman": "Ouja no rooru! Kanmuri ni fusawashii!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "あはは！お家へお帰りなさいませ！バイバイ！ 😂👋",
+        "roman": "Ahaha! Ouchi e okaerinasaimase!"
+      },
+      {
+        "text": "私の邪魔をするからこうなるのよ！一撃退場！ 😡💥",
+        "roman": "Watashi no jama o suru kara kou naru!"
+      },
+      {
+        "text": "ターゲットを捕捉して撃破！スタートへ戻れ！ 🎉🔥",
+        "roman": "Taagetto o hosoku shite gekiha!"
+      },
+      {
+        "text": "悪く思わないでね、これがルドの冷酷な掟よ！ 😏🎯",
+        "roman": "Waruku omowanaide ne!"
+      },
+      {
+        "text": "ドスン！コマを弾き飛ばしたわ！隅っこで泣きなさい！ ⚡💀",
+        "roman": "Dosun! Koma o hajikitobashita wa!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "ちょっと信じられない！なんて酷い攻撃をするの！ 😂💔",
+        "roman": "Chotto shinjirarenai! Hidoi kougeki!"
+      },
+      {
+        "text": "よくも私のコマを取ったわね！タダじゃ済まさない！ 😡🔥",
+        "roman": "Yokumo watashi no koma o totta wa ne!"
+      },
+      {
+        "text": "復讐してやるから覚悟しなさい！後悔させてあげる！ ⚔️👿",
+        "roman": "Fukushuu shite yaru kara kakugo shinasai!"
+      },
+      {
+        "text": "今だけ喜んでいなさい！反撃は倍返しよ！ 😏🚀",
+        "roman": "Ima dake yorokonde inasai! Baikaeshi yo!"
+      },
+      {
+        "text": "なんという不運！ゴールの目の前でやられるなんて！ 😭⚡",
+        "roman": "Nan to iu fuun! Gooru no me no mae de!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "あはは！ラッキーセブンの奇跡！ダブル６降臨！ 😂🎲",
+        "roman": "Ahaha! Rakkii sebun no kiseki!"
+      },
+      {
+        "text": "追い詰められたと思った？セブンが怒りの大逆転よ！ 😡⚡",
+        "roman": "Oitsumerareta to omotta? Daigyakuten!"
+      },
+      {
+        "text": "幸運の７の魔法！天からダブル６が降ってきた！ 🎉✨",
+        "roman": "Kouun no nana no mahou!"
+      },
+      {
+        "text": "運命には逆らえないわ！ラッキーセブンが支配する！ 😏🔥",
+        "roman": "Unmei ni wa sakaraenai wa!"
+      },
+      {
+        "text": "大爆発！ラッキーセブンで戦局が完全に覆った！ 💥🚀",
+        "roman": "Daibakuhatsu! Senkyoku ga kutsugaetta!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "あはは！勝利へのレッドカーペットを見なさい！道を開けよ！ 😂🚀",
+        "roman": "Ahaha! Reddo kaapetto o minasai!"
+      },
+      {
+        "text": "ここで私のコマに指一本触れようなんて思うな！下がれ！ 😡🔥",
+        "roman": "Koko de yubi ippon fureru na! Sagare!"
+      },
+      {
+        "text": "ウイニングロード！栄光のゴールまであと一歩！ 🏁✨",
+        "roman": "Uiningu roodo! Eikou made ato ippo!"
+      },
+      {
+        "text": "みんな遥か後ろね！表彰台の上で待ってるわ！ 😏👑",
+        "roman": "Minna haruka ushiro ne!"
+      },
+      {
+        "text": "胸が高鳴るわ！あとひとつの出目で完全勝利よ！ 💓🎲",
+        "roman": "Mune ga takanaru wa! Kanzen shouri!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "あはは！コマが無事にお家へ入ったわ！もう手出し無用！ 😂💪",
+        "roman": "Ahaha! Koma ga buji ni ouchi e haitta!"
+      },
+      {
+        "text": "まず１つ確保！この勢いで残りも蹴散らしてあげる！ 😡🔥",
+        "roman": "Mazu hitotsu kakuho! Nokori mo kechirasu!"
+      },
+      {
+        "text": "無事帰還完了！また１つコマが栄光のゴールへ！ 🎉🏠",
+        "roman": "Buji kikan kanryou! Eikou no gooru!"
+      },
+      {
+        "text": "完璧な精度ね！王者の風格漂うゴールイン！ 😏👑",
+        "roman": "Kanpeki na seido ne! Ouja no fuukaku!"
+      },
+      {
+        "text": "ホッとしたわ！チャンピオンの座はもう目の前よ！ ✨🎯",
+        "roman": "Hotto shita wa! Chanpion wa me no mae!"
+      }
+    ],
+    "win": [
+      {
+        "text": "あはは！私が真のルドエンペラーよ！ひれ伏しなさい！ 😂🎉",
+        "roman": "Ahaha! Watashi ga shin no Rudo Enperaa yo!"
+      },
+      {
+        "text": "言ったでしょ、私に敵う者なんていないって！完全勝利！ 🔥🥇",
+        "roman": "Itta desho, watashi ni kanau mono wa inai!"
+      },
+      {
+        "text": "王者の祝宴よ！黄金の冠は私の頭上に輝く！ 👑🏆",
+        "roman": "Ouja no shukuen yo! Ougon no kanmuri!"
+      },
+      {
+        "text": "もう降参？次回に向けて特訓して出直してきなさい！ 😏🚀",
+        "roman": "Mou kousan? Tokkun shite denaoshite!"
+      },
+      {
+        "text": "歴史的マスタークラス！ボード上の完全制覇！ 💥⭐",
+        "roman": "Rekishiteki masutaakurasu!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "あはは！ナイスゲーム！皇帝だってたまには休むのよ！ 😂🎲",
+        "roman": "Ahaha! Naisu geemu! Yasumu no yo!"
+      },
+      {
+        "text": "今のうちに喜んでおきなさい！リベンジは手加減しないわ！ 😡⚔️",
+        "roman": "Ima no uchi ni yorokonde okinasai!"
+      },
+      {
+        "text": "見事な大熱戦だったわ！勝者に心から拍手を送るわ！ 👏🤝",
+        "roman": "Migoto na dainessen datta wa!"
+      },
+      {
+        "text": "ビギナーズラックね！度胸があるならもう１戦やりましょ！ 😏🔥",
+        "roman": "Biginaazu rakku ne! Mou issen!"
+      },
+      {
+        "text": "土壇場でサイコロに裏切られたわ！最高の戦いだった！ 💔⚡",
+        "roman": "Dotanba de saikoro ni uragirareta!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "このカオスな展開、最高ね！でも支配してるのは私よ！ 😂🎲",
+        "roman": "Kono kaosu na tenkai, saikou ne!"
+      },
+      {
+        "text": "慎重に動きなさい！一歩間違えたら吹き飛ばすわよ！ 😡🔥",
+        "roman": "Shinchou ni ugokinasai!"
+      },
+      {
+        "text": "ルドエンペラーの闘志が漲る！緊張感が痺れるわね！ 🚀👑",
+        "roman": "Rudo Enperaa no toushi! Kinchoukan!"
+      },
+      {
+        "text": "何をモタモタしてるの？さっさとサイコロを振りなさい！ 😏⏳",
+        "roman": "Nani o motamota shiteru no? Saikoro o fure!"
+      },
+      {
+        "text": "サスペンスが高まってきたわ！誰が勝ってもおかしくない！ ⚡✨",
+        "roman": "Sasupensu ga takamatte kita wa!"
+      }
+    ]
+  },
+  "ko": {
+    "turn": [
+      {
+        "text": "하하하! 잘 보고 배우세요 여러분, 마법이 시작됩니다! 😂✨",
+        "roman": "Hahaha! Jal bogo baeuseyo!"
+      },
+      {
+        "text": "비키세요! 내 차례인데 아무도 무사하지 못할 겁니다! 😡🔥",
+        "roman": "Bikiseyo! Nae charyeinde!"
+      },
+      {
+        "text": "드디어 내 차례! 큰 숫자를 뽑아서 판을 뒤흔들 차례! 🎉🚀",
+        "roman": "Deudieo nae charye! Pan-eul dwihundeul!"
+      },
+      {
+        "text": "내 필살의 한 수가 들어갑니다! 숨 죽이고 지켜보세요! 😏🎲",
+        "roman": "Nae pilsal-ui han su!"
+      },
+      {
+        "text": "운명은 주사위 안에 있습니다! 결과를 보시죠! ⚡🎲",
+        "roman": "Unmyeong-eun jusawi an-e!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "하하하! 이리 온 내 사랑 6아, 애타게 기다렸단다! 😂🎲",
+        "roman": "Hahaha! Iri on nae sarang yuk-ah!"
+      },
+      {
+        "text": "지금 6 안 나오면 진짜 화낼 것 같아요! 😡💥",
+        "roman": "Jigeum yuk an naomyeon hwanael geot!"
+      },
+      {
+        "text": "주사위 굴립니다! 엄청난 대박 숫자가 나오길! 🎉✨",
+        "roman": "Jusawi gullimnida! Daebak!"
+      },
+      {
+        "text": "이 굴림을 똑똑히 보세요! 깜짝 놀랄 겁니다! 😏🔥",
+        "roman": "I gullim-eul ttokttokhi boseyo!"
+      },
+      {
+        "text": "운명의 한 판! 이 굴림으로 모든 게 바뀝니다! ⚡🎲",
+        "roman": "Unmyeong-ui han pan!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "하하하! 더블 6! 그 누구도 막을 수 없는 천운! 😂💥",
+        "roman": "Hahaha! Deobeul yuk! Cheon-un!"
+      },
+      {
+        "text": "쾅! 더블 6 등장! 철저한 응징을 각오하세요! 😡⚔️",
+        "roman": "Kwang! Deobeul yuk deungjang!"
+      },
+      {
+        "text": "좋았어! 6이 나왔고 내게 한 번 더 기회가! 🎉🔥",
+        "roman": "Joasseo! Yuk-i nawattgo!"
+      },
+      {
+        "text": "부러우면 지는 겁니다! 주사위는 승자만 사랑하죠! 😏🚀",
+        "roman": "Bureoumyeon jineun geomnida!"
+      },
+      {
+        "text": "황제의 굴림! 왕관에 걸맞은 완벽한 숫자! 👑⚡",
+        "roman": "Hwangje-ui gullim! Wanggwan!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "하하하! 당신 말을 바로 집으로 돌려보냈어요! 안녕! 😂👋",
+        "roman": "Hahaha! Dangsin mal-eul jip-euro!"
+      },
+      {
+        "text": "감히 내 앞길을 막아? 대가를 치러라! 아웃! 😡💥",
+        "roman": "Gamhi nae apgil-eul maga?"
+      },
+      {
+        "text": "목표 포착 및 격파 완료! 처음부터 다시 시작하세요! 🎉🔥",
+        "roman": "Mokpyo pochak mit gyeokpa!"
+      },
+      {
+        "text": "너무 서운해 마세요, 루도의 법칙이 원래 비정합니다! 😏🎯",
+        "roman": "Neomu seounhae maseyo!"
+      },
+      {
+        "text": "쾅! 말이 날아갔습니다! 구석에서 울고 계세요! ⚡💀",
+        "roman": "Kwang! Mal-i naragasseumnida!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "아니 이럴 수가! 누가 날 이렇게 가혹하게 잡는 거야! 😂💔",
+        "roman": "Ani ireol suga! Gahoekhage!"
+      },
+      {
+        "text": "감히 내 말을 잡다니! 뼈저리게 후회하게 해줄게! 😡🔥",
+        "roman": "Gamhi nae mal-eul japdani!"
+      },
+      {
+        "text": "내 복수는 가혹할 것입니다! 똑똑히 기억해 두세요! ⚔️👿",
+        "roman": "Nae boksu-neun gahokhal geomnida!"
+      },
+      {
+        "text": "지금 실컷 웃어두세요! 내 반격은 무시무시할 테니! 😏🚀",
+        "roman": "Jigeum silkeot useoduseyo!"
+      },
+      {
+        "text": "정말 억울하네요! 집 문턱 바로 앞에서 잡히다니! 😭⚡",
+        "roman": "Jeongmal eogulhaneyo! Munteok ap-eseo!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "하하하! 럭키 세븐의 기적! 기적의 더블 6 강림! 😂🎲",
+        "roman": "Hahaha! Reokki sebeun-ui gijeok!"
+      },
+      {
+        "text": "내가 갇힌 줄 알았죠? 럭키 세븐이 분노를 터뜨립니다! 😡⚡",
+        "roman": "Naega gachin jul aratjyo?"
+      },
+      {
+        "text": "행운의 7의 마법! 기적처럼 더블 6이 쏟아집니다! 🎉✨",
+        "roman": "Haeng-un-ui chil-ui mabeop!"
+      },
+      {
+        "text": "운명을 거스를 순 없죠! 럭키 세븐이 지배합니다! 😏🔥",
+        "roman": "Unmyeong-eul geoseureul sun eopjyo!"
+      },
+      {
+        "text": "대폭발! 럭키 세븐이 판도를 완전히 뒤집어놓았습니다! 💥🚀",
+        "roman": "Daepokbal! Pando-reul dwijibeo!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "하하하! 승리를 향한 레드카펫을 보세요! 길을 비켜라! 😂🚀",
+        "roman": "Hahaha! Redeukapet-eul boseyo!"
+      },
+      {
+        "text": "여기서 내 말에 손댈 생각 따윈 꿈도 꾸지 마! 😡🔥",
+        "roman": "Nae mal-e sondael saenggak ma!"
+      },
+      {
+        "text": "마지막 직선 주로! 승리까지 이제 딱 한 걸음! 🏁✨",
+        "roman": "Majimak jikseon juro!"
+      },
+      {
+        "text": "다들 너무 뒤처져 있네요! 시상대에서 뵙겠습니다! 😏👑",
+        "roman": "Dadeul neomu dwicheojyeo!"
+      },
+      {
+        "text": "심장이 터질 것 같아요! 숫자 하나만 더 나오면 우승! 💓🎲",
+        "roman": "Simjang-i teojil geot gatayo!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "하하하! 말 하나 안전하게 골인! 건드릴 테면 건드려봐! 😂💪",
+        "roman": "Hahaha! Mal hana anjeonhage!"
+      },
+      {
+        "text": "하나 성공! 이 기세로 나머지도 전부 쓸어버린다! 😡🔥",
+        "roman": "Hana seonggong! Sseureobeorinda!"
+      },
+      {
+        "text": "무사히 안착했습니다! 또 한 말이 영광의 집으로! 🎉🏠",
+        "roman": "Musahi anchakhayeosseumnida!"
+      },
+      {
+        "text": "완벽한 정밀함! 황제다운 품격으로 입성 완료! 😏👑",
+        "roman": "Wanbyeokhan jeongmilham!"
+      },
+      {
+        "text": "정말 홀가분하네요! 챔피언 트로피가 눈앞에 보입니다! ✨🎯",
+        "roman": "Jeongmal holgabunhaneyo!"
+      }
+    ],
+    "win": [
+      {
+        "text": "하하하! 내가 바로 루도의 절대 황제다! 무릎을 꿇어라! 😂🎉",
+        "roman": "Hahaha! Naega baro Hwangjeda!"
+      },
+      {
+        "text": "말했잖아요, 그 누구도 날 꺾을 수 없다고! 승리! 🔥🥇",
+        "roman": "Malhaetjanayo, geu nugudo!"
+      },
+      {
+        "text": "챔피언의 축제! 황금 왕관은 온전히 내 것입니다! 👑🏆",
+        "roman": "Wang-gwan-eun nae geot!"
+      },
+      {
+        "text": "벌써 패배하셨나요? 다음 판을 위해 연습 더 하고 오세요! 😏🚀",
+        "roman": "Beolsse paebae? Yeonseup deo!"
+      },
+      {
+        "text": "역사적인 명승부! 보드판 위의 완벽한 절대 지배! 💥⭐",
+        "roman": "Yeoksajeogin myeongseungbu!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "하하하! 잘하셨어요! 황제도 가끔은 휴식을 취하는 법이죠! 😂🎲",
+        "roman": "Hahaha! Jalhasyeosseoyo!"
+      },
+      {
+        "text": "지금 승리를 만끽해 두세요! 재대결은 자비 없을 겁니다! 😡⚔️",
+        "roman": "Jigeum seungni-reul mankkik!"
+      },
+      {
+        "text": "정말 손에 땀을 쥐는 명경기였어요! 승자에게 큰 박수를! 👏🤝",
+        "roman": "Sone ttam-eul jwineun!"
+      },
+      {
+        "text": "초심자의 행운일 뿐입니다! 자신 있으면 한 판 더 하죠! 😏🔥",
+        "roman": "Chosimja-ui haeng-un!"
+      },
+      {
+        "text": "마지막 순간에 주사위가 배신했네요! 멋진 승부였습니다! 💔⚡",
+        "roman": "Majimak jung-e jusawiga!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "이 난장판이 정말 즐겁네요, 하지만 지배자는 접니다! 😂🎲",
+        "roman": "I nanjangpan-i jeulgeopneyo!"
+      },
+      {
+        "text": "조심해서 두세요! 삐끗하면 바로 판 밖으로 날려버립니다! 😡🔥",
+        "roman": "Josimhaeseo duseyo!"
+      },
+      {
+        "text": "루도 엠퍼러의 열기! 팽팽한 긴장감이 짜릿하네요! 🚀👑",
+        "roman": "Paengpaenghan ginjanggam!"
+      },
+      {
+        "text": "왜 이렇게 뜸을 들이시나요? 어서 주사위를 굴리세요! 😏⏳",
+        "roman": "Eoseo jusawi-reul gulliseyo!"
+      },
+      {
+        "text": "서스펜스가 극에 달했습니다! 누구든 판을 뒤집을 수 있어요! ⚡✨",
+        "roman": "Suspens-ga geuk-e!"
+      }
+    ]
+  },
+  "it": {
+    "turn": [
+      "Hahaha! Guardate e imparate amici, pura magia in arrivo! 😂✨",
+      "Fuori dai piedi! È il mio turno e nessuno è al sicuro! 😡🔥",
+      "Tocca a me! Serve un numero grande per dominare la partita! 🎉🚀",
+      "Ecco la mia mossa da maestro! Trattenete il respiro! 😏🎲",
+      "Il destino è nei dadi! Vediamo cosa succede ora! ⚡🎲"
+    ],
+    "roll": [
+      "Hahaha! Vieni da papà bel sei, ti stavo aspettando! 😂🎲",
+      "Se non esce un sei adesso mi arrabbio sul serio! 😡💥",
+      "Dadi in volo! Sto desiderando un numero gigantesco! 🎉✨",
+      "Guardate bene questo lancio! Non siete pronti per questo! 😏🔥",
+      "Lancio decisivo! Questo può cambiare tutto sul tavolo! ⚡🎲"
+    ],
+    "lucky_roll": [
+      "Hahaha! Doppio sei! Una fortuna inarrestabile e maestosa! 😂💥",
+      "Boom! Doppio sei! Preparatevi alla distruzione totale! 😡⚔️",
+      "Sì! Un bel sei in campo e un altro turno per me! 🎉🔥",
+      "Lasciate parlare gli invidiosi, i dadi amano solo i campioni! 😏🚀",
+      "Lancio regale! Numeri assolutamente degni di una corona! 👑⚡"
+    ],
+    "capture": [
+      "Hahaha! Spedita la tua pedina dritto a casa! Ciao ciao! 😂👋",
+      "Hai osato intralciare il mio cammino? Paga il conto! K.O.! 😡💥",
+      "Bersaglio agganciato ed eliminato! Torna alla base! 🎉🔥",
+      "Niente di personale, è la dura legge del Ludo! Alla prossima! 😏🎯",
+      "Sbam! Pedina spazzata via dal tavolo! Vai a piangere altrove! ⚡💀"
+    ],
+    "captured": [
+      "Ma dai non ci credo! Chi mi attacca con tanta crudeltà! 😂💔",
+      "Come osi toccare la mia pedina! La pagherai carissima! 😡🔥",
+      "La mia vendetta sarà spietata, ricordati bene le mie parole! ⚔️👿",
+      "Goditi il momento finché dura! Il mio contrattacco sarà feroce! 😏🚀",
+      "Che sfortuna pazzesca! Proprio davanti alla porta di casa! 😭⚡"
+    ],
+    "lucky7": [
+      "Hahaha! La Regola del 7 mi ha salvato la pelle! Incredibile! 😂🎲",
+      "Pensavate fossi bloccato? Il Sette Fortunato scatena la furia! 😡⚡",
+      "Magia pura del Sette Fortunato! Doppio sei sceso dal cielo! 🎉✨",
+      "Non si batte il destino! Il Sette detta legge sempre! 😏🔥",
+      "Esplosione totale! Il Sette Fortunato ribalta completamente il gioco! 💥🚀"
+    ],
+    "home_stretch": [
+      "Hahaha! Ammirate il mio tappeto rosso verso la gloria! Largo! 😂🚀",
+      "Non provate nemmeno ad avvicinarvi alla mia pedina qui! Indietro! 😡🔥",
+      "Rettilineo finale! La vittoria è a pochissimi centimetri! 🏁✨",
+      "Siete rimasti tutti così indietro! Ci vediamo sul podio più alto! 😏👑",
+      "Il cuore batte forte! Solo un ultimo numero per chiudere i conti! 💓🎲"
+    ],
+    "pawn_home": [
+      "Hahaha! Pedina al sicuro nella casa madre! Provate a toccarla ora! 😂💪",
+      "Presa una pedina! Ora vado a spazzare via tutto il resto! 😡🔥",
+      "Sana e salva a casa! Un'altra pedina nel nido dorato! 🎉🏠",
+      "Precisione chirurgica! Ingresso trionfale come veri sovrani! 😏👑",
+      "Che grande sollievo! Il titolo di campione è dietro l'angolo! ✨🎯"
+    ],
+    "win": [
+      "Hahaha! Sono io il Supremo Imperatore del Ludo! Inginocchiatevi! 😂🎉",
+      "Ve l'avevo detto che nessuno poteva competere con me! Vittoria! 🔥🥇",
+      "I campioni festeggiano! La corona d'oro appartiene solo a me! 👑🏆",
+      "Vi siete già arresi? Andate ad allenarvi per la prossima sfida! 😏🚀",
+      "Lezione storica di gioco! Dominio totale sul tabellone! 💥⭐"
+    ],
+    "loss": [
+      "Hahaha! Ben giocato! Anche gli imperatori ogni tanto riposano! 😂🎲",
+      "Godetevi il trionfo per ora! La rivincita non avrà pietà! 😡⚔️",
+      "Partita stupenda e avvincente! Tanti complimenti al vincitore! 👏🤝",
+      "Pura fortuna da principianti! Rigiochiamo se ne avete il coraggio! 😏🔥",
+      "I dadi mi hanno tradito proprio sul più bello! Che grande duello! 💔⚡"
+    ],
+    "banter": [
+      "Adoro questo caos, ma siamo onesti: qui comando io! 😂🎲",
+      "Giocate con attenzione! Un errore e vi caccio via dal gioco! 😡🔥",
+      "Energia da Ludo Emperor! La tensione è a mille sul tavolo! 🚀👑",
+      "Perché ci mettete così tanto? Tirate quei benedetti dadi! 😏⏳",
+      "La suspence cresce a dismisura! Chiunque può ancora farcela! ⚡✨"
+    ]
+  },
+  "fa": {
+    "turn": [
+      {
+        "text": "هاهاها! نگاه کنید و یاد بگیرید، الان نوبت شعبده‌بازی منه! 😂✨",
+        "roman": "Hahaha! Negah konid o yad begirid!"
+      },
+      {
+        "text": "همه از سر راهم برید کنار! نوبت منه و به هیچ‌کس رحم نمی‌کنم! 😡🔥",
+        "roman": "Hame az sare raham berid kenar!"
+      },
+      {
+        "text": "نوبت من رسید! یه تاس درشت می‌خوام تا بازی رو دستم بگیرم! 🎉🚀",
+        "roman": "Nobate man resid! Ye tase dorosht!"
+      },
+      {
+        "text": "حرکت شاهانه من شروع شد! نفستون رو تو سینه حبس کنید! 😏🎲",
+        "roman": "Harekate shahane-ye man shorou shod!"
+      },
+      {
+        "text": "سرنوشت توی دل تاس‌هاست! ببینیم چی برامون رقم می‌خوره! ⚡🎲",
+        "roman": "Sarnevesht tooye dele tas-hast!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "هاهاها! بیا پیش خودم شش قشنگم، خیلی وقته منتظرتم! 😂🎲",
+        "roman": "Hahaha! Bia pishe khodam shishe ghashangam!"
+      },
+      {
+        "text": "اگه الان شش نیاد از عصبانیت داد می‌زنم! 😡💥",
+        "roman": "Age alan shish nayad dad mizanam!"
+      },
+      {
+        "text": "تاس‌ها دارن می‌چرخن! دعا کنید یه عدد فوق‌العاده بیاد! 🎉✨",
+        "roman": "Tas-ha daran micharkhan!"
+      },
+      {
+        "text": "این چرخش رو خوب تماشا کنید! دهنتون باز می‌مونه! 😏🔥",
+        "roman": "In charkhesh ro khoob tamasha konid!"
+      },
+      {
+        "text": "تاس سرنوشت‌ساز! همین حرکت همه چیز رو دگرگون می‌کنه! ⚡🎲",
+        "roman": "Tase sarnevesht-saz!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "هاهاها! جفت شش! شانس مهارنشدنی و شاهکار من! 😂💥",
+        "roman": "Hahaha! Jofte shish! Shanse mahar-nashodani!"
+      },
+      {
+        "text": "بوم! جفت شش طلایی! آماده شکست کامل باشید! 😡⚔️",
+        "roman": "Boom! Jofte shishe talaei!"
+      },
+      {
+        "text": "آره! شش اومد و یه نوبت اضافه هم مال من شد! 🎉🔥",
+        "roman": "Aare! Shish oomad o ye nobate ezafe!"
+      },
+      {
+        "text": "حسودا حرص بخورن، تاس فقط عاشق قهرمان‌هاست! 😏🚀",
+        "roman": "Hasooda hers bekhoran!"
+      },
+      {
+        "text": "پرتاب سلطنتی! عددی در خور تاج پادشاهی! 👑⚡",
+        "roman": "Partabe saltanati!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "هاهاها! مهره‌ات رو مستقیم فرستادم خونه‌اش! خدانگهدار! 😂👋",
+        "roman": "Hahaha! Mohrat ro mostaghim ferestadam khooneh!"
+      },
+      {
+        "text": "جرئت کردی سد راهم بشی؟ تاوانش رو پس بده! ضربه فنی! 😡💥",
+        "roman": "Jor'at kardi sadde raham beshi?"
+      },
+      {
+        "text": "هدف قفل و نابود شد! برگرد به نقطه آغاز! 🎉🔥",
+        "roman": "Hadaf ghofl o nabood shod!"
+      },
+      {
+        "text": "ناراحت نشو رفیق، قانون منچ همینه! دفعه بعد شانس بیار! 😏🎯",
+        "roman": "Narahat nasho rafeeq!"
+      },
+      {
+        "text": "گرومپ! مهره‌ات پرت شد بیرون! بشین غصه بخور! ⚡💀",
+        "roman": "Gheromp! Mohrat part shod biroon!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "ای وای مگه میشه! کی انقدر بی‌رحمانه به من حمله می‌کنه! 😂💔",
+        "roman": "Ey vay mage mishe!"
+      },
+      {
+        "text": "چطور جرئت کردی مهره منو بزنی! بدجور تاوان میدی! 😡🔥",
+        "roman": "Chetor jor'at kardi mohre-ye mano bezani!"
+      },
+      {
+        "text": "انتقامم سخت و ویران‌کننده خواهد بود، این خط این نشون! ⚔️👿",
+        "roman": "Entegham-am sakht khahad bood!"
+      },
+      {
+        "text": "فعلاً خوشحال باش! پاتک من حساب کار رو دستت میاره! 😏🚀",
+        "roman": "Fe'lan khoshhal bash!"
+      },
+      {
+        "text": "آخ چه بدشانسی بزرگی! درست دم در ورودی خونه مهره‌ام رفت! 😭⚡",
+        "roman": "Akh che badshansi-ye bozorgi!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "هاهاها! قانون هفت منو نجات داد! جفت شش معجزه‌آسا! 😂🎲",
+        "roman": "Hahaha! Ghanoone haft mano nejat dad!"
+      },
+      {
+        "text": "فکر کردید گیر افتادم؟ هفت خوش‌شانس طوفان به پا کرد! 😡⚡",
+        "roman": "Fekr kardid gir oftadam?"
+      },
+      {
+        "text": "معجزه جادویی عدد هفت! جفت شش از آسمون رسید! 🎉✨",
+        "roman": "Mo'jeze-ye jadooyi-ye adade haft!"
+      },
+      {
+        "text": "با سرنوشت نمیشه جنگید! هفت خوش‌شانس حرف اول رو میزنه! 😏🔥",
+        "roman": "Ba sarnevesht nemishe jangid!"
+      },
+      {
+        "text": "انفجار بزرگ! هفت خوش‌شانس ورق بازی رو برگردوند! 💥🚀",
+        "roman": "Enfejare bozorg!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "هاهاها! فرش قرمزم رو به سمت پیروزی ببینید! راه باز کنید! 😂🚀",
+        "roman": "Hahaha! Farshe ghermezet ro bebinid!"
+      },
+      {
+        "text": "حواستون باشه هیچ‌کس حق نداره به مهره من نزدیک بشه! 😡🔥",
+        "roman": "Havas-etoon bashe!"
+      },
+      {
+        "text": "خط پایان جلوی چشممه! پیروزی فقط یه قدم فاصله داره! 🏁✨",
+        "roman": "Khatte payan jolooye cheshmame!"
+      },
+      {
+        "text": "شماها خیلی عقب موندید! روی سکوی قهرمانی می‌بینمتون! 😏👑",
+        "roman": "Shomaha kheyli aghab moondid!"
+      },
+      {
+        "text": "قلبم تند تند می‌زنه! فقط یه عدد دیگه تا جشن قهرمانی! 💓🎲",
+        "roman": "Ghalbam tond tond mizane!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "هاهاها! مهره جاش امن شد توی خونه! اگه می‌تونید دست بزنید! 😂💪",
+        "roman": "Hahaha! Mohre jash amn shod!"
+      },
+      {
+        "text": "یکیش رسید به مقصد! حالا وقت درو کردن بقیه مهره‌هاست! 😡🔥",
+        "roman": "Yekish resid be maghsad!"
+      },
+      {
+        "text": "صحیح و سالم در خانه! یه مهره دیگه هم پیروزمندانه رسید! 🎉🏠",
+        "roman": "Sahih o salem dar khooneh!"
+      },
+      {
+        "text": "دقت شاهکار! ورود با وقار و شکوه پادشاهی! 😏👑",
+        "roman": "Deghate shahkar!"
+      },
+      {
+        "text": "آخیش خیالم راحت شد! جام قهرمانی تو چنگ منه! ✨🎯",
+        "roman": "Akhish khialam rahat shod!"
+      }
+    ],
+    "win": [
+      {
+        "text": "هاهاها! من امپراتور بی‌چون‌وچرای لودو هستم! تعظیم کنید! 😂🎉",
+        "roman": "Hahaha! Man emperatoore Ludo hastam!"
+      },
+      {
+        "text": "گفتم که کسی حریف قدرت و هوش من نمیشه! پیروزی! 🔥🥇",
+        "roman": "Goftam ke kasi harife ghodratam nemishe!"
+      },
+      {
+        "text": "قهرمان‌ها جشن می‌گیرند! تاج طلایی حق مسلم منه! 👑🏆",
+        "roman": "Taje talaei haggham-e!"
+      },
+      {
+        "text": "به همین زودی باختید؟ برید واسه بازی بعدی تمرین کنید! 😏🚀",
+        "roman": "Be hamin zoodi bakhtid?"
+      },
+      {
+        "text": "شاهکار تاریخی منچ! تسلط کامل روی صفحه بازی! 💥⭐",
+        "roman": "Shahkare tarikhi-ye Mench!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "هاهاها! خوب بازی کردید! پادشاه‌ها هم گاهی استراحت می‌کنند! 😂🎲",
+        "roman": "Hahaha! Khoob bazi kardid!"
+      },
+      {
+        "text": "فعلاً خوش باشید! انتقامم در بازی بعدی بی‌رحمانه است! 😡⚔️",
+        "roman": "Fe'lan khosh bashid!"
+      },
+      {
+        "text": "بازی واقعاً هیجان‌انگیز و عالی بود! تبریک به برنده! 👏🤝",
+        "roman": "Bazi vaghean hayajan-angiz bood!"
+      },
+      {
+        "text": "فقط شانس تازه‌کارها بود! اگه جرئت دارید دوباره بازی کنید! 😏🔥",
+        "roman": "Faghat shanse tazekarha bood!"
+      },
+      {
+        "text": "تاس لحظه آخر به من خیانت کرد! چه نبرد باشکوهی بود! 💔⚡",
+        "roman": "Tas lahze-ye akhar khiyanat kard!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "عاشق این شلوغی‌ام، ولی واقعیت اینه که من رئیس این بازیم! 😂🎲",
+        "roman": "Asheghe in sholooghi-am!"
+      },
+      {
+        "text": "با دقت بازی کنید! یه اشتباه مساویه با حذف کامل! 😡🔥",
+        "roman": "Ba deghat bazi konid!"
+      },
+      {
+        "text": "شور و هیجان امپراتور لودو! جو بازی حسابی داغ شده! 🚀👑",
+        "roman": "Shoor o hayajan!"
+      },
+      {
+        "text": "چرا انقدر لفتش می‌دید؟ زودتر تاس رو بندازید دیگه! 😏⏳",
+        "roman": "Chera enghadr leftesh midid?"
+      },
+      {
+        "text": "هیجان داره اوج می‌گیره! هر حرکتی می‌تونه سرنوشت‌ساز باشه! ⚡✨",
+        "roman": "Hayajan dare owj migire!"
+      }
+    ]
+  },
+  "ta": {
+    "turn": [
+      {
+        "text": "ஹாஹாஹா! பாருங்க மக்களே, இப்போ என் மாயாஜாலம் ஆரம்பம்! 😂✨",
+        "roman": "Hahaha! Paarunga makkale!"
+      },
+      {
+        "text": "எல்லாரும் வழியை விடுங்க! என் முறை, யாரையும் விடமாட்டேன்! 😡🔥",
+        "roman": "Ellarum vazhiya vidunga!"
+      },
+      {
+        "text": "என் முறை வந்துவிட்டது! பெரிய எண் விழுந்தால் ஆட்டம் அனல் பறக்கும்! 🎉🚀",
+        "roman": "En murai vanthuvittathu!"
+      },
+      {
+        "text": "என் ராஜ தந்திர உருட்டல் இதோ! மூச்சடக்கி பாருங்கள்! 😏🎲",
+        "roman": "En raja thanthiram itho!"
+      },
+      {
+        "text": "விதி தாயக்கட்டையில் இருக்கிறது! என்ன நடக்குதுன்னு பார்ப்போம்! ⚡🎲",
+        "roman": "Vidhi thaayakkattayil irukkirathu!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "ஹாஹாஹா! வா என் செல்ல ஆறு, உனக்காகத்தான் காத்திருக்கேன்! 😂🎲",
+        "roman": "Hahaha! Vaa en chella aaru!"
+      },
+      {
+        "text": "இப்போ ஆறு விழலைன்னா நான் ரொம்ப கோபப்படுவேன்! 😡💥",
+        "roman": "Ippo aaru vizhalainna kopappaduven!"
+      },
+      {
+        "text": "கட்டையை உருட்டியாச்சு! பெரிய எண் விழ வேண்டிக்கோங்க! 🎉✨",
+        "roman": "Kattayai uruttiyachu!"
+      },
+      {
+        "text": "இந்த உருட்டலை நல்லா பாருங்க! நீங்கள் மிரண்டு போவீர்கள்! 😏🔥",
+        "roman": "Intha uruttalai nalla paarunga!"
+      },
+      {
+        "text": "ஆட்டத்தையே புரட்டிப்போடும் திருப்புமுனை உருட்டல் இது! ⚡🎲",
+        "roman": "Aattathaiye purattippodum!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "ஹாஹாஹா! இரட்டை ஆறு! யாராலும் தடுக்க முடியாத அதிர்ஷ்டம்! 😂💥",
+        "roman": "Hahaha! Irattai aaru!"
+      },
+      {
+        "text": "பூம்! இரட்டை ஆறு! மொத்த அழிவுக்கும் தயாராகுங்கள்! 😡⚔️",
+        "roman": "Boom! Irattai aaru! Azhivu!"
+      },
+      {
+        "text": "ஆஹா! ஆறு விழுந்தது, எனக்கு இன்னொரு வாய்ப்பும் கிடைச்சிருக்கு! 🎉🔥",
+        "roman": "Aaha! Aaru vizhunthathu!"
+      },
+      {
+        "text": "பொறாமைப்படுறவங்க பார்த்துட்டே இருங்க, வெற்றி எனக்குத்தான்! 😏🚀",
+        "roman": "Poramai paduravanga paarunga!"
+      },
+      {
+        "text": "மன்னர் பரம்பரை உருட்டல்! கிரீடத்துக்குரிய கம்பீரம்! 👑⚡",
+        "roman": "Mannar parambarai uruttal!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "ஹாஹாஹா! உன் காயை வீட்டுக்கு அனுப்பிட்டேன்! பை பை! 😂👋",
+        "roman": "Hahaha! Un kaayai veettukku anuppitten!"
+      },
+      {
+        "text": "என் வழியில் குறுக்கே வர எவ்வளவு தைரியம்? அவுட்! 😡💥",
+        "roman": "En vazhiyil kurukke vara thairiyam?"
+      },
+      {
+        "text": "இலக்கு தவிடுபொடி! மீண்டும் ஆரம்ப இடத்துக்கே போ! 🎉🔥",
+        "roman": "Ilakku thavidupodi!"
+      },
+      {
+        "text": "தப்பா எடுத்துக்காதே நண்பா, தாயக்கட்டை ஆட்டமே இப்படித்தான்! 😏🎯",
+        "roman": "Thappa eduthukkaathe nanba!"
+      },
+      {
+        "text": "டமார்! காய் வெட்டப்பட்டது! மூலையில உட்கார்ந்து அழு! ⚡💀",
+        "roman": "Tamaar! Kaai vettappattathu!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "அடப்பாவமே! இப்படி இரக்கமில்லாம என் காயை வெட்டுறாங்களே! 😂💔",
+        "roman": "Adappaavame! Irakkamillama!"
+      },
+      {
+        "text": "என் காயை வெட்ட எவ்வளவு தைரியம்! உன்னை சும்மா விடமாட்டேன்! 😡🔥",
+        "roman": "En kaayai vetta thairiyam!"
+      },
+      {
+        "text": "என் பழிவாங்கல் பயங்கரமா இருக்கும், ஞாபகம் வச்சுக்கோ! ⚔️👿",
+        "roman": "En pazhivaangal bayangarama irukkum!"
+      },
+      {
+        "text": "இப்போதைக்கு சிரிச்சுக்கோ! என் பதிலடி தூள் பறக்கும்! 😏🚀",
+        "roman": "Ippothaikku sirichukko!"
+      },
+      {
+        "text": "என்ன கொடுமைடா இது! வீட்டு வாசல்ல வந்து வெட்டுப்பட்டுட்டேனே! 😭⚡",
+        "roman": "Enna kodumaidaa ithu!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "ஹாஹாஹா! விதி எண் 7 என்னை காப்பாத்திடுச்சு! இரட்டை ஆறு! 😂🎲",
+        "roman": "Hahaha! Vidhi en 7 kaappathiduchu!"
+      },
+      {
+        "text": "நான் மாட்டிக்கிட்டேன்னு நினைச்சீங்களா? லக்கி செவன் பாய்கிறது! 😡⚡",
+        "roman": "Naan maattikkitten-nu nenaichingala?"
+      },
+      {
+        "text": "அதிர்ஷ்ட எண் 7-ன் அற்புதம்! கொட்டோ கொட்டுன்னு கொட்டுது ஆறு! 🎉✨",
+        "roman": "Adhirshta en 7-in arputham!"
+      },
+      {
+        "text": "என் விதியை யாராலும் வெல்ல முடியாது! லக்கி செவன் மாஸ்! 😏🔥",
+        "roman": "En vidhiyai vella mudiyathu!"
+      },
+      {
+        "text": "பெரும் வெடிப்பு! லக்கி செவன் ஆட்டத்தின் போக்கையே மாத்திடுச்சு! 💥🚀",
+        "roman": "Perum vedippu! Lucky 7 mass!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "ஹாஹாஹா! வெற்றி பாதையில் என் காய்கள்! வழி விடுங்கள்! 😂🚀",
+        "roman": "Hahaha! Vettri paathaiyil en kaaygal!"
+      },
+      {
+        "text": "இங்கே என் காயை தொட யாருக்கும் தைரியம் இருக்கக்கூடாது! தள்ளிப்போ! 😡🔥",
+        "roman": "En kaayai thoda koodathu!"
+      },
+      {
+        "text": "இறுதிக் கட்டம்! வெற்றி இன்னும் ஒரே அடியில் என் கையில்! 🏁✨",
+        "roman": "Iruthi kattam! Vettri oru adiyil!"
+      },
+      {
+        "text": "நீங்க எல்லாரும் ரொம்ப பின்னாடி இருக்கீங்க! மேடையில் சந்திப்போம்! 😏👑",
+        "roman": "Neenga ellarum pinnaadi!"
+      },
+      {
+        "text": "நெஞ்சம் படபடக்குது! இன்னும் ஒரே உருட்டலில் வெற்றி நமதே! 💓🎲",
+        "roman": "Nenjam padapadakkuthu!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "ஹாஹாஹா! ஒரு காய் வீட்டுக்குள் பத்திரமா போயாச்சு! தொட்டுப் பாரு! 😂💪",
+        "roman": "Hahaha! Kaai pathirama poiyachu!"
+      },
+      {
+        "text": "எஸ்! ஒரு காய் ஜெயிச்சாச்சு, இனி மத்தவங்களை துவம்சம் செய்வேன்! 😡🔥",
+        "roman": "Yes! Mathavangalai thuvamsam seiven!"
+      },
+      {
+        "text": "பத்திரமாக வீடு சேர்ந்தது! இன்னொரு காயும் வெற்றி இலக்கில்! 🎉🏠",
+        "roman": "Pathirama veedu sernthathu!"
+      },
+      {
+        "text": "துல்லியமான காய் நகர்த்தல்! ராஜ நடை போட்டு உள்ளே போயாச்சு! 😏👑",
+        "roman": "Thulliyamaana kaai nagarthal!"
+      },
+      {
+        "text": "அப்பாடா நிம்மதி! சாம்பியன் பட்டம் இதோ என் கையில்! ✨🎯",
+        "roman": "Appadaa nimmadhi!"
+      }
+    ],
+    "win": [
+      {
+        "text": "ஹாஹாஹா! நான்தான் இந்த தாயக்கட்டையின் முடிசூடா மன்னன்! 😂🎉",
+        "roman": "Hahaha! Naanthaan mudisooda mannan!"
+      },
+      {
+        "text": "சொன்னேனே, என் திறமைக்கு முன்னாடி யாரும் நிற்க முடியாது! வெற்றி! 🔥🥇",
+        "roman": "Sonneney, en thiramaikku munnadi!"
+      },
+      {
+        "text": "வெற்றியின் கொண்டாட்டம்! தங்கக் கிரீடம் எனக்கு மட்டுமே சொந்தம்! 👑🏆",
+        "roman": "Thanga kireedam enakku sontham!"
+      },
+      {
+        "text": "அதுக்குள்ளே தோத்துட்டீங்களா? அடுத்த முறைக்கு பயிற்சி எடுங்க! 😏🚀",
+        "roman": "Athukkulle thothuttingala?"
+      },
+      {
+        "text": "வரலாற்றுச் சிறப்புமிக்க ஆட்டம்! மொத்த போர்டையும் அடக்கி ஆண்டாச்சு! 💥⭐",
+        "roman": "Varalatru sirappu mikka aattam!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "ஹாஹாஹா! அருமையா விளையாடினீங்க! மன்னர்களுக்கும் ஓய்வு தேவைதானே! 😂🎲",
+        "roman": "Hahaha! Arumaiya vilaiyaadininga!"
+      },
+      {
+        "text": "இப்போதைக்கு வெற்றியை கொண்டாடுங்க! அடுத்த ஆட்டத்தில் பாத்துக்குறேன்! 😡⚔️",
+        "roman": "Ippothaikku kondaadunga!"
+      },
+      {
+        "text": "அற்புதமான மறக்க முடியாத போட்டி! வெற்றியாளருக்கு வாழ்த்துகள்! 👏🤝",
+        "roman": "Arputhamana potti! Vaazhthugal!"
+      },
+      {
+        "text": "இது ஆரம்ப அதிர்ஷ்டம் மட்டுமே! தைரியம் இருந்தா மறுபடி மோதுங்க! 😏🔥",
+        "roman": "Aaramba adhirshtam mattumey!"
+      },
+      {
+        "text": "கடைசி நிமிடத்தில் கட்டை ஏமாத்திடுச்சு, ஆனாலும் செம ஆட்டம்! 💔⚡",
+        "roman": "Kadaisi nimidathil kattai emathiduchu!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "இந்த சண்டை ரொம்ப ஜாலியா இருக்கு, ஆனா ராஜா நான்தான்! 😂🎲",
+        "roman": "Intha sandai romba jaaliya irukku!"
+      },
+      {
+        "text": "கவனமா ஆடுங்க! சின்ன தப்பு பண்ணாலும் வெட்டி எறிஞ்சிடுவேன்! 😡🔥",
+        "roman": "Kavanama aadunga!"
+      },
+      {
+        "text": "லூடோ எம்பரர் மாஸ்! ஆட்டக்களமே அனல் பறக்குது! 🚀👑",
+        "roman": "Ludo Emperor mass!"
+      },
+      {
+        "text": "ஏன் இவ்வளவு தயக்கம்? சீக்கிரம் உருட்டி விளையாடுங்க! 😏⏳",
+        "roman": "Seekiram urutti vilaiyaadunga!"
+      },
+      {
+        "text": "விறுவிறுப்பு உச்சிக்கு போயிடுச்சு! யார் வேணாலும் ஜெயிக்கலாம்! ⚡✨",
+        "roman": "Viruviruppu uchikku poiyiduchu!"
+      }
+    ]
+  },
+  "te": {
+    "turn": [
+      {
+        "text": "హాహాహా! చూడండి మిత్రులారా, ఇప్పుడు అసలైన మ్యాజిక్ మొదలవుతుంది! 😂✨",
+        "roman": "Hahaha! Choodandi mitrulaara!"
+      },
+      {
+        "text": "అందరూ పక్కకు తప్పుకోండి! నా వంతు వచ్చింది, ఎవరినీ వదలను! 😡🔥",
+        "roman": "Andaroo pakkaku thappukondi!"
+      },
+      {
+        "text": "నా వంతు వచ్చేసింది! లీడ్ తీసుకోవడానికి పెద్ద నంబర్ కావాలి! 🎉🚀",
+        "roman": "Naa vanthu vacchesindi!"
+      },
+      {
+        "text": "నా అద్భుతమైన ఎత్తుగడ ఇదిగో! ఊపిరి బిగబట్టి చూడండి! 😏🎲",
+        "roman": "Naa adbhutamaina etthugada ithigo!"
+      },
+      {
+        "text": "విధి పాచికల్లోనే ఉంది! ఏం జరుగుతుందో చూద్దాం! ⚡🎲",
+        "roman": "Vidhi paachikallone undi!"
+      }
+    ],
+    "roll": [
+      {
+        "text": "హాహాహా! రా నా ప్రియమైన ఆరా, నీ కోసమే చూస్తున్నా! 😂🎲",
+        "roman": "Hahaha! Raa naa priyamaina aaraa!"
+      },
+      {
+        "text": "ఇప్పుడు కనుక ఆరు రాకపోతే నాకు భలే కోపం వస్తుంది! 😡💥",
+        "roman": "Ippudu aaru raakapothe kopam vasthundi!"
+      },
+      {
+        "text": "పాచికలు విసిరాను! పెద్ద నంబర్ పడాలని కోరుకుంటున్నా! 🎉✨",
+        "roman": "Paachikalu visiraanu!"
+      },
+      {
+        "text": "ఈ విసురుని బాగా చూడండి! మీరు అస్సలు ఊహించలేరు! 😏🔥",
+        "roman": "Ee visuruni baagaa choodandi!"
+      },
+      {
+        "text": "ఆటను మలుపు తిప్పే కీలకమైన పాచిక విసురు ఇది! ⚡🎲",
+        "roman": "Aatanu malupu thippe visuru!"
+      }
+    ],
+    "lucky_roll": [
+      {
+        "text": "హాహాహా! డబుల్ సిక్స్! ఎవరూ ఆపలేని అద్భుతమైన అదృష్టం! 😂💥",
+        "roman": "Hahaha! Double six!"
+      },
+      {
+        "text": "బూమ్! డబుల్ ఆరు! విధ్వంసానికి సిద్ధంగా ఉండండి! 😡⚔️",
+        "roman": "Boom! Double aaru!"
+      },
+      {
+        "text": "అదిగో ఆరు పడింది! నాకు ఇంకో అవకాశం కూడా వచ్చింది! 🎉🔥",
+        "roman": "Adigo aaru padindi!"
+      },
+      {
+        "text": "ఓర్వలేని వాళ్ళు చూస్తూ ఉండండి, అదృష్టం ఎప్పుడూ నావైపే! 😏🚀",
+        "roman": "Orvaleni vaallu choosthoo undandi!"
+      },
+      {
+        "text": "రాచరికపు విసురు! కిరీటానికి తగిన నంబర్లు పడ్డాయి! 👑⚡",
+        "roman": "Raacharikapu visuru!"
+      }
+    ],
+    "capture": [
+      {
+        "text": "హాహాహా! నీ కాయిని నేరుగా ఇంటికి పంపించేశా! టాటా! 😂👋",
+        "roman": "Hahaha! Nee kaayini intiki pampinchaa!"
+      },
+      {
+        "text": "నా దారికి అడ్డంగా వచ్చే ధైర్యం చేశావా? అనుభవించు! ఔట్! 😡💥",
+        "roman": "Naa daariki addamgaa vacche dhairyam?"
+      },
+      {
+        "text": "టార్గెట్ ఖతం! మళ్లీ మొదటికి వెళ్లి మొదలుపెట్టుకో! 🎉🔥",
+        "roman": "Target khatam! Modatiki vellu!"
+      },
+      {
+        "text": "బాధపడకు మిత్రమా, లూడో ఆట నియమమే అంత క్రూరం! 😏🎯",
+        "roman": "Baadhapadaku mitramaa!"
+      },
+      {
+        "text": "ఢమాల్! కాయి ఎగిరిపోయింది! మూలన కూర్చుని ఏడువు! ⚡💀",
+        "roman": "Dhamaal! Kaayi egiripoyindi!"
+      }
+    ],
+    "captured": [
+      {
+        "text": "అయ్యో దేవుడా! ఇంత దారుణంగా నా కాయిని ఎవరు కొడతారు! 😂💔",
+        "roman": "Ayyo devudaa! Intha daarunamgaa!"
+      },
+      {
+        "text": "నా కాయిని కొట్టే ధైర్యం ఎలా వచ్చింది! దీనికి తగిన శాస్తి చేస్తా! 😡🔥",
+        "roman": "Naa kaayini kotte dhairyam ela vacchindi!"
+      },
+      {
+        "text": "నా ప్రతీకారం చాలా తీవ్రంగా ఉంటుంది, గుర్తుపెట్టుకో! ⚔️👿",
+        "roman": "Naa pratheekaaram theevramgaa untundi!"
+      },
+      {
+        "text": "ఇప్పటికి ఆనందించు! నా ఎదురుదాడికి తట్టుకోలేవు! 😏🚀",
+        "roman": "Ippatiki aanandinchu!"
+      },
+      {
+        "text": "ఎంత దౌర్భాగ్యం! సరిగ్గా ఇంటి గుమ్మం ముందే కొట్టేశారు! 😭⚡",
+        "roman": "Entha dourbhaagyam! Gummam mundhe!"
+      }
+    ],
+    "lucky7": [
+      {
+        "text": "హాహాహా! రూల్ ఆఫ్ 7 నన్ను కాపాడింది! డబుల్ ఆరు వచ్చింది! 😂🎲",
+        "roman": "Hahaha! Rule of 7 nannu kaapaadindi!"
+      },
+      {
+        "text": "నేను చిక్కుకున్నానని అనుకున్నారా? లక్కీ సెవెన్ దెబ్బ అదరగొట్టింది! 😡⚡",
+        "roman": "Nenu chikkukunnaanani anukunnaraa?"
+      },
+      {
+        "text": "లక్కీ సెవెన్ మాయాజాలం! ఆకాశం నుంచి ఊడిపడ్డ డబుల్ సిక్స్! 🎉✨",
+        "roman": "Lucky Seven maayaajaalam!"
+      },
+      {
+        "text": "నా తలరాతను ఎవరూ మార్చలేరు! లక్కీ సెవెన్ గెలిపించింది! 😏🔥",
+        "roman": "Naa thalaraathanu evaroo maarchaleru!"
+      },
+      {
+        "text": "భారీ పేలుడు! లక్కీ సెవెన్ ఆట మొత్తాన్ని మలుపు తిప్పేసింది! 💥🚀",
+        "roman": "Bhaaree peludu! Aata thirigindi!"
+      }
+    ],
+    "home_stretch": [
+      {
+        "text": "హాహాహా! విజయపథంలో నా రెడ్ కార్పెట్ చూడండి! దారి ఇవ్వండి! 😂🚀",
+        "roman": "Hahaha! Red carpet choodandi!"
+      },
+      {
+        "text": "ఇక్కడ నా కాయిని ముట్టుకోవాలని కూడా చూడకండి! వెనక్కి తగ్గండి! 😡🔥",
+        "roman": "Naa kaayini muttukokandi!"
+      },
+      {
+        "text": "చివరి అంకం! విజయం ఇంకో అడుగు దూరంలోనే ఉంది! 🏁✨",
+        "roman": "Chivari ankam! Vijayam daggarlone!"
+      },
+      {
+        "text": "మీరంతా చాలా వెనుకబడి ఉన్నారు! పోడియం మీద కలుద్దాం! 😏👑",
+        "roman": "Meeranthaa venukabadi unnaaru!"
+      },
+      {
+        "text": "గుండె వేగంగా కొట్టుకుంటోంది! ఇంకో ఒక్క నంబర్ పడితే ఛాంపియన్ నేనే! 💓🎲",
+        "roman": "Gunde vegamaa kottukuntondi!"
+      }
+    ],
+    "pawn_home": [
+      {
+        "text": "హాహాహా! ఒక కాయి భద్రంగా లోపలికి చేరింది! తాకి చూడండి దమ్ముంటే! 😂💪",
+        "roman": "Hahaha! Kaayi bhadramgaa cherindi!"
+      },
+      {
+        "text": "ఒకటి లోపలికి చేరింది! ఇక మిగిలిన వాటిని కూడా తుదముట్టిస్తా! 😡🔥",
+        "roman": "Okaty cherindi! Migilinavi thudamuttistha!"
+      },
+      {
+        "text": "సురక్షితంగా ఇల్లు చేరింది! ఇంకో కాయి కూడా విజయ గూటికి! 🎉🏠",
+        "roman": "Surakshithamgaa illu cherindi!"
+      },
+      {
+        "text": "అద్భుతమైన గురి! రాజసంతో లోపలికి అడుగుపెట్టింది! 😏👑",
+        "roman": "Adbhutamaina guri! Raajasam!"
+      },
+      {
+        "text": "హమ్మయ్యా ప్రాణం లేచివచ్చింది! విజయం నా చేతుల్లోనే ఉంది! ✨🎯",
+        "roman": "Hammayyaa praanam lechivacchindi!"
+      }
+    ],
+    "win": [
+      {
+        "text": "హాహాహా! నేనే ఈ లూడో సామ్రాజ్యానికి అసలైన చక్రవర్తిని! మోకరిల్లండి! 😂🎉",
+        "roman": "Hahaha! Nene Ludo Chakravarthini!"
+      },
+      {
+        "text": "చెప్పాను కదా నాతో పోటీ పడే సత్తా ఎవరికీ లేదని! గెలుపు నాదే! 🔥🥇",
+        "roman": "Cheppaanu kadaa naa thoti potee!"
+      },
+      {
+        "text": "విజేతల వేడుక! బంగారు కిరీటం నా తల మీదే మెరుస్తుంది! 👑🏆",
+        "roman": "Bangaaru kireetam naade!"
+      },
+      {
+        "text": "అప్పుడే ఓడిపోయారా? వచ్చేసారికి బాగా ప్రాక్టీస్ చేసి రండి! 😏🚀",
+        "roman": "Appude odipoyaaraa?"
+      },
+      {
+        "text": "చారిత్రాత్మక విజయం! బోర్డు మొత్తం నా కనుసన్నల్లోనే నడిచింది! 💥⭐",
+        "roman": "Chaaritraathmaka vijayam!"
+      }
+    ],
+    "loss": [
+      {
+        "text": "హాహాహా! బాగా ఆడారు! చక్రవర్తులు కూడా అప్పుడప్పుడు విశ్రాంతి తీసుకుంటారు! 😂🎲",
+        "roman": "Hahaha! Baagaa aadaaru!"
+      },
+      {
+        "text": "ప్రస్తుతానికి ఈ విజయాన్ని ఆస్వాదించండి! రీమ్యాచ్‌లో అస్సలు ఉపేక్షించను! 😡⚔️",
+        "roman": "Ippatiki aanandinchandi!"
+      },
+      {
+        "text": "అద్భుతమైన ఉత్కంఠభరిత పోరు! విజేతకు నా హృదయపూర్వక అభినందనలు! 👏🤝",
+        "roman": "Uthkantabaritha poru! Abhinandanalu!"
+      },
+      {
+        "text": "కేవలం బిగినర్స్ లక్ అంతే! దమ్ముంటే ఇంకోసారి ఆడండి! 😏🔥",
+        "roman": "Beginner's luck anthe! Dammunte!"
+      },
+      {
+        "text": "చివరి నిమిషంలో పాచికలు మోసం చేశాయి, అయినా గొప్ప పోరాటం! 💔⚡",
+        "roman": "Chivari nimishamlo paachikalu!"
+      }
+    ],
+    "banter": [
+      {
+        "text": "ఈ గందరగోళం భలే సరదాగా ఉంది, కానీ లీడర్ మాత్రం నేనే! 😂🎲",
+        "roman": "Ee sandadi saradaagaa undi!"
+      },
+      {
+        "text": "జాగ్రత్తగా ఆడండి! ఒక్క తప్పు జరిగినా బోర్డు బయటకు నెట్టేస్తా! 😡🔥",
+        "roman": "Jaagratthagaa aadandi!"
+      },
+      {
+        "text": "లూడో ఎంపరర్ జోష్! ఉత్కంఠ తారాస్థాయికి చేరింది! 🚀👑",
+        "roman": "Ludo Emperor josh!"
+      },
+      {
+        "text": "ఎందుకు ఇంత సమయం తీసుకుంటున్నారు? త్వరగా పాచికలు వేయండి! 😏⏳",
+        "roman": "Thvaragaa paachikalu veyandi!"
+      },
+      {
+        "text": "సస్పెన్స్ పీక్స్‌కి చేరింది! ఎవరైనా మ్యాచ్ గెలవొచ్చు! ⚡✨",
+        "roman": "Suspense peaks ki cherindi!"
+      }
+    ]
+  },
+  "vi": {
+    "turn": [
+      "Hahaha! Nhìn và học hỏi đi các bạn, phép màu sắp xuất hiện rồi! 😂✨",
+      "Tránh hết ra! Đến lượt tôi và không ai được an toàn hôm nay đâu! 😡🔥",
+      "Đến lượt tôi rồi! Cần một số thật lớn để dẫn đầu cuộc chơi! 🎉🚀",
+      "Nước cờ bậc thầy của tôi tới đây! Giữ chặt ghế ngồi nhé! 😏🎲",
+      "Số phận nằm trong những viên xúc xắc! Cùng chờ xem nào! ⚡🎲"
+    ],
+    "roll": [
+      "Hahaha! Về đây nào số sáu yêu quý của tôi, mong chờ mãi! 😂🎲",
+      "Nếu bây giờ không ra số sáu thì tôi phát điên lên mất! 😡💥",
+      "Xúc xắc đang lăn! Cầu mong một con số siêu to khổng lồ! 🎉✨",
+      "Hãy nhìn kỹ cú lắc này! Các bạn chưa sẵn sàng đâu! 😏🔥",
+      "Cú đổ xúc xắc định mệnh! Nước đi này sẽ thay đổi tất cả! ⚡🎲"
+    ],
+    "lucky_roll": [
+      "Hahaha! Đôi sáu luôn! May mắn tuyệt đối không gì cản nổi! 😂💥",
+      "Bùm! Hai con sáu! Chuẩn bị đón nhận sự hủy diệt toàn diện đi! 😡⚔️",
+      "Tuyệt vời! Một con sáu trên bàn và thêm một lượt đi cho tôi! 🎉🔥",
+      "Cứ việc ghen tị đi, xúc xắc chỉ yêu thương những nhà vô địch! 😏🚀",
+      "Cú lắc của bậc đế vương! Điểm số xứng đáng với vương miện! 👑⚡"
+    ],
+    "capture": [
+      "Hahaha! Cho quân cờ của bạn về thẳng chuồng nhé! Tạm biệt! 😂👋",
+      "Dám cả gan cản đường tôi sao? Trả giá ngay đi! Đo ván! 😡💥",
+      "Mục tiêu đã bị khóa và tiêu diệt! Về lại vạch xuất phát nào! 🎉🔥",
+      "Không có gì cá nhân đâu, luật cờ cá ngựa nó khắc nghiệt thế đấy! 😏🎯",
+      "Bốp! Quân cờ bị đá văng khỏi bàn! Ngồi một góc mà khóc nhé! ⚡💀"
+    ],
+    "captured": [
+      "Trời đất ơi! Ai mà nỡ ra tay tàn nhẫn với tôi như vậy chứ! 😂💔",
+      "Sao dám đá quân cờ của tôi! Bạn sẽ phải trả một cái giá cực đắt! 😡🔥",
+      "Sự trả thù của tôi sẽ rất khủng khiếp, hãy nhớ kỹ lời tôi! ⚔️👿",
+      "Cứ vui vẻ lúc này đi! Đòn phản công của tôi sẽ rất tàn bạo! 😏🚀",
+      "Quá cay đắng! Ngay trước cửa chuồng mà lại bị đá văng! 😭⚡"
+    ],
+    "lucky7": [
+      "Hahaha! Quy tắc số 7 đã cứu rỗi cuộc đời tôi! Đôi sáu thần thánh! 😂🎲",
+      "Tưởng tôi bị mắc kẹt à? Số 7 may mắn bùng nổ cơn thịnh nộ! 😡⚡",
+      "Phép màu đích thực của Lucky Seven! Đôi sáu từ trên trời rơi xuống! 🎉✨",
+      "Không ai chống lại được số phận! Số 7 luôn luôn thống trị! 😏🔥",
+      "Vụ nổ cực lớn! Số 7 may mắn lật ngược hoàn toàn thế cờ! 💥🚀"
+    ],
+    "home_stretch": [
+      "Hahaha! Nhìn thảm đỏ trải dài đến chiến thắng của tôi đi! Tránh đường! 😂🚀",
+      "Đừng có hòng chạm vào quân cờ của tôi ở đoạn này! Lùi lại! 😡🔥",
+      "Đoạn nước rút cuối cùng! Chiến thắng chỉ còn cách vài bước chân! 🏁✨",
+      "Các bạn bị bỏ lại quá xa rồi! Hẹn gặp ở trên bục vinh quang nhé! 😏👑",
+      "Tim đập thình thịch! Chỉ cần một con số nữa là ẵm trọn cúp vô địch! 💓🎲"
+    ],
+    "pawn_home": [
+      "Hahaha! Quân cờ đã vào chuồng an toàn! Thử chạm vào xem nào! 😂💪",
+      "Đã khóa an toàn một quân! Giờ là lúc càn quét sạch những kẻ còn lại! 😡🔥",
+      "Về đích an toàn và khỏe mạnh! Thêm một quân nữa đã về tổ! 🎉🏠",
+      "Chính xác đến từng milimét! Tiến vào chuồng với phong thái hoàng gia! 😏👑",
+      "Thật là nhẹ nhõm! Ngôi vô địch đã ở ngay trước mắt rồi! ✨🎯"
+    ],
+    "win": [
+      "Hahaha! Tôi chính là Hoàng đế Ludo tối cao! Hãy cúi đầu tôn phục! 😂🎉",
+      "Đã bảo rồi mà, không ai đủ trình độ để đọ sức với tôi đâu! Thắng rồi! 🔥🥇",
+      "Khoảnh khắc ăn mừng của nhà vô địch! Vương miện vàng thuộc về tôi! 👑🏆",
+      "Đã thua rồi sao? Mau về luyện tập chăm chỉ cho trận sau đi nhé! 😏🚀",
+      "Trận đấu mang đẳng cấp lịch sử! Thống trị tuyệt đối trên bàn cờ! 💥⭐"
+    ],
+    "loss": [
+      "Hahaha! Chơi hay lắm! Hoàng đế thỉnh thoảng cũng phải nghỉ ngơi chứ! 😂🎲",
+      "Cứ tận hưởng chiến thắng đi! Trận tái đấu sẽ không nương tay đâu! 😡⚔️",
+      "Một trận đấu quá nghẹt thở và xuất sắc! Xin chúc mừng người chiến thắng! 👏🤝",
+      "Chỉ là may mắn của người mới chơi thôi! Có gan thì làm ván nữa nào! 😏🔥",
+      "Xúc xắc đã phản bội tôi ở phút chót! Quả là một trận chiến oanh liệt! 💔⚡"
+    ],
+    "banter": [
+      {
+        "text": "Rất thích sự hỗn loạn này, nhưng công bằng mà nói tôi đang làm chủ! 😂🎲",
+        "roman": "Rat thich su hon loan nay!"
+      },
+      {
+        "text": "Đi cờ cẩn thận đấy! Sai một bước là bị đá văng khỏi bàn ngay! 😡🔥",
+        "roman": "Di co can than day!"
+      },
+      {
+        "text": "Năng lượng Hoàng đế Ludo! Không khí đang nóng rực lên từng giây! 🚀👑",
+        "roman": "Nang luong Hoang de Ludo!"
+      },
+      {
+        "text": "Sao mà lâu la thế nhỉ? Lắc xúc xắc nhanh lên nào! 😏⏳",
+        "roman": "Sao ma lau la the? Lac nhanh len!"
+      },
+      {
+        "text": "Kịch tính đang dâng cao tột độ! Bất kỳ ai cũng có thể lật ngược thế cờ! ⚡✨",
+        "roman": "Kich tinh dang dang cao!"
+      }
+    ]
+  }
+}

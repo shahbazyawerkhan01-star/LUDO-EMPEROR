@@ -60,6 +60,63 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'NexusPlay Multiplayer Friends Network', onlineUsers: store.users.size });
 });
 
+// High-fidelity native language TTS endpoint with caching
+const ttsAudioCache = new Map();
+
+app.get('/api/tts', async (req, res) => {
+  try {
+    const rawText = String(req.query.text || '').trim();
+    let lang = String(req.query.lang || 'ur').trim().toLowerCase();
+    if (!rawText) return res.status(400).send('No text');
+
+    // Clean emojis and decorative symbols
+    const cleanText = rawText.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu, '').trim();
+    if (!cleanText) return res.status(400).send('Empty text');
+
+    // Language mapping for Google TTS
+    const langMap = {
+      'zh': 'zh-CN',
+      'fa': 'ar'
+    };
+    const targetLang = langMap[lang] || lang;
+
+    const cacheKey = `${targetLang}:${cleanText}`;
+    if (ttsAudioCache.has(cacheKey)) {
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(ttsAudioCache.get(cacheKey));
+    }
+
+    const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${encodeURIComponent(targetLang)}&client=tw-ob`;
+    const ttsRes = await fetch(ttsUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!ttsRes.ok) {
+      return res.status(502).send('TTS service unavailable');
+    }
+
+    const arrayBuffer = await ttsRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Keep cache bounded
+    if (ttsAudioCache.size > 800) {
+      const oldestKey = ttsAudioCache.keys().next().value;
+      ttsAudioCache.delete(oldestKey);
+    }
+    ttsAudioCache.set(cacheKey, buffer);
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(buffer);
+  } catch (err) {
+    console.warn('[TTS] Generation error:', err);
+    res.status(500).send('TTS Error');
+  }
+});
+
 // ==========================================
 // In-Memory Real-time State & Storage
 // ==========================================
