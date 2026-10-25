@@ -1,7 +1,7 @@
 {
-  "name": "ludo-emperor",
+  "name": "ludo-dethroned",
   "version": "1.0.0",
-  "description": "5-way multiplayer Ludo Emperor board game",
+  "description": "5-way multiplayer Ludo Dethroned board game",
   "type": "module",
   "scripts": {
     "dev": "node server.js",

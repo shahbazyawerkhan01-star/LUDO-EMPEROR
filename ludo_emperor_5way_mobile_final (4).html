@@ -22,7 +22,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
     </script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <title>Ludo Emperor 5 Way</title>
+    <title>Ludo Dethroned 5 Way</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;500;600&display=swap"
       rel="stylesheet"
@@ -1205,7 +1205,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
   </head>
   <body>
       <div id="game-container">
-        <h1 id="title">LUDO EMPEROR 5 WAY</h1>
+        <h1 id="title">LUDO DETHRONED 5 WAY</h1>
       <div id="ai-judge-bar">
         <div class="judge-segment" id="judge-0"></div>
         <div class="judge-segment" id="judge-1"></div>
@@ -1317,7 +1317,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
       <div id="player-setup-overlay">
         <div id="setup-content">
             <div id="main-menu-section">
-                <h1 id="setup-title">LUDO EMPEROR 5 WAY</h1>
+                <h1 id="setup-title">LUDO DETHRONED 5 WAY</h1>
                 <p style="color: rgba(255,255,255,0.8); margin-bottom: 25px; font-family: 'Fredoka'; font-size: 22px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">The Ultimate Royal Challenge</p>
                 
                 <div class="feature-badges">
@@ -1873,11 +1873,11 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
           return window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
         },
         async getUserGameState() {
-          return { userId: 'local', gameId: 'ludo-emperor-5way', state: __savedState, success: true };
+          return { userId: 'local', gameId: 'ludo-dethroned-5way', state: __savedState, success: true };
         },
         async saveUserGameState(state) {
           __savedState = state;
-          return { userId: 'local', gameId: 'ludo-emperor-5way', state, success: true };
+          return { userId: 'local', gameId: 'ludo-dethroned-5way', state, success: true };
         },
         async deleteUserGameState() {
           __savedState = null;
@@ -2300,7 +2300,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                     'lucky_roll': "That's what I'm talking about! 🎲🔥",
                     'capture': "Sorry not sorry! Back to home you go. 😈",
                     'captured': "Hey! You'll pay for that! 😡",
-                    'win': "I am the Ludo Emperor! 👑",
+                    'win': "I am the Ludo Dethroned! 👑",
                     'home_stretch': "Almost there! Don't even try to stop me.",
                     'turn': "My turn to shine.",
                     'lucky7': "The Rule of 7 saves the day! ✨"
@@ -2650,7 +2650,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
         loadSound('congratulation_granted_6_6');
         const TRANSLATIONS = {
             'en': {
-                title: 'LUDO EMPEROR 5 WAY', pass_play: 'PASS & PLAY', pass_play_sub: 'Play with friends on this device',
+                title: 'LUDO DETHRONED 5 WAY', pass_play: 'PASS & PLAY', pass_play_sub: 'Play with friends on this device',
                 tournament: 'TOURNAMENT', tournament_sub: 'Compete for the championship',
                 invite_friends: 'INVITE FRIENDS', invite_friends_sub: 'Share deep link to invite others',
                 start_match: 'START MATCH', back_menu: '← BACK TO MAIN MENU', local_setup: 'Local Game Setup',
@@ -3352,8 +3352,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                   showToast("Room created! Tell your friend the room code shown above — they enter it in their own copy of the game.");
                   return;
               }
-              const shareTitle = "Ludo Emperor 5 Way";
-              const shareText = "🎲 Join my Ludo Emperor 5 Way room! Tap to join and chat live: ";
+              const shareTitle = "Ludo Dethroned 5 Way";
+              const shareText = "🎲 Join my Ludo Dethroned 5 Way room! Tap to join and chat live: ";
               if (navigator.share) {
                   navigator.share({ title: shareTitle, text: shareText, url: shareUrl }).catch((err) => {
                       if (err.name !== 'AbortError') {
@@ -4076,7 +4076,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 layout.y = 360;
 
                 if (titleEl) titleEl.innerText = "";
-                if (setupTitleEl) setupTitleEl.innerText = "LUDO EMPEROR 5 WAY";
+                if (setupTitleEl) setupTitleEl.innerText = "LUDO DETHRONED 5 WAY";
             } else {
                 container.classList.remove('landscape');
                 container.style.width = '720px';
@@ -4087,8 +4087,8 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
                 layout.x = 360;
                 layout.y = 680;
 
-                if (titleEl) titleEl.innerText = "LUDO EMPEROR 5 WAY";
-                if (setupTitleEl) setupTitleEl.innerText = "LUDO EMPEROR 5 WAY";
+                if (titleEl) titleEl.innerText = "LUDO DETHRONED 5 WAY";
+                if (setupTitleEl) setupTitleEl.innerText = "LUDO DETHRONED 5 WAY";
             }
         }
 

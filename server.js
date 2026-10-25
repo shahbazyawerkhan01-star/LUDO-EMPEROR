@@ -54,6 +54,7 @@ app.get('/', (req, res) => {
 });
 
 app.use(express.static(__dirname, { index: false }));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
@@ -1780,6 +1781,6 @@ process.on('SIGINT', () => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Ludo Emperor / NexusPlay server live on port ${PORT}`);
+  console.log(`Ludo Dethroned / NexusPlay server live on port ${PORT}`);
 });
 
