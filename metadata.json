@@ -1,6 +1,6 @@
 {
-  "name": "NexusPlay - Multiplayer Friends System",
-  "description": "Real-time multiplayer friends network with live presence, friend requests, direct messaging, party lobbies, and interactive multiplayer games.",
+  "name": "Ludo Dethroned",
+  "description": "5-way multiplayer Ludo Dethroned board game with real-time Socket.io networking.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

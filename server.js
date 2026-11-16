@@ -3,6 +3,9 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+import fs from 'fs';
+import { recordMatchStart, recordMatchEnd, verifySupabaseToken } from './supabase-records.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,7 +13,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { origin: '*' },
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  maxHttpBufferSize: 1e6
 });
 
 const PORT = 3000;
@@ -20,37 +26,11 @@ function isMobileUserAgent(ua = '') {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
 }
 
-// Mobile specific routes
-app.get('/mobile', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile.html'));
-});
-app.get('/mobile.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'mobile.html'));
-});
+const INDEX_HTML_PATH = path.join(__dirname, 'index.html');
 
-// Web specific routes
-app.get('/web', (req, res) => {
-  res.sendFile(path.join(__dirname, 'web.html'));
-});
-app.get('/web.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'web.html'));
-});
-
-// Main entry with smart device detection and explicit override support
-app.get('/', (req, res) => {
-  const view = (req.query.view || req.query.mode || '').toLowerCase();
-  if (view === 'mobile') {
-    return res.sendFile(path.join(__dirname, 'mobile.html'));
-  }
-  if (view === 'desktop' || view === 'web') {
-    return res.sendFile(path.join(__dirname, 'index.html'));
-  }
-
-  const userAgent = req.headers['user-agent'] || '';
-  if (isMobileUserAgent(userAgent)) {
-    return res.sendFile(path.join(__dirname, 'mobile.html'));
-  }
-  res.sendFile(path.join(__dirname, 'index.html'));
+// Mobile & Web routes (unified responsive index.html)
+app.get(['/mobile', '/mobile.html', '/web', '/web.html', '/'], (req, res) => {
+  res.sendFile(INDEX_HTML_PATH);
 });
 
 app.use(express.static(__dirname, { index: false }));
@@ -326,6 +306,155 @@ setInterval(() => {
     }
   });
 }, 18000);
+
+// ==========================================
+// Ludo Dethroned Server-Authoritative Networking (Phase 1)
+// ==========================================
+
+const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const MAX_LUDO_ROOMS = 500;
+const MAX_PAYLOAD_SIZE = 16384; // 16KB
+const IDLE_ROOM_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+// Map<roomCode, LudoRoom>
+const ludoRooms = new Map();
+
+// Map<ip, { creations: number[], joins: number[], lookups: number[], failedJoins: number[], blockedUntil: number, connections: number }>
+const ipState = new Map();
+
+function getClientIp(socket) {
+  const forwarded = socket.handshake.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return socket.handshake.address || (socket.conn && socket.conn.remoteAddress) || '127.0.0.1';
+}
+
+function getIpData(ip) {
+  let data = ipState.get(ip);
+  if (!data) {
+    data = {
+      creations: [],
+      joins: [],
+      lookups: [],
+      failedJoins: [],
+      blockedUntil: 0,
+      connections: 0
+    };
+    ipState.set(ip, data);
+  }
+  return data;
+}
+
+function cleanTimestamps(arr, windowMs) {
+  const now = Date.now();
+  while (arr.length > 0 && now - arr[0] > windowMs) {
+    arr.shift();
+  }
+}
+
+function generateRoomCode() {
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    const idx = crypto.randomInt(0, ROOM_CODE_ALPHABET.length);
+    code += ROOM_CODE_ALPHABET[idx];
+  }
+  return code;
+}
+
+function getUniqueRoomCode() {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const code = generateRoomCode();
+    if (!ludoRooms.has(code)) return code;
+  }
+  throw new Error('Unable to generate unique room code');
+}
+
+function sanitizeChatText(str) {
+  if (typeof str !== 'string') return '';
+  const trimmed = str.trim().slice(0, 100);
+  return trimmed
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+function getSanitizedRoomState(room) {
+  const seats = {};
+  for (let i = 0; i < 5; i++) {
+    const s = room.seats[i];
+    if (s) {
+      seats[i] = {
+        seatIndex: s.seatIndex,
+        publicPlayerId: s.publicPlayerId,
+        name: s.name,
+        connected: s.connected,
+        isAI: s.isAI,
+        wish: s.wish,
+        gender: s.gender
+      };
+    }
+  }
+  return {
+    code: room.code,
+    started: room.started,
+    seats,
+    matchState: room.matchState,
+    timerConfig: room.timerConfig,
+    messageCount: room.messageCount,
+    hostConnected: !!(room.seats[0] && room.seats[0].connected)
+  };
+}
+
+// Global process error handlers (Resilience: one bad message cannot crash server)
+process.on('uncaughtException', (err) => {
+  console.error('[Global Resilience] Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Global Resilience] Unhandled rejection:', reason);
+});
+
+// Periodic logging of memory, sockets, and active rooms
+setInterval(() => {
+  const mem = process.memoryUsage();
+  const heapMB = Math.round(mem.heapUsed / 1024 / 1024);
+  const rssMB = Math.round(mem.rss / 1024 / 1024);
+  const socketCount = io.engine.clientsCount || 0;
+  const roomCount = ludoRooms.size;
+  console.log(`[Telemetry] Heap: ${heapMB}MB | RSS: ${rssMB}MB | Connected Sockets: ${socketCount} | Active Ludo Rooms: ${roomCount}`);
+}, 60000);
+
+// Idle rooms cleanup interval (15 minutes idle)
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, room] of ludoRooms.entries()) {
+    if (now - room.lastActivity > IDLE_ROOM_TIMEOUT_MS) {
+      console.log(`[Cleanup] Deleting idle room: ${code}`);
+      io.to('ludo:' + code).emit('ludo:room_closed', { reason: 'Room idle timeout (15 min)' });
+      ludoRooms.delete(code);
+    }
+  }
+}, 30000);
+
+// Connection limit per IP middleware
+io.use((socket, next) => {
+  try {
+    const ip = getClientIp(socket);
+    const ipData = getIpData(ip);
+    if (ipData.connections >= 15) {
+      return next(new Error('Connection limit exceeded for this IP.'));
+    }
+    ipData.connections++;
+    socket.on('disconnect', () => {
+      ipData.connections = Math.max(0, ipData.connections - 1);
+    });
+    next();
+  } catch (e) {
+    next();
+  }
+});
 
 // ==========================================
 // Socket.io Real-Time Event Handlers
@@ -971,6 +1100,918 @@ io.on('connection', (socket) => {
     // Also broadcast to public player directory
     io.emit('directory:presence_updated', pub);
   }
+
+  // ==========================================
+  // Ludo Dethroned Room & Gameplay Socket Events
+  // ==========================================
+  let socketCreatedRoom = null;
+
+  // ==========================================
+  // Records Layer Hardening & Rate Limiting Config
+  // ==========================================
+  let RECORDS_CONFIG = {
+    matchDurationMinSeconds: 120,
+    minHumanPlayers: 2,
+    maxCapturesPerSeat: 60,
+    maxRecordedMatchesPerIpPerDay: 30,
+    maxRecordedMatchesPerTokenPerDay: 10
+  };
+  try {
+    const cfgPath = path.join(__dirname, 'records-config.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfgData = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      RECORDS_CONFIG = Object.assign(RECORDS_CONFIG, cfgData);
+      console.log('[Config] Loaded records-config.json successfully.');
+    }
+  } catch (err) {
+    console.warn('[Config] Error loading records-config.json, using defaults:', err.message);
+  }
+
+  // Load editable profanity word list covering English, Urdu and Roman Urdu
+  let PROFANITY_WORDS = [];
+  try {
+    const wordsPath = path.join(__dirname, 'profanity-words.json');
+    if (fs.existsSync(wordsPath)) {
+      const parsed = JSON.parse(fs.readFileSync(wordsPath, 'utf8'));
+      if (Array.isArray(parsed.words)) {
+        PROFANITY_WORDS = parsed.words.filter(w => typeof w === 'string' && w.trim());
+        console.log(`[Config] Loaded ${PROFANITY_WORDS.length} profanity filter words from profanity-words.json.`);
+      }
+    }
+  } catch (err) {
+    console.warn('[Config] Error loading profanity-words.json:', err.message);
+  }
+
+  // Match recording rate limits per IP and per guest token
+  const ipRecordedMatches = new Map(); // ip -> [timestamps]
+  const tokenRecordedMatches = new Map(); // tokenHash -> [timestamps]
+
+  function checkRecordedMatchRateLimit(ip, hostTokenHash) {
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    // 1. IP Limit (e.g. 30 per day)
+    let ipList = ipRecordedMatches.get(ip) || [];
+    ipList = ipList.filter(ts => now - ts < dayMs);
+    ipRecordedMatches.set(ip, ipList);
+    if (ipList.length >= RECORDS_CONFIG.maxRecordedMatchesPerIpPerDay) {
+      return {
+        allowed: false,
+        reason: `IP recorded match daily limit reached (${RECORDS_CONFIG.maxRecordedMatchesPerIpPerDay}/day)`
+      };
+    }
+
+    // 2. Token Limit (e.g. 10 per day)
+    if (hostTokenHash) {
+      let tokenList = tokenRecordedMatches.get(hostTokenHash) || [];
+      tokenList = tokenList.filter(ts => now - ts < dayMs);
+      tokenRecordedMatches.set(hostTokenHash, tokenList);
+      if (tokenList.length >= RECORDS_CONFIG.maxRecordedMatchesPerTokenPerDay) {
+        return {
+          allowed: false,
+          reason: `Guest token recorded match daily limit reached (${RECORDS_CONFIG.maxRecordedMatchesPerTokenPerDay}/day)`
+        };
+      }
+    }
+
+    return { allowed: true };
+  }
+
+  function recordMatchSuccess(ip, hostTokenHash) {
+    const now = Date.now();
+    const ipList = ipRecordedMatches.get(ip) || [];
+    ipList.push(now);
+    ipRecordedMatches.set(ip, ipList);
+
+    if (hostTokenHash) {
+      const tokenList = tokenRecordedMatches.get(hostTokenHash) || [];
+      tokenList.push(now);
+      tokenRecordedMatches.set(hostTokenHash, tokenList);
+    }
+  }
+
+  // ==========================================
+  // Guest Identity, Display Name & Rate Limiting Helpers
+  // ==========================================
+  const guestIdRateLimits = new Map(); // ip -> [timestamps]
+
+  function checkGuestIdRateLimit(ip) {
+    const now = Date.now();
+    let list = guestIdRateLimits.get(ip) || [];
+    list = list.filter(ts => now - ts < 5 * 60 * 1000); // 5-minute sliding window
+    if (list.length >= 15) {
+      guestIdRateLimits.set(ip, list);
+      return false;
+    }
+    list.push(now);
+    guestIdRateLimits.set(ip, list);
+    return true;
+  }
+
+  function hashToken(token) {
+    if (!token || typeof token !== 'string') return '';
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  function generateGuestPlayerId() {
+    return 'g_' + crypto.randomBytes(4).toString('hex'); // "g_" + 8 random hex chars
+  }
+
+  function generateSecretSessionToken() {
+    return crypto.randomBytes(24).toString('hex');
+  }
+
+  const RESERVED_NAMES = new Set([
+    'admin', 'administrator', 'root', 'system', 'sysadmin', 'host',
+    'moderator', 'mod', 'ludo_master', 'official', 'support', 'staff',
+    'server', 'nexusplay', 'bot', 'ai', 'superuser'
+  ]);
+
+  function formatPlayerDisplayName(rawName, playerId) {
+    let name = (typeof rawName === 'string' ? rawName : '').trim();
+    if (!name) name = 'Player';
+    name = name.slice(0, 24).trim();
+    if (!name) name = 'Player';
+
+    // Reject reserved names
+    const normalized = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (RESERVED_NAMES.has(normalized)) {
+      return { error: 'Display name is reserved. Please choose another name.' };
+    }
+
+    // Filter abusive words from loaded profanity-words.json list
+    const activeProfanityList = (PROFANITY_WORDS && PROFANITY_WORDS.length > 0) ? PROFANITY_WORDS : ['fuck', 'shit', 'bitch', 'chutiya', 'harami'];
+    for (const word of activeProfanityList) {
+      try {
+        const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp('\\b' + escaped + '\\b', 'gi');
+        name = name.replace(regex, '***');
+      } catch (e) {}
+    }
+
+    return { name };
+  }
+
+  // Helper: Verify sender owns the room and seat
+  function verifyLudoSender(sock, payloadToken) {
+    const roomCode = sock.data.ludoRoomCode;
+    if (!roomCode) return null;
+    const room = ludoRooms.get(roomCode);
+    if (!room) return null;
+    const seatIdx = sock.data.ludoSeat;
+    if (typeof seatIdx !== 'number') return null;
+    const seat = room.seats[seatIdx];
+    if (!seat) return null;
+
+    const tokenToCheck = payloadToken || sock.data.ludoToken;
+    if (!tokenToCheck) return null;
+
+    const hashed = hashToken(tokenToCheck);
+    if (seat.tokenHash !== hashed) return null;
+    return { room, seat, seatIdx };
+  }
+
+  // 1. Create Room (Host)
+  socket.on('ludo:create_room', (payload, callback) => {
+    try {
+      const ip = getClientIp(socket);
+      const ipData = getIpData(ip);
+      const now = Date.now();
+
+      if (now < ipData.blockedUntil) {
+        return callback?.({ success: false, error: 'IP temporarily blocked due to repeated failed attempts. Please wait.' });
+      }
+
+      // Check room creation rate limit: 3 per minute
+      cleanTimestamps(ipData.creations, 60 * 1000);
+      if (ipData.creations.length >= 3) {
+        return callback?.({ success: false, error: 'Room creation rate limit exceeded (max 3/min). Please wait a moment.' });
+      }
+
+      // Check 1 owned room per connection cap
+      if (socketCreatedRoom && ludoRooms.has(socketCreatedRoom)) {
+        return callback?.({ success: false, error: 'You already have an active room on this connection.' });
+      }
+
+      // Check server room cap
+      if (ludoRooms.size >= MAX_LUDO_ROOMS) {
+        return callback?.({ success: false, error: 'Server room capacity reached. Please try again soon.' });
+      }
+
+      // Check memory threshold
+      if (process.memoryUsage().heapUsed > 450 * 1024 * 1024) {
+        return callback?.({ success: false, error: 'Server memory load high. Please retry shortly.' });
+      }
+
+      // Rate-limit new guest IDs per IP
+      if (!checkGuestIdRateLimit(ip)) {
+        return callback?.({ success: false, error: 'Too many guest requests from this IP. Please wait a few minutes.' });
+      }
+
+      ipData.creations.push(now);
+
+      const roomCode = getUniqueRoomCode();
+      const hostPublicId = generateGuestPlayerId();
+      const hostSecretToken = generateSecretSessionToken();
+
+      const nameResult = formatPlayerDisplayName(payload && payload.hostName, hostPublicId);
+      if (nameResult.error) {
+        return callback?.({ success: false, error: nameResult.error });
+      }
+      const hostDisplayName = nameResult.name;
+
+      const hostWish = (payload && Array.isArray(payload.wish)) ? [Number(payload.wish[0]) || 6, Number(payload.wish[1]) || 5] : [6, 5];
+      const timerConfig = (payload && payload.timerConfig) ? {
+        enabled: !!payload.timerConfig.enabled,
+        duration: [60, 90, 120].includes(Number(payload.timerConfig.duration)) ? Number(payload.timerConfig.duration) : 90
+      } : { enabled: true, duration: 90 };
+
+      const room = {
+        code: roomCode,
+        createdAt: now,
+        lastActivity: now,
+        hostSocketId: socket.id,
+        started: false,
+        matchEnded: false,
+        timerConfig,
+        matchState: null,
+        messageCount: 0,
+        seats: {
+          0: {
+            seatIndex: 0,
+            publicPlayerId: hostPublicId,
+            name: hostDisplayName,
+            tokenHash: hashToken(hostSecretToken), // Token is never stored in plain text
+            socketId: socket.id,
+            connected: true,
+            isAI: false,
+            wish: hostWish,
+            gender: 'male',
+            lastChatTime: 0
+          }
+        }
+      };
+
+      ludoRooms.set(roomCode, room);
+      socketCreatedRoom = roomCode;
+
+      // Optional user verification: tie seat 0 to Supabase user ID if token provided
+      if (payload && payload.supabaseToken) {
+        verifySupabaseToken(payload.supabaseToken).then(user => {
+          if (user && room.seats[0]) {
+            room.seats[0].supabaseUserId = user.id;
+            console.log(`[SupabaseAuth] Host seat 0 tied to user ID ${user.id}`);
+          }
+        }).catch(() => {});
+      }
+
+      socket.data.ludoRoomCode = roomCode;
+      socket.data.ludoSeat = 0;
+      socket.data.ludoToken = hostSecretToken;
+
+      socket.join('ludo:' + roomCode);
+
+      // Reset any previous failed join tracking on this IP
+      ipData.failedJoins = [];
+      ipData.blockedUntil = 0;
+
+      callback?.({
+        success: true,
+        roomCode,
+        seatIndex: 0,
+        playerToken: hostSecretToken,
+        publicPlayerId: hostPublicId,
+        roomState: getSanitizedRoomState(room)
+      });
+    } catch (err) {
+      console.error('[ludo:create_room] error:', err);
+      callback?.({ success: false, error: 'Failed to create room.' });
+    }
+  });
+
+  // 2. Join Room (Guest)
+  socket.on('ludo:join_room', (payload, callback) => {
+    try {
+      const ip = getClientIp(socket);
+      const ipData = getIpData(ip);
+      const now = Date.now();
+
+      if (now < ipData.blockedUntil) {
+        console.warn(`[ludo:join_room] IP ${ip} is temporarily blocked`);
+        return callback?.({ success: false, error: 'Room not found or full' });
+      }
+
+      // Check join rate limit: 10 per minute
+      cleanTimestamps(ipData.joins, 60 * 1000);
+      if (ipData.joins.length >= 10) {
+        return callback?.({ success: false, error: 'Too many join attempts. Please slow down.' });
+      }
+      ipData.joins.push(now);
+
+      const rawCode = (payload && typeof payload.roomCode === 'string') ? payload.roomCode.trim().toUpperCase() : '';
+      console.log(`[ludo:join_room] Join request received for code: "${rawCode}" from ${ip}`);
+      const room = ludoRooms.get(rawCode);
+
+      // Helper to record failed join and return uniform error
+      const failJoin = (reason) => {
+        console.warn(`[ludo:join_room] Join failed for "${rawCode}". Reason: ${reason}`);
+        cleanTimestamps(ipData.failedJoins, 10 * 60 * 1000);
+        ipData.failedJoins.push(now);
+        if (ipData.failedJoins.length >= 5) {
+          ipData.blockedUntil = now + 10 * 60 * 1000; // Block for 10 minutes
+        }
+        return callback?.({ success: false, error: 'Room not found or full' });
+      };
+
+      if (!room || room.started) {
+        return failJoin(!room ? 'Room does not exist' : 'Match already started');
+      }
+
+      // Cancel empty deletion timer if room was awaiting players/reconnect
+      if (room.emptyDeletionTimer) {
+        clearTimeout(room.emptyDeletionTimer);
+        room.emptyDeletionTimer = null;
+      }
+
+      // Find first free seat (1 to 4)
+      let claimedSlot = -1;
+      for (let s = 1; s < 5; s++) {
+        if (!room.seats[s] || (!room.seats[s].connected && room.seats[s].isAI)) {
+          claimedSlot = s;
+          break;
+        }
+      }
+
+      if (claimedSlot === -1) {
+        return failJoin();
+      }
+
+      // Rate-limit new guest IDs per IP
+      if (!checkGuestIdRateLimit(ip)) {
+        return callback?.({ success: false, error: 'Too many guest requests from this IP. Please wait a few minutes.' });
+      }
+
+      const guestPublicId = generateGuestPlayerId();
+      const guestSecretToken = generateSecretSessionToken();
+
+      const nameResult = formatPlayerDisplayName(payload && payload.playerName, guestPublicId);
+      if (nameResult.error) {
+        return callback?.({ success: false, error: nameResult.error });
+      }
+      const guestDisplayName = nameResult.name;
+
+      const guestWish = (payload && Array.isArray(payload.wish)) ? [Number(payload.wish[0]) || 6, Number(payload.wish[1]) || 5] : [6, 5];
+
+      room.seats[claimedSlot] = {
+        seatIndex: claimedSlot,
+        publicPlayerId: guestPublicId,
+        name: guestDisplayName,
+        tokenHash: hashToken(guestSecretToken), // Token is never stored in plain text
+        socketId: socket.id,
+        connected: true,
+        isAI: false,
+        wish: guestWish,
+        gender: 'male',
+        lastChatTime: 0
+      };
+
+      room.lastActivity = now;
+
+      socket.data.ludoRoomCode = room.code;
+      socket.data.ludoSeat = claimedSlot;
+      socket.data.ludoToken = guestSecretToken;
+
+      // Optional user verification: tie guest seat to Supabase user ID if token provided
+      if (payload && payload.supabaseToken) {
+        verifySupabaseToken(payload.supabaseToken).then(user => {
+          if (user && room.seats[claimedSlot]) {
+            room.seats[claimedSlot].supabaseUserId = user.id;
+            console.log(`[SupabaseAuth] Guest seat ${claimedSlot} tied to user ID ${user.id}`);
+          }
+        }).catch(() => {});
+      }
+
+      socket.join('ludo:' + room.code);
+
+      const sanitized = getSanitizedRoomState(room);
+      io.to('ludo:' + room.code).emit('ludo:room_updated', sanitized);
+
+      callback?.({
+        success: true,
+        roomCode: room.code,
+        seatIndex: claimedSlot,
+        playerToken: guestSecretToken,
+        publicPlayerId: guestPublicId,
+        roomState: sanitized
+      });
+    } catch (err) {
+      console.error('[ludo:join_room] error:', err);
+      callback?.({ success: false, error: 'Room not found or full' });
+    }
+  });
+
+  // 3. Reconnect Room
+  socket.on('ludo:reconnect', (payload, callback) => {
+    try {
+      if (!payload || !payload.roomCode || typeof payload.seatIndex !== 'number' || !payload.playerToken) {
+        return callback?.({ success: false, error: 'Invalid reconnect payload' });
+      }
+
+      const code = String(payload.roomCode).trim().toUpperCase();
+      const seatIdx = Number(payload.seatIndex);
+      const token = String(payload.playerToken);
+
+      const room = ludoRooms.get(code);
+      if (!room) {
+        return callback?.({ success: false, error: 'Room not found or full' });
+      }
+
+      const seat = room.seats[seatIdx];
+      if (!seat || seat.tokenHash !== hashToken(token)) {
+        return callback?.({ success: false, error: 'Seat token mismatch' });
+      }
+
+      // Reclaim seat
+      seat.socketId = socket.id;
+      seat.connected = true;
+      if (room.emptyDeletionTimer) {
+        clearTimeout(room.emptyDeletionTimer);
+        room.emptyDeletionTimer = null;
+      }
+      if (seatIdx === 0) {
+        room.hostSocketId = socket.id;
+      }
+      room.lastActivity = Date.now();
+
+      socket.data.ludoRoomCode = code;
+      socket.data.ludoSeat = seatIdx;
+      socket.data.ludoToken = token;
+
+      socket.join('ludo:' + code);
+
+      const sanitized = getSanitizedRoomState(room);
+      io.to('ludo:' + code).emit('ludo:room_updated', sanitized);
+      if (seatIdx === 0) {
+        io.to('ludo:' + code).emit('ludo:host_status', { connected: true });
+      }
+
+      callback?.({
+        success: true,
+        roomCode: code,
+        seatIndex: seatIdx,
+        publicPlayerId: seat.publicPlayerId,
+        roomState: sanitized
+      });
+    } catch (err) {
+      console.error('[ludo:reconnect] error:', err);
+      callback?.({ success: false, error: 'Reconnect failed' });
+    }
+  });
+
+  // 4. Room lookup rate limit check (20 per minute)
+  socket.on('ludo:lookup_room', (payload, callback) => {
+    try {
+      const ip = getClientIp(socket);
+      const ipData = getIpData(ip);
+      const now = Date.now();
+
+      cleanTimestamps(ipData.lookups, 60 * 1000);
+      if (ipData.lookups.length >= 20) {
+        return callback?.({ success: false, error: 'Too many lookup requests' });
+      }
+      ipData.lookups.push(now);
+
+      const code = (payload && typeof payload.roomCode === 'string') ? payload.roomCode.trim().toUpperCase() : '';
+      const room = ludoRooms.get(code);
+      if (!room || room.started) {
+        return callback?.({ success: false, error: 'Room not found or full' });
+      }
+
+      callback?.({ success: true, roomState: getSanitizedRoomState(room) });
+    } catch (e) {
+      callback?.({ success: false, error: 'Room not found or full' });
+    }
+  });
+
+  // 5. State Sync (Host -> Room)
+  socket.on('ludo:state_sync', (payload) => {
+    try {
+      if (!payload || !payload.matchState) return;
+      if (JSON.stringify(payload).length > MAX_PAYLOAD_SIZE) return;
+
+      const auth = verifyLudoSender(socket, payload.token);
+      if (!auth || auth.seatIdx !== 0) return; // Only host can broadcast state
+
+      const { room } = auth;
+      room.matchState = payload.matchState;
+      room.lastActivity = Date.now();
+      room.messageCount++;
+
+      // Broadcast to other sockets in the room
+      socket.to('ludo:' + room.code).emit('ludo:state_sync', {
+        matchState: payload.matchState,
+        messageCount: room.messageCount
+      });
+    } catch (err) {
+      console.warn('[ludo:state_sync] error:', err);
+    }
+  });
+
+  // 6. Dice Roll Broadcast (Host -> Room)
+  socket.on('ludo:dice_roll', (payload) => {
+    try {
+      if (!payload || !payload.dice) return;
+      const auth = verifyLudoSender(socket, payload.token);
+      if (!auth) return;
+
+      const { room } = auth;
+      room.lastActivity = Date.now();
+      room.messageCount++;
+
+      io.to('ludo:' + room.code).emit('ludo:dice_roll', {
+        dice: payload.dice,
+        player: payload.player,
+        isLucky7: !!payload.isLucky7,
+        messageCount: room.messageCount
+      });
+    } catch (err) {
+      console.warn('[ludo:dice_roll] error:', err);
+    }
+  });
+
+  // 7. Player Action (Guest -> Host)
+  socket.on('ludo:game_action', (payload) => {
+    try {
+      if (!payload || !payload.action) return;
+      if (JSON.stringify(payload).length > MAX_PAYLOAD_SIZE) return;
+
+      const auth = verifyLudoSender(socket, payload.token);
+      if (!auth) return;
+
+      const { room, seat, seatIdx } = auth;
+      // Reject any action whose player seat is not owned by the sender
+      if (payload.action.player !== undefined && payload.action.player !== seatIdx) {
+        console.warn(`[Security] Rejected action for seat ${payload.action.player} from socket seat ${seatIdx}`);
+        return;
+      }
+
+      room.lastActivity = Date.now();
+      room.messageCount++;
+
+      // Forward to host socket
+      if (room.hostSocketId) {
+        io.to(room.hostSocketId).emit('ludo:game_action', {
+          senderSeat: seatIdx,
+          publicPlayerId: seat.publicPlayerId,
+          action: payload.action,
+          messageCount: room.messageCount
+        });
+      }
+    } catch (err) {
+      console.warn('[ludo:game_action] error:', err);
+    }
+  });
+
+  // 8. Match Start (Host -> Room)
+  socket.on('ludo:start_match', (payload) => {
+    try {
+      const auth = verifyLudoSender(socket, payload?.token);
+      if (!auth || auth.seatIdx !== 0) return;
+
+      const { room } = auth;
+      room.started = true;
+      room.startedAt = Date.now();
+      room.lastActivity = Date.now();
+      room.messageCount++;
+
+      // Asynchronously record match start in Supabase (with retry and timeout)
+      recordMatchStart({
+        roomCode: room.code,
+        seats: room.seats
+      });
+
+      io.to('ludo:' + room.code).emit('ludo:match_started', {
+        seats: payload.seats,
+        matchState: payload.matchState,
+        timerConfig: payload.timerConfig,
+        messageCount: room.messageCount
+      });
+    } catch (err) {
+      console.warn('[ludo:start_match] error:', err);
+    }
+  });
+
+  // 9. Timer Sync (Host -> Room)
+  socket.on('ludo:timer_sync', (payload) => {
+    try {
+      const auth = verifyLudoSender(socket, payload?.token);
+      if (!auth || auth.seatIdx !== 0) return;
+
+      const { room } = auth;
+      if (payload.timerConfig) {
+        room.timerConfig = payload.timerConfig;
+        room.lastActivity = Date.now();
+        room.messageCount++;
+        socket.to('ludo:' + room.code).emit('ludo:timer_sync', payload.timerConfig);
+      }
+    } catch (err) {
+      console.warn('[ludo:timer_sync] error:', err);
+    }
+  });
+
+  // 10. Match Ended & Final Rankings (Host -> Room)
+  socket.on('ludo:match_ended', (payload) => {
+    try {
+      const auth = verifyLudoSender(socket, payload?.token);
+      // 1. Accepted only from the host seat's socket
+      if (!auth || auth.seatIdx !== 0 || auth.room.hostSocketId !== socket.id) {
+        console.warn('[Security] Rejected match_ended: not from host seat socket');
+        return;
+      }
+
+      const { room } = auth;
+
+      // 2. Only after ludo:start_match
+      if (!room.started) {
+        console.warn('[Security] Rejected match_ended: match has not started yet');
+        return;
+      }
+
+      // 3. Accepted once per room
+      if (room.matchEnded) {
+        console.warn('[Security] Rejected duplicate match_ended: room match already concluded');
+        return;
+      }
+
+      // 4. Strict schema validation
+      if (!payload || typeof payload !== 'object') return;
+      const winner = Number(payload.winner);
+      if (!Number.isInteger(winner) || winner < 0 || winner > 4) {
+        console.warn('[Security] Rejected match_ended: invalid winner seat index');
+        return;
+      }
+      if (!Array.isArray(payload.rankings) || payload.rankings.length === 0 || payload.rankings.length > 5) {
+        console.warn('[Security] Rejected match_ended: invalid rankings array length');
+        return;
+      }
+
+      const N = payload.rankings.length;
+      const sanitizedRankings = [];
+      const seenSeats = new Set();
+      const seenRanks = new Set();
+      let totalCapturesMade = 0;
+      let totalTimesCaptured = 0;
+
+      for (const r of payload.rankings) {
+        if (!r || typeof r !== 'object') return;
+        const seat = Number(r.seat !== undefined ? r.seat : r.pIdx);
+        const rank = Number(r.rank);
+        const percentage = Number(r.percentage !== undefined ? r.percentage : r.progress_percent);
+        const capturesMade = Number(r.captures_made !== undefined ? r.captures_made : 0);
+        const timesCaptured = Number(r.times_captured !== undefined ? r.times_captured : 0);
+        const penalties = Number(r.penalties !== undefined ? r.penalties : 0);
+
+        // Unique seats 0..4
+        if (!Number.isInteger(seat) || seat < 0 || seat > 4 || seenSeats.has(seat)) {
+          console.warn('[Security] Rejected match_ended: invalid or duplicate seat in rankings');
+          return;
+        }
+        seenSeats.add(seat);
+
+        // Unique ranks 1..N
+        if (!Number.isInteger(rank) || rank < 1 || rank > N || seenRanks.has(rank)) {
+          console.warn(`[Security] Rejected match_ended: ranks must be unique integers from 1 to ${N}`);
+          return;
+        }
+        seenRanks.add(rank);
+
+        // Progress 0-100
+        if (typeof percentage !== 'number' || Number.isNaN(percentage) || percentage < 0 || percentage > 100) {
+          console.warn('[Security] Rejected match_ended: invalid progress percentage (must be 0-100)');
+          return;
+        }
+
+        // Numbers 0-200
+        if (!Number.isInteger(capturesMade) || capturesMade < 0 || capturesMade > 200 ||
+            !Number.isInteger(timesCaptured) || timesCaptured < 0 || timesCaptured > 200 ||
+            !Number.isInteger(penalties) || penalties < 0 || penalties > 200) {
+          console.warn('[Security] Rejected match_ended: stats numbers must be integers between 0 and 200');
+          return;
+        }
+
+        totalCapturesMade += capturesMade;
+        totalTimesCaptured += timesCaptured;
+
+        sanitizedRankings.push({
+          seat,
+          rank,
+          name: typeof r.name === 'string' ? r.name.slice(0, 32) : `Player ${seat + 1}`,
+          percentage: Math.round(percentage),
+          captures_made: capturesMade,
+          times_captured: timesCaptured,
+          penalties: penalties
+        });
+      }
+
+      // Check ranks set covers exactly 1..N
+      for (let expected = 1; expected <= N; expected++) {
+        if (!seenRanks.has(expected)) {
+          console.warn(`[Security] Rejected match_ended: missing rank ${expected} in 1..${N}`);
+          return;
+        }
+      }
+
+      // Strict validation: The sum of captures_made must equal the sum of times_captured
+      if (totalCapturesMade !== totalTimesCaptured) {
+        console.warn(`[Security] Rejected match_ended: sum of captures_made (${totalCapturesMade}) does not equal sum of times_captured (${totalTimesCaptured})`);
+        return;
+      }
+
+      // Mark concluded
+      room.matchEnded = true;
+      room.lastActivity = Date.now();
+      room.messageCount++;
+
+      // Broadcast match conclusion and final leaderboard to all players in the room immediately
+      io.to('ludo:' + room.code).emit('ludo:match_ended', {
+        winner,
+        rankings: sanitizedRankings,
+        messageCount: room.messageCount
+      });
+
+      // Hardening Round 3: Check eligibility for recording
+      // 1. At least 2 human players were seated
+      const humanPlayers = Object.values(room.seats).filter(s => s && !s.isAI);
+      if (humanPlayers.length < RECORDS_CONFIG.minHumanPlayers) {
+        console.warn(`[Security] Skipped match recording for room ${room.code}: only ${humanPlayers.length} human player(s) seated (minimum ${RECORDS_CONFIG.minHumanPlayers} required).`);
+        return;
+      }
+
+      // 2. Match lasted at least 120 seconds
+      const durationSeconds = room.startedAt ? Math.floor((Date.now() - room.startedAt) / 1000) : 0;
+      if (durationSeconds < RECORDS_CONFIG.matchDurationMinSeconds) {
+        console.warn(`[Security] Skipped match recording for room ${room.code}: match lasted ${durationSeconds}s (minimum ${RECORDS_CONFIG.matchDurationMinSeconds}s required).`);
+        return;
+      }
+
+      // 3. The winner equals the seat with rank 1
+      const rank1Entry = sanitizedRankings.find(r => r.rank === 1);
+      if (!rank1Entry || rank1Entry.seat !== winner) {
+        console.warn(`[Security] Skipped match recording for room ${room.code}: winner seat (${winner}) does not match rank 1 seat (${rank1Entry ? rank1Entry.seat : 'none'}).`);
+        return;
+      }
+
+      // 4. Each seat captures_made is at most 60
+      const invalidCaptureSeat = sanitizedRankings.find(r => r.captures_made > RECORDS_CONFIG.maxCapturesPerSeat);
+      if (invalidCaptureSeat) {
+        console.warn(`[Security] Skipped match recording for room ${room.code}: seat ${invalidCaptureSeat.seat} captures_made (${invalidCaptureSeat.captures_made}) exceeds max allowed (${RECORDS_CONFIG.maxCapturesPerSeat}).`);
+        return;
+      }
+
+      // 5. Rate limit per IP and per guest token
+      const clientIp = getClientIp(socket);
+      const hostTokenHash = auth.seat && auth.seat.tokenHash;
+      const rateLimitCheck = checkRecordedMatchRateLimit(clientIp, hostTokenHash);
+      if (!rateLimitCheck.allowed) {
+        console.warn(`[Security] Skipped match recording for room ${room.code}: ${rateLimitCheck.reason}.`);
+        return;
+      }
+
+      // Record successful match rate limit increment
+      recordMatchSuccess(clientIp, hostTokenHash);
+
+      // Asynchronously record match end in Supabase (with retry, timeout, verified=false)
+      recordMatchEnd({
+        roomCode: room.code,
+        rankings: sanitizedRankings,
+        seats: room.seats
+      });
+    } catch (err) {
+      console.warn('[ludo:match_ended] error:', err);
+    }
+  });
+
+  // 10. In-Room Chat (Player -> Room)
+  socket.on('ludo:chat', (payload) => {
+    try {
+      if (!payload || typeof payload.text !== 'string') return;
+      const auth = verifyLudoSender(socket, payload.token);
+      if (!auth) return;
+
+      const { room, seat, seatIdx } = auth;
+      const now = Date.now();
+
+      // Chat rate limit: 1 message per second per player
+      if (now - seat.lastChatTime < 1000) {
+        return; // drop silently or throttle
+      }
+      seat.lastChatTime = now;
+
+      // Escape chat text & keep 100-character cap
+      const cleanText = sanitizeChatText(payload.text);
+      if (!cleanText) return;
+
+      room.lastActivity = now;
+      room.messageCount++;
+
+      io.to('ludo:' + room.code).emit('ludo:chat', {
+        sender: seat.name,
+        text: cleanText,
+        seatIndex: seatIdx,
+        timestamp: now,
+        messageCount: room.messageCount
+      });
+    } catch (err) {
+      console.warn('[ludo:chat] error:', err);
+    }
+  });
+
+  // 10b. In-Room Voice Note (Player -> Room)
+  socket.on('ludo:voice', (payload) => {
+    try {
+      if (!payload || typeof payload.audio !== 'string') return;
+      const auth = verifyLudoSender(socket, payload.token);
+      if (!auth) return;
+
+      const { room, seat, seatIdx } = auth;
+      const now = Date.now();
+
+      // Voice rate limit: 1 voice note every 3 seconds per player
+      if (seat.lastVoiceTime && now - seat.lastVoiceTime < 3000) {
+        return;
+      }
+      seat.lastVoiceTime = now;
+
+      // Ensure audio string is a data URI or base64 under 500KB
+      if (payload.audio.length > 500000) return;
+
+      room.lastActivity = now;
+      room.messageCount++;
+
+      io.to('ludo:' + room.code).emit('ludo:voice', {
+        sender: seat.name,
+        seatIndex: seatIdx,
+        audio: payload.audio,
+        duration: Math.min(10, Math.max(1, Number(payload.duration) || 2)),
+        timestamp: now,
+        messageCount: room.messageCount
+      });
+    } catch (err) {
+      console.warn('[ludo:voice] error:', err);
+    }
+  });
+
+  // 11. Disconnect Cleanup for Ludo
+  socket.on('disconnect', () => {
+    try {
+      const roomCode = socket.data.ludoRoomCode;
+      if (!roomCode) return;
+      const room = ludoRooms.get(roomCode);
+      if (!room) return;
+
+      const seatIdx = socket.data.ludoSeat;
+      if (typeof seatIdx === 'number' && room.seats[seatIdx]) {
+        room.seats[seatIdx].connected = false;
+        room.lastActivity = Date.now();
+      }
+
+      // Check if all human players are disconnected
+      let anyHumanConnected = false;
+      for (let i = 0; i < 5; i++) {
+        if (room.seats[i] && !room.seats[i].isAI && room.seats[i].connected) {
+          anyHumanConnected = true;
+          break;
+        }
+      }
+
+      if (!anyHumanConnected) {
+        if (!room.emptyDeletionTimer) {
+          console.log(`[Cleanup] Empty room ${roomCode} scheduled for deletion in 90s grace period.`);
+          room.emptyDeletionTimer = setTimeout(() => {
+            let recheck = false;
+            for (let i = 0; i < 5; i++) {
+              if (room.seats[i] && !room.seats[i].isAI && room.seats[i].connected) {
+                recheck = true;
+                break;
+              }
+            }
+            if (!recheck) {
+              console.log(`[Cleanup] Empty room ${roomCode} deleted after grace period.`);
+              ludoRooms.delete(roomCode);
+            }
+          }, 90000);
+        }
+      } else {
+        // If host disconnected, notify remaining players
+        if (seatIdx === 0) {
+          io.to('ludo:' + room.code).emit('ludo:host_status', { connected: false });
+        }
+        io.to('ludo:' + room.code).emit('ludo:room_updated', getSanitizedRoomState(room));
+      }
+    } catch (e) {
+      console.warn('[ludo:disconnect] cleanup error:', e);
+    }
+  });
 });
 
 // ==========================================
