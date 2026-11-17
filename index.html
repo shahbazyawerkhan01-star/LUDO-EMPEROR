@@ -13968,10 +13968,21 @@
               const nameDiv = seg.querySelector('.judge-name');
               const trayDiv = seg.querySelector('.emoji-tray');
               
-              const cleanPlayerName = String(playerName || '').replace(/\s+#[a-f0-9]{4}$/i, '').trim();
-              const initialLetter = (cleanPlayerName.charAt(0) || 'P').toUpperCase();
+              const rawPlayerName = String(playerName || '').replace(/\s+#[a-f0-9]{4}$/i, '').trim();
+              const nameEmojis = rawPlayerName.match(/(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)/gu) || [];
+              const alphaName = rawPlayerName
+                .replace(/[\d#*]\uFE0F?\u20E3/gu, '')
+                .replace(/(?:\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*)/gu, '')
+                .replace(/[\uFE0F\u200D\u20E3]/gu, '')
+                .trim();
+              const letterMatch = alphaName.match(/\p{L}/u);
+              const initialLetter = (letterMatch ? letterMatch[0] : (alphaName.charAt(0) || 'P')).toUpperCase();
+              const playerEmoji = [pConfig && pConfig.icon, ...nameEmojis]
+                .map(s => String(s || '').trim())
+                .find(s => s && !/[0-9#*]|\u20E3/.test(s) && /\p{Extended_Pictographic}/u.test(s)) || '';
+
               const rankOrder = sortedProgress.findIndex(p => p.idx === i);
-              const badge = rankBadges[rankOrder] || '';
+              const badge = rankBadges[rankOrder] || playerEmoji;
               nameDiv.innerText = badge ? `${badge} ${initialLetter} ${val}%` : `${initialLetter} ${val}%`;
               trayDiv.style.display = 'flex';
               trayDiv.style.fontSize = width < 20 ? '10px' : '14px';
