@@ -1,0 +1,309 @@
+
+      <div id="game-container">
+        <h1 id="title">LUDO DETHRONED 5 WAY</h1>
+      <div id="ai-judge-bar">
+        <div class="judge-segment" id="judge-0"></div>
+        <div class="judge-segment" id="judge-1"></div>
+        <div class="judge-segment" id="judge-2"></div>
+        <div class="judge-segment" id="judge-3"></div>
+        <div class="judge-segment" id="judge-4"></div>
+      </div>
+      <div id="dice-hud"></div>
+      <div id="ad-banner">Promotional Content Section</div>
+      <div id="roll-hint">Tap dice to roll</div>
+      <div id="style-guide">
+        <div class="guide-step" id="step1">1. 2D Layout Design</div>
+        <div class="guide-step" id="step2">2. Touch Interactions</div>
+        <div class="guide-step" id="step3">3. Game Logic & AI</div>
+        <div class="guide-step active" id="step4">4. 2D Editor Mode</div>
+      </div>
+      <div id="ranking-bar">
+        <div class="rank-segment" id="rank-0"></div>
+        <div class="rank-segment" id="rank-1"></div>
+        <div class="rank-segment" id="rank-2"></div>
+        <div class="rank-segment" id="rank-3"></div>
+        <div class="rank-segment" id="rank-4"></div>
+      </div>
+      <div id="turn-timer-container">
+        <div id="turn-timer-bar"></div>
+        <div id="turn-timer-text">90s</div>
+      </div>
+      
+      <div id="toast">🌐 <span id="toast-message">Feature coming soon!</span></div>
+      <div id="debug-error-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:99999; background:#c0392b; color:white; font-family:monospace; font-size:11px; padding:8px 40px 8px 10px; max-height:35vh; overflow-y:auto; white-space:pre-wrap; word-break:break-word; box-sizing:border-box;">
+        <button id="debug-error-close" style="position:absolute; top:4px; right:8px; background:rgba(255,255,255,0.3); border:none; color:white; width:24px; height:24px; border-radius:50%; font-size:14px; cursor:pointer;">✕</button>
+        <div id="debug-error-text"></div>
+      </div>
+      <button id="online-friends-btn-ingame"><span>🌐</span> PLAY WITH FRIENDS</button>
+      <div id="voice-status"><div class="voice-dot"></div> VOICE CHANNEL ACTIVE</div>
+      <div id="chat-log"></div>
+      <button id="wish-btn" title="Use Lucky Wish">✨</button>
+
+      <div id="player-profile-modal" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.95); border:3px solid #fff; border-radius:24px; padding:25px; z-index:4000; width:340px; text-align:center; box-shadow: 0 0 50px rgba(0,0,0,0.8); backdrop-filter: blur(15px); font-family:'Fredoka'; color:white;">
+          <div id="profile-header" style="display:flex; align-items:center; gap:30px; margin-bottom:40px; text-align:left;">
+              <div id="profile-icon" style="font-size:100px; background:rgba(255,255,255,0.1); width:160px; height:160px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:4px solid #fff;">🤴</div>
+              <div>
+                  <h2 id="profile-name" style="margin:0; font-size:48px;">ANEES</h2>
+                  <p id="profile-status" style="margin:0; opacity:0.7; font-size:28px; font-family:'Inter';">Online • Playing</p>
+              </div>
+          </div>
+          
+          <div style="margin-bottom:40px;">
+              <p style="text-align:left; margin-bottom:16px; font-size:28px; opacity:0.8;">Quick Reactions</p>
+              <div id="profile-emojis" style="display:flex; justify-content:space-between; gap:10px;"></div>
+          </div>
+
+          <div style="margin-bottom:40px;">
+              <p style="text-align:left; margin-bottom:16px; font-size:28px; opacity:0.8;">Custom Message</p>
+              <div style="display:flex; gap:20px;">
+                  <input type="text" id="profile-chat-input" maxlength="50" placeholder="Type a message..." style="flex:1; padding:24px; border-radius:24px; border:4px solid #555; background:rgba(255,255,255,0.1); color:white; font-size:32px; outline:none; font-family:'Inter'; box-sizing:border-box;">
+                  <button id="profile-send-btn" style="background:#27ae60; color:white; border:none; width:100px; border-radius:24px; font-size:40px; cursor:pointer;">➔</button>
+              </div>
+          </div>
+
+          <div style="display:flex; gap:20px;">
+              <button id="profile-voice-btn" style="flex:1; background:#2980b9; color:white; border:none; padding:24px; border-radius:60px; font-family:'Fredoka'; font-weight:700; font-size:32px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:16px;">🎤 VOICE MSG</button>
+              <button id="profile-close-btn" style="flex:1; background:#c0392b; color:white; border:none; padding:24px; border-radius:60px; font-family:'Fredoka'; font-weight:700; font-size:32px; cursor:pointer;">CLOSE</button>
+          </div>
+      </div>
+
+
+      <!-- Real online "room" chat: everyone who joins the same room code sees the same
+           live message thread, backed by Firestore. -->
+      <div id="room-chat-panel" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.95); border:3px solid #2ecc71; border-radius:24px; padding:20px; z-index:4100; width:360px; max-width:90vw; text-align:left; box-shadow: 0 0 50px rgba(0,0,0,0.8); backdrop-filter: blur(15px); font-family:'Fredoka'; color:white;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div>
+                <h3 style="margin:0; font-size:22px;">🌐 Room <span id="room-code-display" style="color:#2ecc71;">—</span></h3>
+                <p id="room-presence-display" style="margin:2px 0 0; font-size:12px; opacity:0.7; font-family:'Inter';">Not connected</p>
+              </div>
+              <button id="room-chat-close-btn" style="background:#c0392b; color:white; border:none; width:34px; height:34px; border-radius:50%; font-size:16px; cursor:pointer;">✕</button>
+          </div>
+
+          <div id="room-join-row" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+              <input type="text" id="room-name-input" maxlength="20" placeholder="Your name (shown to others in the room)" style="padding:10px; border-radius:10px; border:2px solid #555; background:rgba(255,255,255,0.1); color:white; font-size:14px; outline:none; font-family:'Inter'; box-sizing:border-box;">
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="room-join-input" maxlength="5" placeholder="Enter room code" style="flex:1; padding:10px; border-radius:10px; border:2px solid #555; background:rgba(255,255,255,0.1); color:white; font-size:14px; outline:none; font-family:'Inter'; text-transform:uppercase; box-sizing:border-box;">
+                <button id="room-join-btn" style="background:#2980b9; color:white; border:none; padding:0 14px; border-radius:10px; font-family:'Fredoka'; font-weight:700; cursor:pointer;">JOIN</button>
+                <button id="room-host-btn" style="background:#2ecc71; color:#063; border:none; padding:0 14px; border-radius:10px; font-family:'Fredoka'; font-weight:700; cursor:pointer;">HOST</button>
+              </div>
+          </div>
+
+          <div id="room-messages" style="height:220px; overflow-y:auto; background:rgba(255,255,255,0.05); border-radius:12px; padding:10px; margin-bottom:12px; font-family:'Inter'; font-size:13px; display:flex; flex-direction:column; gap:6px;"></div>
+
+          <div style="display:flex; gap:8px;">
+              <input type="text" id="room-chat-input" maxlength="200" placeholder="Message everyone in the room..." style="flex:1; padding:12px; border-radius:14px; border:2px solid #555; background:rgba(255,255,255,0.1); color:white; font-size:14px; outline:none; font-family:'Inter'; box-sizing:border-box;">
+              <button id="room-chat-send-btn" style="background:#27ae60; color:white; border:none; width:44px; border-radius:14px; font-size:18px; cursor:pointer;">➔</button>
+          </div>
+      </div>
+
+      <button id="room-chat-toggle-btn" title="Room Chat" style="display:none; position:absolute; top:20px; left:250px; z-index:150; background:rgba(0,0,0,0.6); color:white; border:2px solid #2ecc71; width:44px; height:44px; border-radius:50%; font-size:20px; cursor:pointer; pointer-events:auto;">🌐</button>
+
+      <div id="wish-modal" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.98); border:3px solid #f1c40f; border-radius:24px; padding:30px; z-index:3000; text-align:center; color:white; font-family:'Fredoka'; width:320px; box-shadow: 0 0 50px rgba(0,0,0,0.8); backdrop-filter: blur(10px);">
+          <h2 style="color:#f1c40f; margin-top:0;">Lucky Wish ✨</h2>
+          <p id="wish-modal-player-name" style="font-size:20px; margin-bottom:20px;"></p>
+          <div style="display:flex; justify-content:center; gap:15px; margin:25px 0;">
+              <input type="number" id="wish-die-1" min="1" max="6" value="6" style="width:70px; height:70px; font-size:36px; text-align:center; border-radius:12px; border:2px solid #f1c40f; background:rgba(255,255,255,0.1); color:white; outline:none;">
+              <input type="number" id="wish-die-2" min="1" max="6" value="5" style="width:70px; height:70px; font-size:36px; text-align:center; border-radius:12px; border:2px solid #f1c40f; background:rgba(255,255,255,0.1); color:white; outline:none;">
+          </div>
+          <p style="font-size:13px; color:#aaa; margin-bottom:30px;">Choose two numbers. (6, 6) not allowed!</p>
+          <button id="confirm-wish-btn" style="background:#f1c40f; color:black; border:none; padding:12px 40px; border-radius:30px; font-family:'Fredoka'; font-size:20px; font-weight:700; cursor:pointer; width:100%;">CONFIRM WISH</button>
+      </div>
+
+      <div id="player-setup-overlay">
+        <div id="setup-content">
+            <div id="main-menu-section">
+                <h1 id="setup-title">LUDO DETHRONED 5 WAY</h1>
+                <p style="color: rgba(255,255,255,0.8); margin-bottom: 25px; font-family: 'Fredoka'; font-size: 22px; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">The Ultimate Royal Challenge</p>
+                
+                <div class="feature-badges">
+                    <div class="feature-badge"><span>🎲🎲</span> 2 DICE</div>
+                    <div class="feature-badge"><span>🖐️</span> 5 PLAYERS</div>
+                    <div class="feature-badge"><span>✨7</span> LUCKY 7</div>
+                </div>
+
+                <button class="main-menu-btn" id="btn-local-play" style="background: linear-gradient(135deg, rgba(41, 128, 185, 0.2), rgba(41, 128, 185, 0.1)); border-color: rgba(41, 128, 185, 0.5);">
+                    <span class="btn-icon">👥</span>
+                    <div>
+                        <span>PASS & PLAY</span>
+                        <span class="btn-subtitle">Play with friends on this device</span>
+                    </div>
+                </button>
+
+                <button class="main-menu-btn" id="btn-tournament" style="background: linear-gradient(135deg, rgba(39, 174, 96, 0.2), rgba(39, 174, 96, 0.1)); border-color: rgba(39, 174, 96, 0.5);">
+                    <span class="btn-icon">🏆</span>
+                    <div>
+                        <span>TOURNAMENT</span>
+                        <span class="btn-subtitle">Compete for the championship</span>
+                    </div>
+                </button>
+                
+                <button class="main-menu-btn" id="btn-online-play" style="background: linear-gradient(135deg, rgba(241, 196, 15, 0.2), rgba(241, 196, 15, 0.1)); border-color: rgba(241, 196, 15, 0.5);">
+                    <span class="btn-icon">🌐</span>
+                    <div>
+                        <span>INVITE FRIENDS</span>
+                        <span class="btn-subtitle">Share deep link to invite others</span>
+                    </div>
+                </button>
+
+                <button class="main-menu-btn" id="btn-how-to-play" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));">
+                    <span class="btn-icon">📖</span>
+                    <div>
+                        <span>HOW TO PLAY</span>
+                        <span class="btn-subtitle">Learn the rules and strategy</span>
+                    </div>
+                </button>
+
+                <button class="main-menu-btn" id="btn-settings-main" style="background: linear-gradient(135deg, rgba(149, 165, 166, 0.2), rgba(149, 165, 166, 0.1)); border-color: rgba(149, 165, 166, 0.5);">
+                    <span class="btn-icon">⚙️</span>
+                    <div>
+                        <span>SETTINGS</span>
+                        <span class="btn-subtitle">Adjust audio and game options</span>
+                    </div>
+                </button>
+            </div>
+
+            <div id="local-setup-section" style="display: none; width: 100%; flex-direction: column; align-items: center;">
+                <h2 style="font-family: 'Fredoka'; color: white; margin-bottom: 20px;">Local Game Setup</h2>
+                <div id="gender-setup">
+                    <span style="color: white; font-family: 'Inter'; font-weight: 600; margin-right: 10px;">I AM:</span>
+                    <button class="gender-btn active" id="gender-male" onclick="setGender('male')">MALE 🤴</button>
+                    <button class="gender-btn" id="gender-female" onclick="setGender('female')">FEMALE 👸</button>
+                </div>
+                <div id="setup-rows-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;"></div>
+                <button id="start-game-btn">START MATCH</button>
+                <button id="back-to-menu-btn">← BACK TO MAIN MENU</button>
+            </div>
+        </div>
+      </div>
+
+
+      <div id="music-controls-overlay">
+        <div id="soundtrack-menu" class="settings-menu-popup">
+            <div class="settings-section-title">Select Soundtrack</div>
+            <div id="soundtrack-options-list"></div>
+            <div class="volume-slider-container">
+                <span style="font-size: 20px; color: rgba(255,255,255,0.7);">Music</span>
+                <input type="range" id="soundtrack-volume" min="0" max="1" step="0.05">
+            </div>
+        </div>
+        <div id="music-menu">
+            <div class="settings-section-title">Audio Settings</div>
+            <div id="music-options-list"></div>
+            <div class="volume-slider-container">
+                <span style="font-size: 24px; color: rgba(255,255,255,0.7);" title="Music Volume">🎵</span>
+                <input type="range" id="ui-music-volume" min="0" max="1" step="0.05">
+            </div>
+            <div class="volume-slider-container">
+                <span style="font-size: 24px; color: rgba(255,255,255,0.7);" title="Sound Volume">🔊</span>
+                <input type="range" id="ui-sfx-volume" min="0" max="1" step="0.05">
+            </div>
+
+            <div class="settings-section-title">Gameplay</div>
+            <div class="settings-row">
+                <span class="settings-label">Board Rotation</span>
+                <input type="checkbox" id="ui-board-rotation">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Turn Timer</span>
+                <input type="checkbox" id="ui-turn-timer">
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Turn Duration</span>
+                <select id="ui-turn-duration" class="settings-select">
+                    <option value="60">60s</option>
+                    <option value="90">90s</option>
+                    <option value="120">120s</option>
+                </select>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Language</span>
+                <select id="ui-language" class="settings-select"></select>
+            </div>
+            <button id="ui-how-to-play-btn" style="width:100%; margin-top:20px; padding:18px; background:#f1c40f; color:black; border:none; border-radius:15px; font-family:'Fredoka'; font-weight:700; cursor:pointer; font-size:22px; box-shadow:0 8px 20px rgba(0,0,0,0.4); transition:transform 0.2s;">HOW TO PLAY</button>
+
+            <div class="settings-section-title">Visuals</div>
+            <div class="settings-row">
+                <span class="settings-label">Dice Style</span>
+                <select id="ui-dice-style" class="settings-select"></select>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Board Theme</span>
+                <select id="ui-board-theme" class="settings-select"></select>
+            </div>
+            <div class="settings-row">
+                <span class="settings-label">Camera Tilt</span>
+                <input type="range" id="ui-camera-tilt" min="0.1" max="1.5" step="0.05" style="flex:1;">
+            </div>
+
+            <div class="settings-section-title">AI Personalities</div>
+            <div id="ai-personalities-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
+        </div>
+        <button class="music-btn" id="quick-music-toggle" title="Toggle Music">🎵</button>
+        <button class="music-btn" id="music-toggle-btn" title="Game Settings">⚙️</button>
+      </div>
+
+      <div id="tournament-popup">
+          <h2>Tournament Rules</h2>
+          <div class="tournament-grid">
+              <div class="tournament-item">
+                  <span class="tournament-icon">💸</span>
+                  <div>
+                      <h3>$1 Game Fee</h3>
+                      <p>Deducted upon match entry.</p>
+                  </div>
+              </div>
+              <div class="tournament-item">
+                  <span class="tournament-icon">💰</span>
+                  <div>
+                      <h3>Win $2 Reward</h3>
+                      <p>Awarded for every normal victory.</p>
+                  </div>
+              </div>
+              <div class="tournament-item">
+                  <span class="tournament-icon">🏆</span>
+                  <div>
+                      <h3>$100 Milestone</h3>
+                      <p>Extra bonus at 100 wins.</p>
+                  </div>
+              </div>
+              <div class="tournament-item">
+                  <span class="tournament-icon">👑</span>
+                  <div>
+                      <h3>$1,000 Milestone</h3>
+                      <p>Extra bonus at 1,000 wins.</p>
+                  </div>
+              </div>
+          </div>
+          <p style="font-weight: bold; color: #f1c40f; margin-bottom: 20px; font-size: 24px;">Coming Soon!</p>
+          <button id="tournament-close-btn">START TOURNAMENT</button>
+      </div>
+
+      <div id="rule-popup">
+          <h2 id="rule-title">RULE</h2>
+          <p id="rule-text">Explanation of the rule goes here.</p>
+          <button id="rule-popup-close">GOT IT!</button>
+      </div>
+
+      <div id="guide-popup">
+          <button id="guide-skip-btn">SKIP</button>
+          <div id="guide-lang-container" style="position: absolute; top: 20px; left: 25px; display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 12px; color: rgba(255,255,255,0.6); font-family: 'Inter';">🌐</span>
+              <select id="guide-language-select" class="settings-select" style="min-width: 80px; height: 30px; padding: 0 5px;"></select>
+          </div>
+          <h2 id="guide-main-title">Quick Start for Ludo King Pros</h2>
+          <div id="tutorial-slider"></div>
+          <div class="tutorial-nav">
+              <button class="nav-btn" id="tutorial-prev">←</button>
+              <div class="tutorial-dots" id="tutorial-dots"></div>
+              <button class="nav-btn" id="tutorial-next">→</button>
+          </div>
+          <button id="guide-close-btn">LET'S PLAY!</button>
+      </div>
+
+      <button id="ratio-toggle-btn" title="Toggle Fullscreen">⛶</button>
+      <canvas id="game-canvas"></canvas>
+      <div id="hand-pointer" class="hand-anim">👇</div>
+      <div id="speech-balloons-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000;"></div>
+      <input type="file" id="music-upload" accept="audio/*" style="display: none;">
+    </div>
+    

@@ -4,15 +4,31 @@
   "description": "5-way multiplayer Ludo Dethroned board game",
   "type": "module",
   "scripts": {
-    "dev": "node server.js",
-    "build": "node -e \"console.log('Build ready')\"",
-    "start": "node server.js",
-    "lint": "node -c server.js"
+    "dev": "tsx server/server.js",
+    "build": "vite build",
+    "start": "NODE_ENV=production tsx server/server.js",
+    "lint": "tsc --noEmit",
+    "test": "tsx --test tests/rules.test.ts tests/multiplayer.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
     "express": "^4.21.2",
-    "socket.io": "^4.8.4"
+    "lucide-react": "^1.74.0",
+    "pixi.js": "^8.23.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "socket.io": "^4.8.4",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "zustand": "^5.1.0"
   },
   "devDependencies": {
     "socket.io-client": "^4.8.4"
