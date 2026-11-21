@@ -52,6 +52,7 @@ export interface RoomSeat {
   wishUsed: boolean;
   lastChatTime: number;
   lastVoiceTime: number;
+  lastWhisperTime: number;
   lastActionTime: number;
 }
 
@@ -76,10 +77,18 @@ export interface AuthoritativeMatchState {
   turnStartCaptures: CaptureCandidate[];
   turnSecondsLeft: number;
   turnExpiresAt: number | null;
+  turnAutoPlay: boolean;
   pendingGul: PendingGulChoice | null;
   winner: number | null;
   rankings: RankingEntry[];
   lastEventText: string;
+}
+
+export interface VoiceParticipant {
+  socketId: string;
+  seatIndex: number;
+  name: string;
+  isMuted: boolean;
 }
 
 export interface LudoRoom {
@@ -92,11 +101,13 @@ export interface LudoRoom {
   started: boolean;
   matchEnded: boolean;
   fillBots: boolean;
+  secretWhispers: boolean;
   timerConfig: {
     enabled: boolean;
     duration: 60 | 90 | 120 | 0;
   };
   seats: Record<number, RoomSeat>;
+  voiceParticipants: Map<string, VoiceParticipant>;
   match: AuthoritativeMatchState | null;
   actionSeq: number;
   messageCount: number;
@@ -105,17 +116,26 @@ export interface LudoRoom {
   emptyDeletionTimer: ReturnType<typeof setTimeout> | null;
   aiActionTimer: ReturnType<typeof setTimeout> | null;
   turnPassTimer: ReturnType<typeof setTimeout> | null;
+  lastRoutineDialogueAt: number;
+  lastDialogueLineIdx: Map<string, number>;
 }
 
 export interface RoomManagerOptions {
   rng?: RngFn;
   disconnectGraceMs?: number;
+  autoPlayRollDelayMs?: number;
+  autoPlayMoveDelayMs?: number;
+  turnPassDelayMs?: number;
+  tickIntervalMs?: number;
 }
 
 const MAX_LUDO_ROOMS = 250;
 const DEFAULT_DISCONNECT_GRACE_MS = 15_000;
 const ACTION_ID_TTL_MS = 120_000;
 const MIN_SOCKET_ACTION_GAP_MS = 120;
+const AI_DIALOGUE_LINE_COUNT = 5;
+const MAX_PUBLIC_VOICE_BYTES = 80_000;
+const MAX_WHISPER_VOICE_BYTES = 60_000;
 
 const RESERVED_NAMES = new Set([
   'admin',
@@ -164,6 +184,9 @@ export class RoomManager {
   private rootDir: string;
   private rng: RngFn;
   private disconnectGraceMs: number;
+  private autoPlayRollDelayMs: number;
+  private autoPlayMoveDelayMs: number;
+  private turnPassDelayMs: number;
   private tickIntervalId: ReturnType<typeof setInterval>;
   private cleanupIntervalId: ReturnType<typeof setInterval>;
 
@@ -172,9 +195,13 @@ export class RoomManager {
     this.rootDir = rootDir;
     this.rng = options.rng || DEFAULT_CRYPTO_RNG;
     this.disconnectGraceMs = options.disconnectGraceMs ?? DEFAULT_DISCONNECT_GRACE_MS;
+    this.autoPlayRollDelayMs = options.autoPlayRollDelayMs ?? 1150;
+    this.autoPlayMoveDelayMs = options.autoPlayMoveDelayMs ?? 700;
+    this.turnPassDelayMs = options.turnPassDelayMs ?? 1250;
     this.loadConfigs();
 
-    this.tickIntervalId = setInterval(() => this.tickTimers(), 1000);
+    const tickMs = options.tickIntervalMs ?? 1000;
+    this.tickIntervalId = setInterval(() => this.tickTimers(), tickMs);
     this.cleanupIntervalId = setInterval(() => this.cleanupStaleState(), 60_000);
   }
 
@@ -213,6 +240,10 @@ export class RoomManager {
     const room = this.rooms.get(code.toUpperCase());
     if (!room) return null;
     return this.getSanitizedRoomState(room);
+  }
+
+  public getInternalRoomForTest(code: string): LudoRoom | undefined {
+    return this.rooms.get(code.toUpperCase());
   }
 
   private getClientIp(socket: Socket): string {
@@ -304,6 +335,7 @@ export class RoomManager {
 
   private resetTurnExpiry(room: LudoRoom): void {
     if (!room.match) return;
+    room.match.turnAutoPlay = false;
     if (room.timerConfig.enabled && room.timerConfig.duration > 0) {
       room.match.turnSecondsLeft = room.timerConfig.duration;
       room.match.turnExpiresAt = Date.now() + room.timerConfig.duration * 1000;
@@ -366,6 +398,7 @@ export class RoomManager {
           wishUsed: false,
           lastChatTime: 0,
           lastVoiceTime: 0,
+          lastWhisperTime: 0,
         };
       }
     }
@@ -376,13 +409,34 @@ export class RoomManager {
       started: room.started,
       matchEnded: room.matchEnded,
       fillBots: room.fillBots,
+      secretWhispers: room.secretWhispers,
       timerConfig: room.timerConfig,
       seats: seatsOut,
+      voiceParticipants: this.getVoiceParticipantsList(room),
       match: room.match,
       actionSeq: room.actionSeq,
       serverTime: Date.now(),
       messageCount: room.messageCount,
     };
+  }
+
+  private getVoiceParticipantsList(room: LudoRoom): VoiceParticipant[] {
+    return Array.from(room.voiceParticipants.values()).sort((a, b) => a.seatIndex - b.seatIndex);
+  }
+
+  private broadcastVoiceParticipants(room: LudoRoom): void {
+    this.io.to(`ludo:${room.code}`).emit('voice:participants', {
+      participants: this.getVoiceParticipantsList(room),
+    });
+  }
+
+  private findActiveRoomPeer(room: LudoRoom, targetSocketId: unknown): RoomSeat | null {
+    if (typeof targetSocketId !== 'string' || !targetSocketId.trim()) return null;
+    return (
+      Object.values(room.seats).find(
+        (s) => s && !s.isAI && s.connected && s.socketId === targetSocketId,
+      ) || null
+    );
   }
 
   private broadcastRoom(room: LudoRoom): void {
@@ -430,26 +484,103 @@ export class RoomManager {
   private scheduleNextAIAction(room: LudoRoom): void {
     if (!room.started || room.matchEnded || !room.match) return;
     const m = room.match;
-    const seat = room.seats[m.currentPlayer];
+    const expectedSeat = m.currentPlayer;
+    const seat = room.seats[expectedSeat];
     if (!seat || (!seat.isAI && !seat.tempBotTakeover)) return;
 
+    const roomCode = room.code;
     this.clearRoomTimers(room);
     if (!m.hasRolled) {
       room.aiActionTimer = setTimeout(() => {
-        if (!room.started || room.matchEnded || !room.match) return;
-        this.performAuthoritativeRoll(room, m.currentPlayer, false);
-      }, 650);
+        const activeRoom = this.rooms.get(roomCode);
+        if (!activeRoom || !activeRoom.started || activeRoom.matchEnded || !activeRoom.match) return;
+        if (activeRoom.match.currentPlayer !== expectedSeat || activeRoom.match.hasRolled) return;
+        this.performAuthoritativeRoll(activeRoom, expectedSeat, false);
+      }, 1320);
     } else if (m.movesAvailable.length > 0) {
       room.aiActionTimer = setTimeout(() => {
-        if (!room.started || room.matchEnded || !room.match) return;
-        const { move } = pickBestAIMove(m.pawns, m.currentPlayer, m.movesAvailable, m.dice);
+        const activeRoom = this.rooms.get(roomCode);
+        if (!activeRoom || !activeRoom.started || activeRoom.matchEnded || !activeRoom.match) return;
+        const am = activeRoom.match;
+        if (am.currentPlayer !== expectedSeat || !am.hasRolled) return;
+        const { move } = pickBestAIMove(am.pawns, expectedSeat, am.movesAvailable, am.dice);
         if (!move) {
-          this.advanceTurn(room);
+          this.advanceTurn(activeRoom);
           return;
         }
-        this.performAuthoritativeMove(room, m.currentPlayer, move.pawnIdx, move.steps, move.dieIdx, true);
-      }, 600);
+        this.performAuthoritativeMove(activeRoom, expectedSeat, move.pawnIdx, move.steps, move.dieIdx, true);
+      }, 1250);
     }
+  }
+
+  private scheduleAutoPlayMove(room: LudoRoom, expectedSeatIdx: number, delayMs: number): void {
+    if (!room.started || room.matchEnded || !room.match) return;
+    const roomCode = room.code;
+    this.clearRoomTimers(room);
+    room.aiActionTimer = setTimeout(() => {
+      const activeRoom = this.rooms.get(roomCode);
+      if (!activeRoom || !activeRoom.started || activeRoom.matchEnded || !activeRoom.match) return;
+      const m = activeRoom.match;
+      if (m.currentPlayer !== expectedSeatIdx || !m.hasRolled || !m.turnAutoPlay) return;
+      const { move } = pickBestAIMove(m.pawns, expectedSeatIdx, m.movesAvailable, m.dice);
+      if (!move) {
+        this.advanceTurn(activeRoom);
+        return;
+      }
+      this.performAuthoritativeMove(activeRoom, expectedSeatIdx, move.pawnIdx, move.steps, move.dieIdx, true);
+    }, delayMs);
+  }
+
+  private handleTurnTimeout(room: LudoRoom): void {
+    const m = room.match;
+    if (!m || !room.started || room.matchEnded || m.turnAutoPlay) return;
+
+    const seatIdx = m.currentPlayer;
+    const seat = room.seats[seatIdx];
+    const seatName = seat?.name || `Player ${seatIdx + 1}`;
+
+    // Engage auto-play lock & clear turnExpiresAt so tickTimers() won't re-trigger on this turn
+    m.turnAutoPlay = true;
+    m.turnSecondsLeft = 0;
+    m.turnExpiresAt = null;
+    this.clearRoomTimers(room);
+
+    // Case 1: Pending Gul prompt timed out -> auto-resolve as Gul (enter pos 68)
+    if (m.pendingGul) {
+      const pending = m.pendingGul;
+      m.pendingGul = null;
+      m.lastEventText = `⏱️ ${seatName} timed out — auto-entering Centre Home (Gul)!`;
+      this.broadcastRoom(room);
+      this.performAuthoritativeMove(
+        room,
+        pending.seatIdx,
+        pending.pawnIdx,
+        pending.steps,
+        pending.dieIndex,
+        true,
+      );
+      return;
+    }
+
+    // Case 2: Timed out before rolling -> perform authoritative roll & schedule paced AI moves
+    if (!m.hasRolled) {
+      m.lastEventText = `⏱️ ${seatName} timed out — auto-rolling...`;
+      this.performAuthoritativeRoll(room, seatIdx, false);
+      return;
+    }
+
+    // Case 3: Timed out after rolling with legal moves remaining -> schedule AI auto-play
+    const hasLegal =
+      m.movesAvailable.length > 0 && canAnyPawnMove(m.pawns, seatIdx, m.movesAvailable, m.dice);
+    if (hasLegal) {
+      m.lastEventText = `⏱️ ${seatName} timed out — auto-playing remaining move(s)...`;
+      this.broadcastRoom(room);
+      this.scheduleAutoPlayMove(room, seatIdx, Math.min(250, this.autoPlayMoveDelayMs));
+      return;
+    }
+
+    // Case 4: Already rolled and no legal moves remain -> advance turn cleanly
+    this.advanceTurn(room);
   }
 
   private performAuthoritativeRoll(room: LudoRoom, seatIdx: number, useWish: boolean): void {
@@ -459,7 +590,7 @@ export class RoomManager {
     const seat = room.seats[seatIdx];
     let [d1, d2] = rollDicePair(this.rng);
 
-    if (useWish && seat && !seat.wishUsed && !seat.isAI && !seat.tempBotTakeover) {
+    if (useWish && seat && !seat.wishUsed && !seat.isAI && !seat.tempBotTakeover && !m.turnAutoPlay) {
       const [w1, w2] = this.sanitizeWish(seat.wish);
       d1 = w1;
       d2 = w2;
@@ -483,30 +614,49 @@ export class RoomManager {
     m.movesAvailable = [m.dice[0], m.dice[1]];
     m.hasRolled = true;
     m.turnStartCaptures = getPossibleCaptures(m.pawns, seatIdx, m.movesAvailable, m.dice);
+    const autoPrefix = m.turnAutoPlay ? '⏱️ Auto-play: ' : '';
     m.lastEventText = lucky7.applied
-      ? `✨ ${seat?.name || 'Player'} triggered Lucky 7 -> 6 + 6!`
+      ? `${autoPrefix}✨ ${seat?.name || 'Player'} triggered Lucky 7 -> 6 + 6!`
       : d1 === 6 && d2 === 6
-        ? `🔥 ${seat?.name || 'Player'} rolled Double 6!`
-        : `${seat?.name || 'Player'} rolled ${m.dice[0]} & ${m.dice[1]}`;
+        ? `${autoPrefix}🔥 ${seat?.name || 'Player'} rolled Double 6!`
+        : `${autoPrefix}${seat?.name || 'Player'} rolled ${m.dice[0]} & ${m.dice[1]}`;
 
     const rollSeq = room.actionSeq + 1;
     this.io.to(`ludo:${room.code}`).emit('ludo:dice_roll', {
       dice: m.dice,
       player: seatIdx,
       isLucky7: lucky7.applied,
+      isAutoPlay: m.turnAutoPlay,
       usedWish: useWish && !!seat?.wishUsed,
       actionSeq: rollSeq,
       serverTime: Date.now(),
       messageCount: ++room.messageCount,
     });
 
+    if (seat?.isAI || seat?.tempBotTakeover) {
+      const rollEvent = lucky7.applied
+        ? 'lucky7'
+        : m.dice[0] === 6 && m.dice[1] === 6
+          ? 'lucky_roll'
+          : 'roll';
+      this.emitAiDialogue(room, seatIdx, rollEvent);
+    }
+
     this.broadcastRoom(room);
 
+    const roomCode = room.code;
     if (!canAnyPawnMove(m.pawns, seatIdx, m.movesAvailable, m.dice)) {
-      m.lastEventText = `${seat?.name || 'Player'}: No usable moves!`;
+      m.lastEventText = `${autoPrefix}${seat?.name || 'Player'}: No usable moves!`;
       this.broadcastRoom(room);
       this.clearRoomTimers(room);
-      room.turnPassTimer = setTimeout(() => this.advanceTurn(room), 900);
+      const noMovesDelay = m.turnAutoPlay ? this.autoPlayRollDelayMs : Math.max(900, this.turnPassDelayMs);
+      room.turnPassTimer = setTimeout(() => {
+        const activeRoom = this.rooms.get(roomCode);
+        if (!activeRoom || !activeRoom.started || activeRoom.matchEnded) return;
+        this.advanceTurn(activeRoom);
+      }, noMovesDelay);
+    } else if (m.turnAutoPlay) {
+      this.scheduleAutoPlayMove(room, seatIdx, this.autoPlayRollDelayMs);
     } else if (seat?.isAI || seat?.tempBotTakeover) {
       this.scheduleNextAIAction(room);
     }
@@ -550,7 +700,7 @@ export class RoomManager {
     const isEnteringGul = destPos === path.length - 1;
     const seat = room.seats[seatIdx];
 
-    if (isEnteringGul && !autoConfirmGul && seat && !seat.isAI && !seat.tempBotTakeover) {
+    if (isEnteringGul && !autoConfirmGul && !m.turnAutoPlay && seat && !seat.isAI && !seat.tempBotTakeover) {
       m.pendingGul = { seatIdx, pawnIdx, steps: actualSteps, dieIndex: actualDieIndex };
       if (seat.socketId) {
         this.io.to(seat.socketId).emit('ludo:gul_prompt', m.pendingGul);
@@ -585,14 +735,29 @@ export class RoomManager {
       m.extraTurnEarned = true;
       m.extraTurnReason = 'home';
       m.lastEventText = `🌟 ${seat?.name || 'Player'} reached Centre Home! Bonus Turn!`;
+      if (seat?.isAI || seat?.tempBotTakeover) {
+        this.emitAiDialogue(room, seatIdx, 'pawn_home');
+      }
+    } else if (startPos >= 0 && startPos < 63 && m.pawns[seatIdx][pawnIdx].pos >= 63) {
+      if (seat?.isAI || seat?.tempBotTakeover) {
+        this.emitAiDialogue(room, seatIdx, 'home_stretch');
+      }
     }
 
     if (outcome.capturedVictims.length > 0) {
       m.extraTurnEarned = true;
       m.extraTurnReason = 'capture';
       m.turnCapturedPawn = true;
-      const victimName = room.seats[outcome.capturedVictims[0].playerIdx]?.name || 'Rival';
+      const victimSeatIdx = outcome.capturedVictims[0].playerIdx;
+      const victimSeat = room.seats[victimSeatIdx];
+      const victimName = victimSeat?.name || 'Rival';
       m.lastEventText = `⚔️ ${seat?.name || 'Player'} captured ${victimName}! Bonus Roll!`;
+      if (seat?.isAI || seat?.tempBotTakeover) {
+        this.emitAiDialogue(room, seatIdx, 'capture');
+      }
+      if (victimSeat?.isAI || victimSeat?.tempBotTakeover) {
+        this.emitAiDialogue(room, victimSeatIdx, 'captured');
+      }
     }
 
     if (actualDieIndex === 'combined') {
@@ -607,6 +772,7 @@ export class RoomManager {
     }
 
     const canMoveRemaining = m.movesAvailable.length > 0 && canAnyPawnMove(m.pawns, seatIdx, m.movesAvailable, m.dice);
+    const roomCode = room.code;
     if (!canMoveRemaining) {
       const penalizedPawn = checkCompulsoryCapturePenalty(
         m.pawns,
@@ -618,11 +784,19 @@ export class RoomManager {
       );
       if (penalizedPawn !== null) {
         m.lastEventText = `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — token sent back to base!`;
+        if (seat?.isAI || seat?.tempBotTakeover) {
+          this.emitAiDialogue(room, seatIdx, 'penalty');
+        }
       }
       m.movesAvailable = [];
       this.broadcastRoom(room);
       this.clearRoomTimers(room);
-      room.turnPassTimer = setTimeout(() => this.advanceTurn(room), 600);
+      const passDelay = m.turnAutoPlay ? Math.min(this.turnPassDelayMs, 650) : this.turnPassDelayMs;
+      room.turnPassTimer = setTimeout(() => {
+        const activeRoom = this.rooms.get(roomCode);
+        if (!activeRoom || !activeRoom.started || activeRoom.matchEnded) return;
+        this.advanceTurn(activeRoom);
+      }, passDelay);
     } else {
       const moreCaps = getPossibleCaptures(m.pawns, seatIdx, m.movesAvailable, m.dice);
       for (const rc of moreCaps) {
@@ -631,7 +805,9 @@ export class RoomManager {
         }
       }
       this.broadcastRoom(room);
-      if (seat?.isAI || seat?.tempBotTakeover) {
+      if (m.turnAutoPlay) {
+        this.scheduleAutoPlayMove(room, seatIdx, this.autoPlayMoveDelayMs);
+      } else if (seat?.isAI || seat?.tempBotTakeover) {
         this.scheduleNextAIAction(room);
       }
     }
@@ -657,7 +833,12 @@ export class RoomManager {
       m.movesAvailable = [];
       this.broadcastRoom(room);
       this.clearRoomTimers(room);
-      room.turnPassTimer = setTimeout(() => this.advanceTurn(room), 600);
+      const roomCode = room.code;
+      room.turnPassTimer = setTimeout(() => {
+        const activeRoom = this.rooms.get(roomCode);
+        if (!activeRoom || !activeRoom.started || activeRoom.matchEnded) return;
+        this.advanceTurn(activeRoom);
+      }, this.turnPassDelayMs);
     } else {
       this.broadcastRoom(room);
     }
@@ -681,6 +862,7 @@ export class RoomManager {
     m.turnCapturedPawn = false;
     m.turnStartCaptures = [];
     m.pendingGul = null;
+    m.turnAutoPlay = false;
     this.resetTurnExpiry(room);
 
     const nextSeat = room.seats[m.currentPlayer];
@@ -691,6 +873,7 @@ export class RoomManager {
     this.broadcastRoom(room);
 
     if (nextSeat?.isAI || nextSeat?.tempBotTakeover) {
+      this.emitAiDialogue(room, m.currentPlayer, 'turn');
       this.scheduleNextAIAction(room);
     }
   }
@@ -704,6 +887,7 @@ export class RoomManager {
     m.movesAvailable = [];
     m.pendingGul = null;
     m.turnExpiresAt = null;
+    m.turnAutoPlay = false;
 
     const seatArr = Array.from({ length: 5 }, (_, i) => ({
       name: room.seats[i]?.name || `Player ${i + 1}`,
@@ -714,7 +898,16 @@ export class RoomManager {
     m.rankings = rankings;
     m.lastEventText = `🏆 ${seatArr[winnerIdx].name} WINS!`;
 
+    if (room.voiceParticipants.size > 0) {
+      room.voiceParticipants.clear();
+      this.broadcastVoiceParticipants(room);
+    }
+
     this.broadcastRoom(room);
+    const winSeat = room.seats[winnerIdx];
+    if (winSeat?.isAI || winSeat?.tempBotTakeover) {
+      this.emitAiDialogue(room, winnerIdx, 'win');
+    }
     this.io.to(`ludo:${room.code}`).emit('ludo:match_ended', {
       winner: winnerIdx,
       rankings,
@@ -754,14 +947,13 @@ export class RoomManager {
     const now = Date.now();
     for (const room of this.rooms.values()) {
       if (!room.started || room.matchEnded || !room.match) continue;
-      if (!room.timerConfig.enabled || room.timerConfig.duration <= 0 || !room.match.turnExpiresAt) continue;
+      if (!room.timerConfig.enabled || room.timerConfig.duration <= 0) continue;
+      if (!room.match.turnExpiresAt || room.match.turnAutoPlay) continue;
 
       const remaining = Math.max(0, Math.ceil((room.match.turnExpiresAt - now) / 1000));
       room.match.turnSecondsLeft = remaining;
-      if (remaining <= 0) {
-        room.match.extraTurnEarned = false;
-        room.match.extraTurnReason = null;
-        this.advanceTurn(room);
+      if (now >= room.match.turnExpiresAt) {
+        this.handleTurnTimeout(room);
       }
     }
   }
@@ -803,9 +995,18 @@ export class RoomManager {
       if (room.match) {
         room.match.lastEventText = `🤖 ${seat.name} disconnected — Bot covering until they reconnect.`;
         if (room.match.pendingGul && room.match.pendingGul.seatIdx === seatIdx) {
+          const pending = room.match.pendingGul;
           room.match.pendingGul = null;
-          this.advanceTurn(room);
-        } else if (room.match.currentPlayer === seatIdx) {
+          this.performAuthoritativeMove(
+            room,
+            pending.seatIdx,
+            pending.pawnIdx,
+            pending.steps,
+            pending.dieIndex,
+            true,
+          );
+          return;
+        } else if (room.match.currentPlayer === seatIdx && !room.match.turnAutoPlay) {
           this.scheduleNextAIAction(room);
         }
       }
@@ -858,6 +1059,7 @@ export class RoomManager {
         const wish = this.sanitizeWish(payload?.wish);
         const timerConfig = this.sanitizeTimerConfig(payload?.timerConfig);
         const fillBots = payload?.fillBots !== undefined ? !!payload.fillBots : true;
+        const secretWhispers = !!payload?.secretWhispers;
 
         const room: LudoRoom = {
           code,
@@ -869,6 +1071,7 @@ export class RoomManager {
           started: false,
           matchEnded: false,
           fillBots,
+          secretWhispers,
           timerConfig,
           match: null,
           actionSeq: 1,
@@ -878,6 +1081,9 @@ export class RoomManager {
           emptyDeletionTimer: null,
           aiActionTimer: null,
           turnPassTimer: null,
+          lastRoutineDialogueAt: 0,
+          lastDialogueLineIdx: new Map(),
+          voiceParticipants: new Map(),
           seats: {
             0: {
               seatIndex: 0,
@@ -898,6 +1104,7 @@ export class RoomManager {
               wishUsed: false,
               lastChatTime: 0,
               lastVoiceTime: 0,
+              lastWhisperTime: 0,
               lastActionTime: 0,
             },
           },
@@ -960,6 +1167,22 @@ export class RoomManager {
           room.emptyDeletionTimer = null;
         }
 
+        const existingSeatIdx =
+          socket.data.ludoRoomCode === room.code && typeof socket.data.ludoSeat === 'number'
+            ? socket.data.ludoSeat
+            : -1;
+        const existingSeat = existingSeatIdx >= 0 ? room.seats[existingSeatIdx] : undefined;
+        if (existingSeat && existingSeat.socketId === socket.id && !existingSeat.isAI) {
+          return callback?.({
+            success: true,
+            roomCode: room.code,
+            seatIndex: existingSeatIdx,
+            playerToken: typeof socket.data.ludoToken === 'string' ? socket.data.ludoToken : '',
+            publicPlayerId: existingSeat.publicPlayerId,
+            roomState: this.getSanitizedRoomState(room),
+          });
+        }
+
         let claimedSlot = -1;
         for (let s = 1; s < 5; s++) {
           if (!room.seats[s] || room.seats[s].isAI) {
@@ -1012,6 +1235,7 @@ export class RoomManager {
           wishUsed: false,
           lastChatTime: 0,
           lastVoiceTime: 0,
+          lastWhisperTime: 0,
           lastActionTime: 0,
         };
 
@@ -1090,6 +1314,18 @@ export class RoomManager {
         socket.data.ludoToken = token;
         socket.join(`ludo:${code}`);
 
+        // Remove any stale voice participant entry bound to this seat's previous socket
+        let removedStaleVoice = false;
+        for (const [sid, vp] of room.voiceParticipants.entries()) {
+          if (vp.seatIndex === seatIdx && sid !== socket.id) {
+            room.voiceParticipants.delete(sid);
+            removedStaleVoice = true;
+          }
+        }
+        if (removedStaleVoice) {
+          this.broadcastVoiceParticipants(room);
+        }
+
         this.broadcastRoom(room);
         callback?.({
           success: true,
@@ -1114,6 +1350,17 @@ export class RoomManager {
       const auth = this.verifySender(socket, payload?.token);
       if (!auth || auth.seatIdx !== auth.room.hostSeatIndex || auth.room.started) return;
       auth.room.fillBots = typeof payload?.fillBots === 'boolean' ? payload.fillBots : !auth.room.fillBots;
+      auth.room.lastActivity = Date.now();
+      this.broadcastRoom(auth.room);
+    });
+
+    socket.on('ludo:toggle_secret_whispers', (payload) => {
+      const auth = this.verifySender(socket, payload?.token);
+      if (!auth || auth.seatIdx !== auth.room.hostSeatIndex) return;
+      auth.room.secretWhispers =
+        typeof payload?.secretWhispers === 'boolean'
+          ? payload.secretWhispers
+          : !auth.room.secretWhispers;
       auth.room.lastActivity = Date.now();
       this.broadcastRoom(auth.room);
     });
@@ -1163,6 +1410,7 @@ export class RoomManager {
             wishUsed: false,
             lastChatTime: 0,
             lastVoiceTime: 0,
+            lastWhisperTime: 0,
             lastActionTime: 0,
           };
         } else {
@@ -1192,6 +1440,7 @@ export class RoomManager {
           room.timerConfig.enabled && room.timerConfig.duration > 0
             ? Date.now() + room.timerConfig.duration * 1000
             : null,
+        turnAutoPlay: false,
         pendingGul: null,
         winner: null,
         rankings: [],
@@ -1217,38 +1466,78 @@ export class RoomManager {
       callback?.({ success: true });
     });
 
-    socket.on('ludo:roll_dice', (payload) => {
+    socket.on('ludo:roll_dice', (payload, callback) => {
       const auth = this.verifySender(socket, payload?.token);
-      if (!auth || !auth.room.started || auth.room.matchEnded) return;
+      if (!auth || !auth.room.started || auth.room.matchEnded) {
+        return callback?.({ success: false, error: 'Match is not active' });
+      }
+      if (auth.room.match?.turnAutoPlay) {
+        const err = 'Turn timed out, auto-playing';
+        socket.emit('ludo:action_rejected', { action: 'roll_dice', error: err });
+        return callback?.({ success: false, error: err });
+      }
       const now = Date.now();
-      if (now - auth.seat.lastActionTime < MIN_SOCKET_ACTION_GAP_MS) return;
-      if (this.isDuplicateAction(auth.room, payload?.clientActionId)) return;
+      if (now - auth.seat.lastActionTime < MIN_SOCKET_ACTION_GAP_MS) {
+        return callback?.({ success: false, error: 'Action too fast' });
+      }
+      if (this.isDuplicateAction(auth.room, payload?.clientActionId)) {
+        return callback?.({ success: false, error: 'Duplicate action' });
+      }
       auth.seat.lastActionTime = now;
       auth.room.lastActivity = now;
       this.performAuthoritativeRoll(auth.room, auth.seatIdx, !!payload?.useWish);
+      callback?.({ success: true });
     });
 
-    socket.on('ludo:move_pawn', (payload) => {
+    socket.on('ludo:move_pawn', (payload, callback) => {
       const auth = this.verifySender(socket, payload?.token);
-      if (!auth || !auth.room.started || auth.room.matchEnded) return;
+      if (!auth || !auth.room.started || auth.room.matchEnded) {
+        return callback?.({ success: false, error: 'Match is not active' });
+      }
+      if (auth.room.match?.turnAutoPlay) {
+        const err = 'Turn timed out, auto-playing';
+        socket.emit('ludo:action_rejected', { action: 'move_pawn', error: err });
+        return callback?.({ success: false, error: err });
+      }
       const now = Date.now();
-      if (now - auth.seat.lastActionTime < MIN_SOCKET_ACTION_GAP_MS) return;
-      if (this.isDuplicateAction(auth.room, payload?.clientActionId)) return;
+      if (now - auth.seat.lastActionTime < MIN_SOCKET_ACTION_GAP_MS) {
+        return callback?.({ success: false, error: 'Action too fast' });
+      }
+      if (this.isDuplicateAction(auth.room, payload?.clientActionId)) {
+        return callback?.({ success: false, error: 'Duplicate action' });
+      }
       const pawnIdx = Number(payload?.pawnIdx);
       const steps = Number(payload?.steps);
       const dieIndex = payload?.dieIndex === 'combined' ? 'combined' : Number(payload?.dieIndex);
-      if (!Number.isInteger(pawnIdx) || pawnIdx < 0 || pawnIdx > 3) return;
+      if (!Number.isInteger(pawnIdx) || pawnIdx < 0 || pawnIdx > 3) {
+        return callback?.({ success: false, error: 'Invalid pawn index' });
+      }
       auth.seat.lastActionTime = now;
       auth.room.lastActivity = now;
       this.performAuthoritativeMove(auth.room, auth.seatIdx, pawnIdx, steps, dieIndex, false);
+      callback?.({ success: true });
     });
 
-    socket.on('ludo:gul_choice', (payload) => {
+    socket.on('ludo:gul_choice', (payload, callback) => {
       const auth = this.verifySender(socket, payload?.token);
-      if (!auth || !auth.room.match?.pendingGul) return;
-      if (this.isDuplicateAction(auth.room, payload?.clientActionId)) return;
+      if (!auth || !auth.room.started || auth.room.matchEnded) {
+        return callback?.({ success: false, error: 'Match is not active' });
+      }
+      if (auth.room.match?.turnAutoPlay) {
+        const err = 'Turn timed out, auto-playing';
+        socket.emit('ludo:action_rejected', { action: 'gul_choice', error: err });
+        return callback?.({ success: false, error: err });
+      }
+      if (!auth.room.match?.pendingGul) {
+        return callback?.({ success: false, error: 'No pending Gul choice' });
+      }
+      if (this.isDuplicateAction(auth.room, payload?.clientActionId)) {
+        return callback?.({ success: false, error: 'Duplicate action' });
+      }
       const pending = auth.room.match.pendingGul;
-      if (pending.seatIdx !== auth.seatIdx) return;
+      if (pending.seatIdx !== auth.seatIdx) {
+        return callback?.({ success: false, error: 'Not your Gul choice' });
+      }
 
       auth.room.lastActivity = Date.now();
       if (payload?.choice === 'pass') {
@@ -1264,6 +1553,7 @@ export class RoomManager {
           true,
         );
       }
+      callback?.({ success: true });
     });
 
     socket.on('ludo:chat', (payload) => {
@@ -1296,22 +1586,261 @@ export class RoomManager {
       });
     });
 
-    socket.on('ludo:voice', (payload) => {
+    socket.on('ludo:voice', (payload, callback) => {
       const auth = this.verifySender(socket, payload?.token);
-      if (!auth || typeof payload?.audio !== 'string') return;
+      if (!auth || auth.seat.isAI || auth.seat.socketId !== socket.id) {
+        return callback?.({ success: false, error: 'Cannot send voice note right now' });
+      }
       const now = Date.now();
-      if (now - auth.seat.lastVoiceTime < 2500) return;
-      if (payload.audio.length > 500_000) return;
+      if (now - auth.seat.lastVoiceTime < 2500) {
+        return callback?.({ success: false, error: 'Wait a moment before sending another voice note' });
+      }
+      const audioBuf = this.extractBinaryAudio(payload?.audio);
+      if (!audioBuf || audioBuf.byteLength < 32) {
+        return callback?.({ success: false, error: 'Invalid voice note audio format' });
+      }
+      if (audioBuf.byteLength > MAX_PUBLIC_VOICE_BYTES) {
+        return callback?.({ success: false, error: 'Voice note too large (max 6.5s)' });
+      }
+      const mimeType = this.sanitizeAudioMimeType(payload?.mimeType, payload?.audio);
+      const duration = this.estimateAudioDurationSeconds(audioBuf.byteLength, 7, audioBuf);
       auth.seat.lastVoiceTime = now;
       auth.room.lastActivity = now;
       this.io.to(`ludo:${auth.room.code}`).emit('ludo:voice', {
         sender: auth.seat.name,
         seatIndex: auth.seatIdx,
-        audio: payload.audio,
-        duration: Math.min(10, Math.max(1, Number(payload.duration) || 2)),
+        audio: audioBuf,
+        mimeType,
+        duration,
         timestamp: now,
         messageCount: ++auth.room.messageCount,
       });
+      callback?.({ success: true, duration });
+    });
+
+    // Private targeted voice whisper relay (never stored, never broadcasts audio to room)
+    socket.on('voice:whisper', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token);
+      if (!auth || auth.seat.isAI || auth.seat.socketId !== socket.id || auth.room.matchEnded) {
+        return callback?.({ success: false, error: 'Cannot send whisper right now' });
+      }
+      const now = Date.now();
+      if (now - auth.seat.lastWhisperTime < 5000) {
+        return callback?.({ success: false, error: 'Wait 5 seconds between whispers' });
+      }
+      const clipBuf = this.extractBinaryAudio(payload?.clip);
+      if (!clipBuf || clipBuf.byteLength < 32) {
+        return callback?.({ success: false, error: 'Invalid whisper audio format' });
+      }
+      if (clipBuf.byteLength > MAX_WHISPER_VOICE_BYTES) {
+        return callback?.({ success: false, error: 'Whisper clip too large (max ~5.5s)' });
+      }
+
+      const rawTargets = Array.isArray(payload?.toSeats) ? payload.toSeats : [];
+      const targetIndices = Array.from(
+        new Set<number>(
+          rawTargets
+            .map((s: unknown) => Number(s))
+            .filter((s: number) => Number.isInteger(s) && s >= 0 && s < 5 && s !== auth.seatIdx),
+        ),
+      );
+      if (targetIndices.length === 0) {
+        return callback?.({ success: false, error: 'Choose a valid player to whisper to' });
+      }
+
+      const validTargets: RoomSeat[] = [];
+      for (const targetIdx of targetIndices) {
+        const seat = auth.room.seats[targetIdx];
+        if (seat && !seat.isAI && seat.connected && seat.socketId) {
+          validTargets.push(seat);
+        }
+      }
+      if (validTargets.length === 0) {
+        return callback?.({ success: false, error: 'Target player is a bot or disconnected' });
+      }
+
+      const mimeType = this.sanitizeAudioMimeType(payload?.mimeType, payload?.clip);
+      const duration = this.estimateAudioDurationSeconds(clipBuf.byteLength, 6, clipBuf);
+      auth.seat.lastWhisperTime = now;
+      auth.room.lastActivity = now;
+
+      for (const targetSeat of validTargets) {
+        this.io.to(targetSeat.socketId!).emit('voice:whisper', {
+          id: `whisper_${now}_${auth.seatIdx}_${targetSeat.seatIndex}`,
+          fromSeat: auth.seatIdx,
+          senderName: auth.seat.name,
+          toSeat: targetSeat.seatIndex,
+          clip: clipBuf,
+          mimeType,
+          duration,
+          timestamp: now,
+        });
+      }
+
+      // Transparent room notice (metadata only, never audio) unless Host enabled Secret Whispers
+      if (!auth.room.secretWhispers) {
+        this.io.to(`ludo:${auth.room.code}`).emit('ludo:whisper_notice', {
+          fromSeat: auth.seatIdx,
+          senderName: auth.seat.name,
+          toSeats: validTargets.map((t) => t.seatIndex),
+          targetNames: validTargets.map((t) => t.name),
+          timestamp: now,
+        });
+      }
+
+      callback?.({ success: true, duration, deliveredTo: validTargets.map((t) => t.seatIndex) });
+    });
+
+    // =========================================================================
+    // Live Open-Mic WebRTC Group Voice Chat Signaling (Room-Scoped Relay Only)
+    // =========================================================================
+    socket.on('voice:join', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token);
+      if (!auth || auth.seat.isAI || auth.room.matchEnded) {
+        return callback?.({ success: false, error: 'Cannot join voice chat right now' });
+      }
+      const { room, seat, seatIdx } = auth;
+      if (seat.socketId !== socket.id) {
+        return callback?.({ success: false, error: 'Stale socket session' });
+      }
+
+      // Ensure seat only has one active voice participant entry
+      for (const [sid, existing] of room.voiceParticipants.entries()) {
+        if (existing.seatIndex === seatIdx && sid !== socket.id) {
+          room.voiceParticipants.delete(sid);
+        }
+      }
+
+      const participant: VoiceParticipant = {
+        socketId: socket.id,
+        seatIndex: seatIdx,
+        name: seat.name,
+        isMuted: !!payload?.isMuted,
+      };
+      room.voiceParticipants.set(socket.id, participant);
+      room.lastActivity = Date.now();
+
+      const participants = this.getVoiceParticipantsList(room);
+      this.io.to(`ludo:${room.code}`).emit('voice:join', {
+        ...participant,
+        participants,
+      });
+      this.broadcastVoiceParticipants(room);
+      callback?.({ success: true, socketId: socket.id, participants });
+    });
+
+    socket.on('voice:leave', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token);
+      const roomCode = auth?.room.code || (socket.data.ludoRoomCode as string | undefined);
+      const room = auth?.room || (roomCode ? this.rooms.get(roomCode) : undefined);
+      if (!room) {
+        return callback?.({ success: false, error: 'Not in a room' });
+      }
+      const removed = room.voiceParticipants.get(socket.id);
+      room.voiceParticipants.delete(socket.id);
+      if (removed) {
+        room.lastActivity = Date.now();
+        const participants = this.getVoiceParticipantsList(room);
+        this.io.to(`ludo:${room.code}`).emit('voice:leave', {
+          socketId: socket.id,
+          seatIndex: removed.seatIndex,
+          participants,
+        });
+        this.broadcastVoiceParticipants(room);
+      }
+      callback?.({ success: true, participants: this.getVoiceParticipantsList(room) });
+    });
+
+    socket.on('voice:mute-state', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token);
+      if (!auth || auth.seat.isAI || auth.room.matchEnded) {
+        return callback?.({ success: false, error: 'Not in an active room' });
+      }
+      const isMuted = !!payload?.isMuted;
+      const existing = auth.room.voiceParticipants.get(socket.id);
+      if (existing) {
+        existing.isMuted = isMuted;
+      }
+      auth.room.lastActivity = Date.now();
+      this.io.to(`ludo:${auth.room.code}`).emit('voice:mute-state', {
+        socketId: socket.id,
+        seat: auth.seatIdx,
+        isMuted,
+      });
+      this.broadcastVoiceParticipants(auth.room);
+      callback?.({ success: true, seat: auth.seatIdx, isMuted });
+    });
+
+    socket.on('voice:offer', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token);
+      if (!auth || auth.seat.isAI || auth.room.matchEnded || auth.seat.socketId !== socket.id) {
+        return callback?.({ success: false, error: 'Unauthorized voice signaling sender' });
+      }
+      if (!payload?.sdp || typeof payload.sdp !== 'object') {
+        return callback?.({ success: false, error: 'Invalid SDP offer' });
+      }
+      if (payload.targetSocketId === socket.id) {
+        return callback?.({ success: false, error: 'Cannot signal self' });
+      }
+      const targetSeat = this.findActiveRoomPeer(auth.room, payload.targetSocketId);
+      if (!targetSeat || !targetSeat.socketId) {
+        return callback?.({ success: false, error: 'Target peer not in same room' });
+      }
+      auth.room.lastActivity = Date.now();
+      this.io.to(targetSeat.socketId).emit('voice:offer', {
+        fromSocketId: socket.id,
+        fromSeat: auth.seatIdx,
+        sdp: payload.sdp,
+      });
+      callback?.({ success: true });
+    });
+
+    socket.on('voice:answer', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token);
+      if (!auth || auth.seat.isAI || auth.room.matchEnded || auth.seat.socketId !== socket.id) {
+        return callback?.({ success: false, error: 'Unauthorized voice signaling sender' });
+      }
+      if (!payload?.sdp || typeof payload.sdp !== 'object') {
+        return callback?.({ success: false, error: 'Invalid SDP answer' });
+      }
+      if (payload.targetSocketId === socket.id) {
+        return callback?.({ success: false, error: 'Cannot signal self' });
+      }
+      const targetSeat = this.findActiveRoomPeer(auth.room, payload.targetSocketId);
+      if (!targetSeat || !targetSeat.socketId) {
+        return callback?.({ success: false, error: 'Target peer not in same room' });
+      }
+      auth.room.lastActivity = Date.now();
+      this.io.to(targetSeat.socketId).emit('voice:answer', {
+        fromSocketId: socket.id,
+        fromSeat: auth.seatIdx,
+        sdp: payload.sdp,
+      });
+      callback?.({ success: true });
+    });
+
+    socket.on('voice:ice', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token);
+      if (!auth || auth.seat.isAI || auth.room.matchEnded || auth.seat.socketId !== socket.id) {
+        return callback?.({ success: false, error: 'Unauthorized voice signaling sender' });
+      }
+      if (!payload?.candidate || typeof payload.candidate !== 'object') {
+        return callback?.({ success: false, error: 'Invalid ICE candidate' });
+      }
+      if (payload.targetSocketId === socket.id) {
+        return callback?.({ success: false, error: 'Cannot signal self' });
+      }
+      const targetSeat = this.findActiveRoomPeer(auth.room, payload.targetSocketId);
+      if (!targetSeat || !targetSeat.socketId) {
+        return callback?.({ success: false, error: 'Target peer not in same room' });
+      }
+      auth.room.lastActivity = Date.now();
+      this.io.to(targetSeat.socketId).emit('voice:ice', {
+        fromSocketId: socket.id,
+        fromSeat: auth.seatIdx,
+        candidate: payload.candidate,
+      });
+      callback?.({ success: true });
     });
 
     socket.on('disconnect', () => {
@@ -1319,6 +1848,18 @@ export class RoomManager {
       if (!code) return;
       const room = this.rooms.get(code);
       if (!room) return;
+      const removedVoice = room.voiceParticipants.get(socket.id);
+      if (removedVoice) {
+        room.voiceParticipants.delete(socket.id);
+        const participants = this.getVoiceParticipantsList(room);
+        this.io.to(`ludo:${room.code}`).emit('voice:leave', {
+          socketId: socket.id,
+          seatIndex: removedVoice.seatIndex,
+          participants,
+        });
+        this.broadcastVoiceParticipants(room);
+      }
+
       const seatIdx = socket.data.ludoSeat as number | undefined;
       if (typeof seatIdx === 'number' && room.seats[seatIdx]) {
         room.seats[seatIdx].connected = false;
@@ -1350,6 +1891,102 @@ export class RoomManager {
       } else {
         this.broadcastRoom(room);
       }
+    });
+  }
+
+  private extractBinaryAudio(raw: unknown): Buffer | null {
+    if (!raw) return null;
+    if (Buffer.isBuffer(raw)) return raw;
+    if (raw instanceof ArrayBuffer) return Buffer.from(raw);
+    if (ArrayBuffer.isView(raw)) {
+      return Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+    }
+    if (typeof raw === 'string' && raw.startsWith('data:audio/')) {
+      const markerIdx = raw.indexOf(';base64,');
+      if (markerIdx === -1) return null;
+      const b64 = raw.slice(markerIdx + 8);
+      if (!b64) return null;
+      try {
+        return Buffer.from(b64, 'base64');
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private sanitizeAudioMimeType(rawMime: unknown, rawData?: unknown): string {
+    let candidate = typeof rawMime === 'string' ? rawMime : '';
+    if (!candidate && typeof rawData === 'string' && rawData.startsWith('data:audio/')) {
+      const end = rawData.indexOf(';');
+      if (end > 5) candidate = rawData.slice(5, end);
+    }
+    const base = candidate.split(';')[0].trim().toLowerCase();
+    if (base === 'audio/wave' || base === 'audio/x-wav' || base === 'audio/wav') {
+      return 'audio/wav';
+    }
+    if (
+      base === 'audio/webm' ||
+      base === 'audio/mp4' ||
+      base === 'audio/aac' ||
+      base === 'audio/ogg' ||
+      base === 'audio/mpeg' ||
+      base === 'audio/x-matroska'
+    ) {
+      return base;
+    }
+    return 'audio/webm';
+  }
+
+  private estimateAudioDurationSeconds(byteLength: number, maxSeconds: number, buf?: Buffer): number {
+    if (
+      buf &&
+      buf.byteLength >= 44 &&
+      buf.toString('ascii', 0, 4) === 'RIFF' &&
+      buf.toString('ascii', 8, 12) === 'WAVE'
+    ) {
+      const byteRate = buf.readUInt32LE(28);
+      if (byteRate > 0) {
+        return Math.min(maxSeconds, Math.max(1, Math.round((byteLength - 44) / byteRate)));
+      }
+    }
+    return Math.min(maxSeconds, Math.max(1, Math.round(byteLength / 2500)));
+  }
+
+  private emitAiDialogue(
+    room: LudoRoom,
+    seatIdx: number,
+    event:
+      | 'turn'
+      | 'roll'
+      | 'lucky_roll'
+      | 'lucky7'
+      | 'capture'
+      | 'captured'
+      | 'pawn_home'
+      | 'home_stretch'
+      | 'penalty'
+      | 'win',
+  ): void {
+    if (!room.started || (room.matchEnded && event !== 'win')) return;
+    const now = Date.now();
+    if (event === 'turn' || event === 'roll') {
+      if (now - room.lastRoutineDialogueAt < 4000) return;
+      room.lastRoutineDialogueAt = now;
+    }
+
+    const key = `${seatIdx}:${event}`;
+    let lineIdx = Math.floor(this.rng() * AI_DIALOGUE_LINE_COUNT) % AI_DIALOGUE_LINE_COUNT;
+    if (room.lastDialogueLineIdx.get(key) === lineIdx) {
+      lineIdx = (lineIdx + 1) % AI_DIALOGUE_LINE_COUNT;
+    }
+    room.lastDialogueLineIdx.set(key, lineIdx);
+
+    this.io.to(`ludo:${room.code}`).emit('ludo:ai_dialogue', {
+      seatIdx,
+      event,
+      lineIdx,
+      timestamp: now,
     });
   }
 }

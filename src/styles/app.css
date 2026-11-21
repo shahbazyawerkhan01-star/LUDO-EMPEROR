@@ -546,10 +546,24 @@
   box-shadow: 0 0 15px rgba(46, 204, 113, 0.4);
 }
 
-#wish-btn {
+#bottom-left-actions {
   position: absolute;
   bottom: 20px;
   left: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  z-index: 200;
+  pointer-events: none;
+}
+
+#bottom-left-actions > * {
+  pointer-events: auto;
+}
+
+#wish-btn {
+  position: relative;
   width: 70px;
   height: 70px;
   background: linear-gradient(135deg, #f1c40f, #f39c12);
@@ -561,14 +575,106 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 200;
   box-shadow: 0 0 20px rgba(241, 196, 15, 0.6);
   animation: pulse-gold 2s infinite;
-  pointer-events: auto;
+  transition: transform 0.18s ease;
 }
 
 #wish-btn:active {
   transform: scale(0.9);
+}
+
+#quick-msg-btn {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transition: transform 0.18s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+#quick-msg-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(241, 196, 15, 0.8);
+  transform: scale(1.06);
+}
+
+#quick-msg-btn:active {
+  transform: scale(0.92);
+}
+
+/* Interactive Board Nameplate Hit Targets, Corner Badges & 1-Tap Action Popover */
+.nameplate-hit-btn {
+  position: absolute;
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 105;
+  padding: 0;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.nameplate-hit-btn:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nameplate-hit-btn.is-selected {
+  border-color: #f1c40f;
+  box-shadow: 0 0 14px rgba(241, 196, 15, 0.65);
+}
+
+.nameplate-hit-btn.is-whisper-target {
+  border-color: #c084fc;
+  box-shadow: 0 0 16px rgba(192, 132, 252, 0.85);
+}
+
+.nameplate-hit-btn.has-pending-whisper {
+  border-color: #e9d5ff;
+  background: rgba(126, 34, 206, 0.22);
+  box-shadow: 0 0 16px rgba(192, 132, 252, 0.85);
+}
+
+.nameplate-status-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 108;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.nameplate-status-badge.whisper-pill {
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 112;
+  min-width: 44px;
+  height: 28px;
+  padding: 0 9px;
+  font-size: 14px;
+  background: #7e22ce;
+  border: 2px solid #f3e8ff;
+  animation: pulse-gold 1.8s infinite;
 }
 
 @keyframes pulse-gold {
@@ -611,6 +717,191 @@
 .music-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   transform: scale(1.1);
+}
+
+/* Online Multiplayer Live WebRTC Voice Call Bar (Zero-Overlap Portrait & Landscape) */
+#live-voice-hud {
+  position: absolute;
+  top: 20px;
+  right: 88px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.58);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+  z-index: 160;
+  pointer-events: auto;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+#live-voice-hud.active-call {
+  background: rgba(15, 38, 26, 0.72);
+  border-color: rgba(46, 204, 113, 0.85);
+  box-shadow: 0 0 16px rgba(46, 204, 113, 0.35);
+}
+
+#game-container.landscape #live-voice-hud {
+  top: 20px;
+  right: 416px;
+}
+
+.voice-hud-btn {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.voice-hud-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.voice-hud-btn:active {
+  transform: scale(0.95);
+}
+
+.voice-hud-btn.join-highlight {
+  border-color: rgba(46, 204, 113, 0.8);
+  background: rgba(46, 204, 113, 0.24);
+  color: #d4ffe5;
+}
+
+.voice-hud-btn.leave-btn {
+  border-color: rgba(231, 76, 60, 0.85);
+  background: rgba(231, 76, 60, 0.78);
+  color: #ffffff;
+}
+
+.voice-hud-btn.mic-live {
+  border-color: #2ecc71;
+  background: rgba(46, 204, 113, 0.28);
+  color: #ffffff;
+}
+
+.voice-hud-btn.mic-muted {
+  border-color: rgba(231, 76, 60, 0.78);
+  background: rgba(231, 76, 60, 0.32);
+  color: #ffd5d1;
+}
+
+.voice-peer-badge {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.voice-peer-badge:hover {
+  transform: scale(1.1);
+}
+
+.voice-peer-mute-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(231, 76, 60, 0.95);
+  border: 1px solid #ffffff;
+  font-size: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Real-Time VAD Green Speaking Ring & Animated Waveform Bars */
+.voice-speaking-ring {
+  border-color: #2ecc71 !important;
+  box-shadow:
+    0 0 0 2px rgba(46, 204, 113, 0.95),
+    0 0 14px rgba(46, 204, 113, 0.85) !important;
+  animation: voice-ring-pulse 0.95s ease-in-out infinite alternate;
+}
+
+.voice-speaking-segment {
+  box-shadow:
+    inset 0 0 0 3px #2ecc71,
+    0 0 16px rgba(46, 204, 113, 0.72) !important;
+}
+
+@keyframes voice-ring-pulse {
+  from {
+    box-shadow:
+      0 0 0 2px rgba(46, 204, 113, 0.85),
+      0 0 10px rgba(46, 204, 113, 0.65);
+  }
+  to {
+    box-shadow:
+      0 0 0 4px rgba(46, 204, 113, 1),
+      0 0 20px rgba(46, 204, 113, 0.95);
+  }
+}
+
+.voice-wave {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  vertical-align: middle;
+}
+
+.voice-wave span {
+  display: inline-block;
+  width: 2.5px;
+  border-radius: 999px;
+  background: #2ecc71;
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.9);
+  animation: voice-bar-bounce 0.55s ease-in-out infinite alternate;
+}
+
+.voice-wave span:nth-child(1) {
+  height: 5px;
+  animation-delay: 0s;
+}
+
+.voice-wave span:nth-child(2) {
+  height: 11px;
+  animation-delay: 0.14s;
+}
+
+.voice-wave span:nth-child(3) {
+  height: 7px;
+  animation-delay: 0.28s;
+}
+
+@keyframes voice-bar-bounce {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1.1);
+  }
 }
 
 /* Main Menu & Setup Overlay — Exact Original Scale & Royal Crimson Theme */
@@ -1086,6 +1377,72 @@
   color: white;
   backdrop-filter: blur(15px);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(241, 196, 15, 0.3);
+}
+
+/* High-Contrast Frosted Dark-Glass Message Window */
+.mirror-message-card {
+  position: relative;
+  background: linear-gradient(
+    155deg,
+    rgba(16, 18, 30, 0.90) 0%,
+    rgba(10, 12, 22, 0.87) 55%,
+    rgba(20, 22, 36, 0.90) 100%
+  );
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-radius: 24px;
+  padding: 22px;
+  color: #ffffff;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.mirror-message-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    transparent 38%
+  );
+  pointer-events: none;
+}
+
+.mirror-message-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.mirror-glass-input {
+  background: rgba(0, 0, 0, 0.62);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  text-shadow: none;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.mirror-glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.mirror-glass-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1.5px solid rgba(255, 255, 255, 0.36);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease;
+}
+
+.mirror-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(241, 196, 15, 0.78);
 }
 
 .royal-modal-title {

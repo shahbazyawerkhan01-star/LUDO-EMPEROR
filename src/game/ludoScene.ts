@@ -22,10 +22,20 @@ import {
   type PlayerConfig,
 } from './rules';
 
+export interface NameplateScreenPos {
+  seatIdx: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  angleDeg: number;
+}
+
 export interface SceneCallbacks {
   onPawnTap: (playerIdx: number, pawnIdx: number) => void;
   onBaseTap: (playerIdx: number) => void;
   onDiceTap: () => void;
+  onNameplatesChange?: (plates: NameplateScreenPos[]) => void;
 }
 
 export interface SceneSnapshot {
@@ -246,7 +256,7 @@ export class LudoScene {
 
   private logicalW = 1280;
   private logicalH = 720;
-  private diceScale = 0.65;
+  private diceScale = 0.78;
   private diceAnchor = { x: 830, y: 608 };
   private boardAnchor = { x: 455, y: 366, scale: 1.09, tilt: 0.75 };
 
@@ -258,6 +268,15 @@ export class LudoScene {
 
   private reactions: FloatingReaction[] = [];
   private speechBubbles = new Map<number, SpeechBubble>();
+  private plateMetas: Array<{
+    seatIdx: number;
+    baseCenter: { x: number; y: number };
+    totalRot: number;
+    plateX: number;
+    plateW: number;
+    plateH: number;
+  }> = [];
+  private lastEmittedPlates: NameplateScreenPos[] = [];
 
   constructor(containerEl: HTMLElement, callbacks: SceneCallbacks) {
     this.containerEl = containerEl;
@@ -386,8 +405,11 @@ export class LudoScene {
 
         const ring = new Graphics();
         const shadow = new Graphics();
-        shadow.ellipse(0, 5, 15, 8).fill({ color: 0x000000, alpha: 0.3 });
+        shadow.ellipse(0, 4, 12, 6.4).fill({ color: 0x000000, alpha: 0.3 });
         const fallbackGfx = new Graphics();
+        container.hitArea = {
+          contains: (x: number, y: number) => x >= -20 && x <= 20 && y >= -36 && y <= 14,
+        };
 
         container.addChild(ring);
         container.addChild(shadow);
@@ -416,16 +438,32 @@ export class LudoScene {
     if (next.isRolling && !prevRolling) {
       this.startDiceRollAnim(next.dice);
     } else if (!next.isRolling) {
+      const boardSpacing = 46 * this.diceScale;
       this.diceAnims.forEach((d, idx) => {
         const val = next.dice[idx] || 1;
         d.value = val;
         const targets = this.getDiceTargetAngles(val);
         d.targetRX = targets.rx;
         d.targetRY = targets.ry;
-        if (this.rollFramesLeft <= 0 && next.hasRolled) {
-          d.rx = targets.rx;
-          d.ry = targets.ry;
-          d.rz = 0;
+        d.targetX = this.boardAnchor.x + (idx === 0 ? -boardSpacing : boardSpacing);
+        d.targetY = this.boardAnchor.y + (idx === 0 ? -boardSpacing / 2 : boardSpacing / 2);
+
+        if (next.hasRolled) {
+          // Keep rolled dice on the board until the turn passes (hasRolled becomes false)
+          if (!d.active && this.rollFramesLeft <= 0) {
+            d.x = d.targetX;
+            d.y = d.targetY;
+            d.z = 0;
+          }
+          d.active = true;
+          if (this.rollFramesLeft <= 0) {
+            d.rx = targets.rx;
+            d.ry = targets.ry;
+            d.rz = 0;
+          }
+        } else if (this.rollFramesLeft <= 0) {
+          // Turn passed (or ready for bonus roll): return dice to resting anchor
+          d.active = false;
         }
       });
     }
@@ -472,12 +510,11 @@ export class LudoScene {
 
   public showSpeechBubble(playerIdx: number, text: string): void {
     if (!this.initialized || this.destroyed || !text) return;
-    const old = this.speechBubbles.get(playerIdx);
-    if (old) {
+    for (const old of this.speechBubbles.values()) {
       this.fxLayer.removeChild(old.node);
       old.node.destroy({ children: true });
-      this.speechBubbles.delete(playerIdx);
     }
+    this.speechBubbles.clear();
 
     const base = this.getCenterOfBase(playerIdx);
     const center = this.worldToScreen(base.x, base.y);
@@ -498,6 +535,7 @@ export class LudoScene {
         fontSize: 13,
         fontWeight: '700',
         fill: playerColorStr,
+        stroke: { color: '#000000', width: 3 },
       },
     });
     header.anchor.set(0.5, 0);
@@ -507,8 +545,9 @@ export class LudoScene {
       style: {
         fontFamily: 'Fredoka, Inter, sans-serif',
         fontSize: 15,
-        fontWeight: '600',
-        fill: '#111111',
+        fontWeight: '700',
+        fill: '#ffffff',
+        stroke: { color: '#000000', width: 3.5 },
         wordWrap: true,
         wordWrapWidth: 215,
         align: 'center',
@@ -523,15 +562,20 @@ export class LudoScene {
     header.y = -h / 2 + 7;
     label.y = -h / 2 + 7 + header.height + 3;
 
+    // Crystal-clear reflective mirror-glass speech pane so board & tokens behind stay completely visible
     const bg = new Graphics();
-    bg.roundRect(-w / 2 + 2, -h / 2 + 4, w, h, 14).fill({ color: 0x000000, alpha: 0.32 });
     bg.roundRect(-w / 2, -h / 2, w, h, 14)
-      .fill({ color: 0xffffff, alpha: 0.97 })
-      .stroke({ width: 3, color: playerColorHex });
-    // Small comic speech tail pointing down toward the player's base
+      .fill({ color: 0xffffff, alpha: 0.16 })
+      .stroke({ width: 2.5, color: playerColorHex, alpha: 0.92 });
+    // Inner silver mirror rim & subtle top glass sheen reflection
+    bg.roundRect(-w / 2 + 2, -h / 2 + 2, w - 4, h - 4, 12)
+      .stroke({ width: 1, color: 0xffffff, alpha: 0.65 });
+    bg.roundRect(-w / 2 + 4, -h / 2 + 3, w - 8, Math.max(10, h * 0.34), 10)
+      .fill({ color: 0xffffff, alpha: 0.14 });
+    // Small glass speech tail pointing down toward the player's base
     bg.poly([-8, h / 2 - 1, 8, h / 2 - 1, 0, h / 2 + 10])
-      .fill({ color: 0xffffff, alpha: 0.97 })
-      .stroke({ width: 2, color: playerColorHex });
+      .fill({ color: 0xffffff, alpha: 0.22 })
+      .stroke({ width: 2, color: playerColorHex, alpha: 0.9 });
 
     wrap.addChild(bg);
     wrap.addChild(header);
@@ -550,10 +594,10 @@ export class LudoScene {
   }
 
   private startDiceRollAnim(dice: [number, number]): void {
-    // Launch from sides/bottom cleanly across the center of the board in both orientations
-    this.rollFramesLeft = 46;
+    // Launch from sides/bottom cleanly across the center of the board in both orientations (~0.2x slower)
+    this.rollFramesLeft = 56;
     const isLandscape = this.logicalW > this.logicalH;
-    const spacing = 40 * this.diceScale;
+    const spacing = 46 * this.diceScale;
     const spreadX = isLandscape ? 200 : 140;
     const launchY = isLandscape ? 310 : 290;
     this.diceAnims.forEach((d, idx) => {
@@ -566,15 +610,15 @@ export class LudoScene {
       d.z = 100;
       d.targetX = this.boardAnchor.x + (idx === 0 ? -spacing : spacing);
       d.targetY = this.boardAnchor.y + (idx === 0 ? -spacing / 2 : spacing / 2);
-      d.vx = (d.targetX - d.x) / 46;
-      d.vy = (d.targetY - d.y) / 46;
-      d.vz = 5;
+      d.vx = (d.targetX - d.x) / 56;
+      d.vy = (d.targetY - d.y) / 56;
+      d.vz = 4.2;
       d.rx = Math.random() * Math.PI * 2;
       d.ry = Math.random() * Math.PI * 2;
       d.rz = Math.random() * Math.PI * 2;
-      d.vrx = (Math.random() - 0.5) * 0.5;
-      d.vry = (Math.random() - 0.5) * 0.5;
-      d.vrz = (Math.random() - 0.5) * 0.5;
+      d.vrx = (Math.random() - 0.5) * 0.4;
+      d.vry = (Math.random() - 0.5) * 0.4;
+      d.vrz = (Math.random() - 0.5) * 0.4;
       d.targetRX = targets.rx;
       d.targetRY = targets.ry;
     });
@@ -732,7 +776,7 @@ export class LudoScene {
         x: w * (830 / 1280),
         y: h * (608 / 720),
       };
-      this.diceScale = 0.65;
+      this.diceScale = 0.78;
     } else {
       // Portrait layout (720x1280) scaled 1.15x larger (0.91 * 1.15 = 1.0465) centered cleanly between title & ad-banner
       this.boardAnchor = {
@@ -745,7 +789,7 @@ export class LudoScene {
         x: w * 0.5,
         y: h * (1212 / 1280),
       };
-      this.diceScale = 0.65;
+      this.diceScale = 0.78;
     }
 
     this.boardRoot.x = this.boardAnchor.x;
@@ -756,7 +800,7 @@ export class LudoScene {
   private handleResize(): void {
     if (!this.initialized || this.destroyed) return;
     this.applyBoardTransform();
-    const spacing = 40 * this.diceScale;
+    const spacing = 46 * this.diceScale;
     this.diceAnims.forEach((d, idx) => {
       if (d.active) {
         d.targetX = this.boardAnchor.x + (idx === 0 ? -spacing : spacing);
@@ -764,6 +808,7 @@ export class LudoScene {
       }
     });
     this.lastBgKey = '';
+    this.lastEmittedPlates = [];
     this.renderBackground(this.logicalW, this.logicalH);
   }
 
@@ -837,6 +882,8 @@ export class LudoScene {
     this.lastBoardKey = key;
 
     this.homeLabelNode = null;
+    this.plateMetas = [];
+    this.lastEmittedPlates = [];
     this.boardStaticLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
 
     const theme = BOARD_THEMES[themeId] || BOARD_THEMES.classic;
@@ -957,6 +1004,10 @@ export class LudoScene {
       plateWrap.x = plateX;
       plateWrap.y = 0;
       plateWrap.rotation = Math.PI / 2;
+      plateWrap.eventMode = 'static';
+      plateWrap.cursor = 'pointer';
+      plateWrap.on('pointerdown', (e) => e.stopPropagation());
+      plateWrap.on('pointertap', (e) => e.stopPropagation());
 
       const plateBg = new Graphics();
       plateBg
@@ -987,6 +1038,15 @@ export class LudoScene {
       }
       plateWrap.addChild(plateText);
       baseCont.addChild(plateWrap);
+
+      this.plateMetas.push({
+        seatIdx: i,
+        baseCenter,
+        totalRot,
+        plateX,
+        plateW: plateWidth,
+        plateH: plateHeight,
+      });
 
       this.boardStaticLayer.addChild(baseCont);
     }
@@ -1137,8 +1197,12 @@ export class LudoScene {
       });
     });
 
+    const readyToRoll = !this.snapshot.hasRolled && !this.snapshot.isRolling;
+    this.diceLayer.eventMode = readyToRoll ? 'static' : 'none';
+    this.diceLayer.cursor = readyToRoll ? 'pointer' : 'default';
     this.diceLayer.hitArea = {
-      contains: (x: number, y: number) => Math.hypot(x - this.diceAnchor.x, y - this.diceAnchor.y) < 110,
+      contains: (x: number, y: number) =>
+        readyToRoll && Math.hypot(x - this.diceAnchor.x, y - this.diceAnchor.y) < 120,
     };
   }
 
@@ -1217,7 +1281,7 @@ export class LudoScene {
     const prevRotDeg = this.rotationOffsetDeg;
     const rotDiff = ((((this.targetRotationDeg - this.rotationOffsetDeg) % 360) + 540) % 360) - 180;
     if (Math.abs(rotDiff) > 0.15) {
-      this.rotationOffsetDeg += rotDiff * Math.min(1, 0.14 * delta);
+      this.rotationOffsetDeg += rotDiff * Math.min(1, 0.11 * delta);
     } else {
       this.rotationOffsetDeg = this.targetRotationDeg;
     }
@@ -1232,11 +1296,23 @@ export class LudoScene {
     if (this.homeLabelNode) {
       this.homeLabelNode.rotation = -rotRad;
     }
+    this.emitNameplatePositionsIfChanged(rotRad);
 
     const isSelectable =
       this.snapshot.hasRolled &&
       !this.snapshot.isRolling &&
       this.snapshot.movesAvailable.length > 0;
+
+    const remainDiceFlags: [boolean, boolean] =
+      this.snapshot.movesAvailable.length >= 2
+        ? [true, true]
+        : this.snapshot.movesAvailable.length === 1
+          ? [
+              this.snapshot.dice[0] === this.snapshot.movesAvailable[0],
+              this.snapshot.dice[0] !== this.snapshot.movesAvailable[0] &&
+                this.snapshot.dice[1] === this.snapshot.movesAvailable[0],
+            ]
+          : [false, false];
 
     if (this.rollFramesLeft > 0) {
       this.rollFramesLeft--;
@@ -1244,7 +1320,7 @@ export class LudoScene {
         d.x += d.vx * delta;
         d.y += d.vy * delta;
         d.z += d.vz * delta;
-        d.vz -= 0.45 * delta;
+        d.vz -= 0.36 * delta;
         if (d.z < 0) {
           d.z = 0;
           d.vz = Math.abs(d.vz) * 0.45;
@@ -1252,8 +1328,8 @@ export class LudoScene {
         d.rx += d.vrx * delta;
         d.ry += d.vry * delta;
         d.rz += d.vrz * delta;
-        if (this.rollFramesLeft < 20) {
-          const t = 0.16;
+        if (this.rollFramesLeft < 24) {
+          const t = 0.13;
           d.rx += (d.targetRX - d.rx) * t;
           d.ry += (d.targetRY - d.ry) * t;
           d.rz += (0 - d.rz) * t;
@@ -1262,23 +1338,33 @@ export class LudoScene {
         }
       });
     } else {
+      const keepOnBoard = this.snapshot.hasRolled || this.snapshot.isRolling;
       this.diceAnims.forEach((d, idx) => {
         if (d.active) {
-          d.rx += (d.targetRX - d.rx) * 0.25;
-          d.ry += (d.targetRY - d.ry) * 0.25;
-          d.rz += (0 - d.rz) * 0.25;
-          d.z *= 0.78;
-          d.x += (d.targetX - d.x) * 0.25;
-          d.y += (d.targetY - d.y) * 0.25;
-          if (Math.abs(d.z) < 0.3 && Math.abs(d.rx - d.targetRX) < 0.02) {
+          d.rx += (d.targetRX - d.rx) * 0.2;
+          d.ry += (d.targetRY - d.ry) * 0.2;
+          d.rz += (0 - d.rz) * 0.2;
+          d.z *= 0.82;
+          d.x += (d.targetX - d.x) * 0.2;
+          d.y += (d.targetY - d.y) * 0.2;
+          if (!keepOnBoard && Math.abs(d.z) < 0.3 && Math.abs(d.rx - d.targetRX) < 0.02) {
             d.active = false;
           }
         }
-        const isSelected = isSelectable && this.snapshot!.selectedDieIndex === idx;
-        const targetOff = isSelected ? 36 : isSelectable ? 16 : 0;
-        const targetScale = isSelected ? 1.2 : isSelectable ? 1.1 : 1;
-        d.hoverOffset += (targetOff - d.hoverOffset) * 0.16;
-        d.hoverScale += (targetScale - d.hoverScale) * 0.16;
+        const dieUnused = isSelectable && remainDiceFlags[idx];
+        const activeIdx =
+          this.snapshot!.movesAvailable.length === 1
+            ? remainDiceFlags[0]
+              ? 0
+              : remainDiceFlags[1]
+                ? 1
+                : -1
+            : this.snapshot!.selectedDieIndex;
+        const isSelected = dieUnused && activeIdx === idx;
+        const targetOff = isSelected ? 22 : dieUnused ? 10 : 0;
+        const targetScale = isSelected ? 1.14 : dieUnused ? 1.06 : 1;
+        d.hoverOffset += (targetOff - d.hoverOffset) * 0.14;
+        d.hoverScale += (targetScale - d.hoverScale) * 0.14;
       });
     }
     this.drawDice3D();
@@ -1321,7 +1407,7 @@ export class LudoScene {
         const ap = this.animPawns[pIdx][iIdx];
         const diff = pawn.pos - ap.displayPos;
         if (Math.abs(diff) > 0.01) {
-          ap.displayPos += diff > 0 ? Math.min(diff, 0.22 * delta) : Math.max(diff, -0.45 * delta);
+          ap.displayPos += diff > 0 ? Math.min(diff, 0.175 * delta) : Math.max(diff, -0.36 * delta);
         } else {
           ap.displayPos = pawn.pos;
         }
@@ -1378,8 +1464,9 @@ export class LudoScene {
             ap.renderX = rx;
             ap.renderY = ry;
           }
-          ap.renderX += (target.x + stackX - ap.renderX) * 0.26;
-          ap.renderY += (target.y + stackY - ap.renderY) * 0.26;
+          const lerpAmt = Math.min(1, 0.2 * delta);
+          ap.renderX += (target.x + stackX - ap.renderX) * lerpAmt;
+          ap.renderY += (target.y + stackY - ap.renderY) * lerpAmt;
         }
 
         const isMovable =
@@ -1406,26 +1493,26 @@ export class LudoScene {
 
         ap.ring.clear();
         if (isMovable) {
-          const pulseR = ss * 0.58 + Math.sin(nowMs / 200) * 5;
-          ap.ring.ellipse(0, 5, pulseR, pulseR * 0.6).stroke({ width: 3.5, color: 0xffffff });
+          const pulseR = (ss * 0.58 + Math.sin(nowMs / 200) * 5) * 0.8;
+          ap.ring.ellipse(0, 4, pulseR, pulseR * 0.6).stroke({ width: 3, color: 0xffffff });
         }
 
         if (ap.sprite) {
           const tex = this.pawnTextures[pIdx];
           if (tex) {
-            // Exact proportional pawn sizing matching original Canvas 2D inside tilted transform
-            const targetW = ss * 0.88;
+            // 0.8x token scale matching exact board proportions
+            const targetW = ss * 0.88 * 0.8;
             const scale = targetW / tex.width;
             ap.sprite.scale.set(scale, scale);
-            ap.sprite.y = 8 - bounce;
+            ap.sprite.y = 6.4 - bounce;
           }
         } else {
           ap.fallbackGfx.clear();
           ap.fallbackGfx
-            .poly([-11, 8 - bounce, 11, 8 - bounce, 7, -14 - bounce, -7, -14 - bounce])
+            .poly([-8.8, 6.4 - bounce, 8.8, 6.4 - bounce, 5.6, -11.2 - bounce, -5.6, -11.2 - bounce])
             .fill(colorHex)
             .stroke({ width: 2, color: 0x0f172a })
-            .circle(0, -19 - bounce, 9)
+            .circle(0, -15.2 - bounce, 7.2)
             .fill(colorHex)
             .stroke({ width: 2, color: 0x0f172a });
         }
@@ -1498,6 +1585,55 @@ export class LudoScene {
     }
     if (this.initialized) {
       this.app.destroy(true, { children: true });
+    }
+  }
+
+  private emitNameplatePositionsIfChanged(rotRad: number): void {
+    if (!this.callbacks.onNameplatesChange || this.plateMetas.length === 0) return;
+    const cosR = Math.cos(rotRad);
+    const sinR = Math.sin(rotRad);
+    const next: NameplateScreenPos[] = this.plateMetas.map((meta) => {
+      const bx = meta.baseCenter.x + meta.plateX * Math.cos(meta.totalRot);
+      const by = meta.baseCenter.y + meta.plateX * Math.sin(meta.totalRot);
+      const wx = bx * cosR - by * sinR;
+      const wy = bx * sinR + by * cosR;
+      const screen = this.worldToScreen(wx, wy);
+
+      const alpha = meta.totalRot + rotRad + Math.PI / 2;
+      const vx = Math.cos(alpha);
+      const vy = Math.sin(alpha) * this.boardAnchor.tilt;
+      let angleDeg = (Math.atan2(vy, vx) * 180) / Math.PI;
+      if (angleDeg > 90) angleDeg -= 180;
+      if (angleDeg < -90) angleDeg += 180;
+
+      const w = meta.plateW * this.boardAnchor.scale * Math.hypot(vx, vy);
+      const h = meta.plateH * this.boardAnchor.scale * (0.85 + 0.15 * this.boardAnchor.tilt);
+      return {
+        seatIdx: meta.seatIdx,
+        x: Math.round(screen.x * 10) / 10,
+        y: Math.round(screen.y * 10) / 10,
+        w: Math.round(w * 10) / 10,
+        h: Math.round(h * 10) / 10,
+        angleDeg: Math.round(angleDeg * 10) / 10,
+      };
+    });
+
+    const changed =
+      this.lastEmittedPlates.length !== next.length ||
+      next.some((p, idx) => {
+        const prev = this.lastEmittedPlates[idx];
+        return (
+          !prev ||
+          Math.abs(p.x - prev.x) >= 0.75 ||
+          Math.abs(p.y - prev.y) >= 0.75 ||
+          Math.abs(p.w - prev.w) >= 0.75 ||
+          Math.abs(p.angleDeg - prev.angleDeg) >= 0.5
+        );
+      });
+
+    if (changed) {
+      this.lastEmittedPlates = next;
+      this.callbacks.onNameplatesChange(next);
     }
   }
 }

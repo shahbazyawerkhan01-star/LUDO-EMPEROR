@@ -12,7 +12,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const PORT = 3000;
 
 const TTS_MAX_TEXT_LENGTH = 200;
-const TTS_RATE_LIMIT_MAX = 30;
+const TTS_RATE_LIMIT_MAX = 90;
 const TTS_RATE_LIMIT_WINDOW_MS = 60_000;
 
 export function createTtsLimiter(maxRequests = TTS_RATE_LIMIT_MAX, windowMs = TTS_RATE_LIMIT_WINDOW_MS) {
@@ -73,7 +73,7 @@ export function createLudoCoreServer(options = {}) {
     return res.json(summary);
   });
 
-  // High-fidelity native language TTS endpoint with strict per-IP rate limiting + length cap
+  // High-fidelity native language TTS endpoint with cache-first delivery + per-IP rate limiting on misses
   const ttsAudioCache = new Map();
 
   app.get('/api/tts', async (req, res) => {

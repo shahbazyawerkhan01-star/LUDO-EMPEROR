@@ -1,10 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BACKGROUNDS, BOARD_THEMES, DICE_STYLES, getPlayerColor, stripSeatTag } from '../game/rules';
 import { MUSIC_TRACKS, sfx } from '../game/sfx';
 import { LANGUAGE_OPTIONS, TUTORIAL_SLIDES, translate } from '../i18n';
+import { voiceNoteRecorder } from '../network/audioCapture';
 import { multiplayerClient } from '../network/multiplayerClient';
+import { whisperRecorder } from '../network/whisperRecorder';
 import { useGameStore } from '../state/store';
 import { MultiplayerLobbyModal } from './MultiplayerLobbyModal';
+
+const QUICK_CHAT_PRESETS = [
+  'Good move! 👏',
+  'Play fast! ⏱️',
+  'So lucky! 🍀',
+  'Watch out! 🔥',
+  'Oops! 😅',
+  'Well played! 👍',
+];
 
 export const Modals: React.FC = () => {
   const {
@@ -18,7 +29,13 @@ export const Modals: React.FC = () => {
     winner,
     isTournament,
     isOnline,
+    mySeat,
+    turnAutoPlay,
     pendingGulMove,
+    incomingWhispers,
+    blockedWhisperSeats,
+    whisperRecordingSeat,
+    chatMessages,
     setActiveModal,
     updatePrefs,
     updatePlayer,
@@ -28,6 +45,10 @@ export const Modals: React.FC = () => {
     speakPlayerText,
     toggleAiVoiceMute,
     toggleSeatMute,
+    playIncomingWhisper,
+    dismissIncomingWhisper,
+    playVoiceNote,
+    toggleBlockWhisperSeat,
     triggerAiLine,
     triggerReaction,
     startLocalMatch,
@@ -38,66 +59,42 @@ export const Modals: React.FC = () => {
   const [slideIdx, setSlideIdx] = useState(0);
   const [profileMsg, setProfileMsg] = useState('');
   const [wishSeat, setWishSeat] = useState(0);
-  const [recordingVoice, setRecordingVoice] = useState(false);
-  const mrRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const [recordingVoice, setRecordingVoice] = useState(() => voiceNoteRecorder.isRecording());
 
   useEffect(() => {
     setWishSeat(wishSeatIdx);
   }, [wishSeatIdx]);
 
+  useEffect(() => {
+    const unsub = voiceNoteRecorder.subscribe(setRecordingVoice);
+    return () => {
+      unsub();
+    };
+  }, []);
+
   if (!activeModal) return null;
   if (activeModal === 'lobby') return <MultiplayerLobbyModal />;
 
-  const close = () => setActiveModal(null);
-
-  const handleProfileVoiceRecord = async () => {
-    if (recordingVoice && mrRef.current) {
-      mrRef.current.stop();
-      setRecordingVoice(false);
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      showToast('Microphone unavailable.');
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = [];
-      const t0 = Date.now();
-      mr.ondataavailable = (ev) => {
-        if (ev.data.size > 0) chunksRef.current.push(ev.data);
-      };
-      mr.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = typeof reader.result === 'string' ? reader.result : '';
-          if (!base64) return;
-          const dur = Math.max(1, Math.min(10, Math.round((Date.now() - t0) / 1000)));
-          if (isOnline) {
-            multiplayerClient.sendVoiceNote(base64, dur);
-            showToast('Voice note sent!');
-          } else {
-            new Audio(base64).play().catch(() => {});
-            showToast('Voice note played!');
-          }
-          close();
-        };
-        reader.readAsDataURL(blob);
-      };
-      mrRef.current = mr;
-      mr.start();
-      setRecordingVoice(true);
-    } catch {
-      showToast('Microphone permission denied.');
-    }
+  const close = () => {
+    setActiveModal(null);
   };
+
+  const handleProfileVoiceRecord = () => {
+    void voiceNoteRecorder.toggle();
+  };
+
+  const isMirrorMessageModal =
+    activeModal === 'profile' ||
+    activeModal === 'coachSkip' ||
+    activeModal === 'gulPass';
 
   return (
     <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && (activeModal === 'profile' || activeModal === 'coachSkip')) {
+          close();
+        }
+      }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -105,8 +102,8 @@ export const Modals: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0, 0, 0, 0.78)',
-        backdropFilter: 'blur(8px)',
+        background: isMirrorMessageModal ? 'rgba(0, 0, 0, 0.45)' : 'rgba(0, 0, 0, 0.78)',
+        backdropFilter: isMirrorMessageModal ? 'blur(4px)' : 'blur(8px)',
         padding: '16px',
       }}
     >
@@ -213,6 +210,24 @@ export const Modals: React.FC = () => {
             </div>
 
             <div>
+              <label className="mb-1 block font-display text-xs font-bold text-[#f1c40f] uppercase">
+                Capture Warning (Compulsory Rule)
+              </label>
+              <select
+                value={prefs.captureWarningMode ?? 'first3'}
+                onChange={(e) => {
+                  const val = e.target.value as 'first3' | 'always' | 'off';
+                  updatePrefs({ captureWarningMode: val });
+                }}
+                className="w-full rounded-xl border border-white/20 bg-black/80 px-3 py-2.5 text-sm font-semibold text-white"
+              >
+                <option value="first3">Newcomers (First 3 Matches per Player)</option>
+                <option value="always">Always ON</option>
+                <option value="off">Off</option>
+              </select>
+            </div>
+
+            <div>
               <div className="mb-1 flex justify-between font-display text-xs font-bold text-[#f1c40f]">
                 <span>PENTAGON PERSPECTIVE TILT</span>
                 <span className="tabular-nums">{Math.round((prefs.cameraTilt ?? 0.75) * 100)}%</span>
@@ -285,6 +300,34 @@ export const Modals: React.FC = () => {
                 }}
               >
                 {prefs.aiVoiceMuted ? '🔇 MUTED' : '🗣️ ON'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl border border-white/15 bg-white/5 px-3 py-2.5">
+              <div className="flex flex-col">
+                <span className="font-display text-xs font-bold text-white uppercase">
+                  Auto-Play Voice Notes
+                </span>
+                <span className="text-[11px] text-white/65">
+                  {prefs.autoPlayVoiceNotes !== false
+                    ? 'Plays incoming notes aloud (tap ▶ in chat anytime)'
+                    : 'Tap ▶ Play in room chat to listen'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextVal = !(prefs.autoPlayVoiceNotes !== false);
+                  updatePrefs({ autoPlayVoiceNotes: nextVal });
+                  showToast(nextVal ? '🔊 Auto-Play Voice Notes: ON' : '🔇 Auto-Play Voice Notes: OFF');
+                }}
+                className="cursor-pointer rounded-lg px-3.5 py-1 font-display text-xs font-bold"
+                style={{
+                  background: prefs.autoPlayVoiceNotes !== false ? '#2ecc71' : 'rgba(255,255,255,0.12)',
+                  color: prefs.autoPlayVoiceNotes !== false ? '#000' : '#fff',
+                }}
+              >
+                {prefs.autoPlayVoiceNotes !== false ? 'ON' : 'OFF'}
               </button>
             </div>
 
@@ -420,10 +463,14 @@ export const Modals: React.FC = () => {
             </div>
             <div className="my-2 text-5xl">{TUTORIAL_SLIDES[slideIdx].icon}</div>
             <h3 className="font-display text-xl font-bold text-white">
-              {TUTORIAL_SLIDES[slideIdx].title}
+              {TUTORIAL_SLIDES[slideIdx].titleKey
+                ? translate(prefs.language, TUTORIAL_SLIDES[slideIdx].titleKey!)
+                : TUTORIAL_SLIDES[slideIdx].title}
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-white/80">
-              {TUTORIAL_SLIDES[slideIdx].desc}
+              {TUTORIAL_SLIDES[slideIdx].descKey
+                ? translate(prefs.language, TUTORIAL_SLIDES[slideIdx].descKey!)
+                : TUTORIAL_SLIDES[slideIdx].desc}
             </p>
           </div>
 
@@ -527,130 +574,289 @@ export const Modals: React.FC = () => {
         </div>
       )}
 
-      {/* 5. Seat Profile / Chat / Voice */}
-      {activeModal === 'profile' && profileSeatIdx !== null && (
-        <div className="royal-modal-card w-full max-w-[400px] space-y-4">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2
-              className="font-display text-xl font-bold"
-              style={{ color: getPlayerColor(profileSeatIdx, isTournament) }}
-            >
-              {players[profileSeatIdx]?.icon || '🤴'} {stripSeatTag(players[profileSeatIdx]?.name || '')}
-            </h2>
-            <button
-              type="button"
-              onClick={close}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-white/10 font-bold text-white"
-            >
-              ✕
-            </button>
-          </div>
+      {/* 5. Seat Profile / Chat / Voice (Crystal Mirror-Glass Window) */}
+      {activeModal === 'profile' && profileSeatIdx !== null && (() => {
+        const seatPlayer = players[profileSeatIdx];
+        const isHumanSeat = !seatPlayer?.isAI;
+        const isMyProfile = isOnline && mySeat === profileSeatIdx;
+        const isSeatLocallyMuted = prefs.mutedSeats.includes(profileSeatIdx);
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!profileMsg.trim()) return;
-              if (isOnline) {
-                multiplayerClient.sendChat(profileMsg.trim());
-              } else {
-                speakPlayerText(profileSeatIdx, profileMsg.trim());
-              }
-              setProfileMsg('');
-              close();
-            }}
-            className="flex gap-2"
-          >
-            <input
-              type="text"
-              maxLength={80}
-              value={profileMsg}
-              onChange={(e) => setProfileMsg(e.target.value)}
-              placeholder="Say something..."
-              className="flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm text-white outline-none"
-            />
-            <button
-              type="submit"
-              className="cursor-pointer rounded-xl bg-[#f1c40f] px-4 font-display text-sm font-bold text-black"
-            >
-              SEND
-            </button>
-          </form>
+        return (
+          <div className="mirror-message-card w-full max-w-[400px] space-y-4">
+            <div className="flex items-center justify-between border-b border-white/35 pb-3">
+              <div className="flex items-center gap-2.5">
+                <span
+                  className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/55 text-xl"
+                  style={{ backgroundColor: getPlayerColor(profileSeatIdx, isTournament) }}
+                >
+                  {seatPlayer?.icon || '🤴'}
+                </span>
+                <div>
+                  <h2
+                    className="flex items-center gap-2 font-display text-xl font-bold text-white"
+                    style={{
+                      textShadow: '0 2px 6px rgba(0, 0, 0, 0.98)',
+                    }}
+                  >
+                    <span>{stripSeatTag(seatPlayer?.name || '')}</span>
+                  </h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={close}
+                className="mirror-glass-btn flex h-9 w-9 cursor-pointer items-center justify-center rounded-full font-bold text-white"
+              >
+                ✕
+              </button>
+            </div>
 
-          {players[profileSeatIdx]?.isAI && (
-            <div className="grid grid-cols-2 gap-2">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!profileMsg.trim()) return;
+                if (isOnline) {
+                  multiplayerClient.sendChat(profileMsg.trim());
+                } else {
+                  speakPlayerText(profileSeatIdx, profileMsg.trim());
+                }
+                setProfileMsg('');
+                close();
+              }}
+              className="flex gap-2"
+            >
+              <input
+                type="text"
+                maxLength={80}
+                value={profileMsg}
+                onChange={(e) => setProfileMsg(e.target.value)}
+                placeholder="Say something..."
+                className="mirror-glass-input flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
+              />
+              <button
+                type="submit"
+                className="cursor-pointer rounded-xl border border-white/70 bg-[#f1c40f]/90 px-4 font-display text-sm font-bold text-black shadow-md hover:bg-[#f1c40f]"
+                style={{ textShadow: 'none' }}
+              >
+                SEND
+              </button>
+            </form>
+
+            {/* Ludo-style 1-Tap Quick-Chat Presets */}
+            <div className="grid grid-cols-3 gap-1.5">
+              {QUICK_CHAT_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => {
+                    if (isOnline) {
+                      multiplayerClient.sendChat(preset);
+                    } else {
+                      speakPlayerText(profileSeatIdx, preset);
+                    }
+                    close();
+                  }}
+                  className="mirror-glass-btn cursor-pointer truncate rounded-lg px-2 py-2 text-xs font-bold text-white hover:border-[#f1c40f]"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+
+            {seatPlayer?.isAI && (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleSeatMute(profileSeatIdx)}
+                  className="mirror-glass-btn cursor-pointer rounded-xl py-2.5 font-display text-xs font-bold text-white"
+                  style={{
+                    background: isSeatLocallyMuted
+                      ? 'rgba(231, 76, 60, 0.45)'
+                      : 'rgba(0, 0, 0, 0.24)',
+                  }}
+                >
+                  {isSeatLocallyMuted ? '🔊 UNMUTE THIS AI' : '🔇 MUTE THIS AI'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    triggerAiLine(profileSeatIdx, 'banter');
+                    close();
+                  }}
+                  className="mirror-glass-btn cursor-pointer rounded-xl border-[#f1c40f]/75 bg-[#f1c40f]/25 py-2.5 font-display text-xs font-bold text-[#ffe57f]"
+                >
+                  🗣️ SPEAK NOW
+                </button>
+              </div>
+            )}
+
+            {/* Per-Player Mute Button for Remote Online Human Players */}
+            {isOnline && isHumanSeat && !isMyProfile && (
               <button
                 type="button"
                 onClick={() => toggleSeatMute(profileSeatIdx)}
-                className="cursor-pointer rounded-xl border border-white/20 py-2.5 font-display text-xs font-bold text-white"
+                className="mirror-glass-btn w-full cursor-pointer rounded-xl py-2 font-display text-xs font-bold text-white"
                 style={{
-                  background: prefs.mutedSeats.includes(profileSeatIdx)
-                    ? 'rgba(231, 76, 60, 0.45)'
-                    : 'rgba(255, 255, 255, 0.08)',
+                  background: isSeatLocallyMuted
+                    ? 'rgba(231, 76, 60, 0.55)'
+                    : 'rgba(255, 255, 255, 0.1)',
                 }}
               >
-                {prefs.mutedSeats.includes(profileSeatIdx) ? '🔊 UNMUTE THIS AI' : '🔇 MUTE THIS AI'}
+                {isSeatLocallyMuted ? '🔊 UNMUTE PLAYER' : '🔇 MUTE PLAYER'}
               </button>
+            )}
+
+            {isOnline && (
               <button
                 type="button"
-                onClick={() => {
-                  triggerAiLine(profileSeatIdx, 'banter');
-                  close();
-                }}
-                className="cursor-pointer rounded-xl border border-[#f1c40f]/50 bg-[#f1c40f]/20 py-2.5 font-display text-xs font-bold text-[#f1c40f]"
+                onClick={handleProfileVoiceRecord}
+                className="mirror-glass-btn w-full cursor-pointer rounded-xl py-2.5 font-display text-sm font-bold text-white"
+                style={{ background: recordingVoice ? 'rgba(231, 76, 60, 0.78)' : 'rgba(0, 0, 0, 0.24)' }}
               >
-                🗣️ SPEAK NOW
+                {recordingVoice ? '⏹️ STOP & SEND VOICE MSG' : '🎤 VOICE MSG (ALL)'}
               </button>
+            )}
+
+            {isOnline && (() => {
+              const recentVoice = chatMessages.filter((m) => !!m.audioData).slice(-3).reverse();
+              if (recentVoice.length === 0) return null;
+              return (
+                <div className="space-y-1.5 rounded-xl border border-white/25 bg-black/25 p-2.5">
+                  <div className="font-display text-[10px] font-bold text-[#86efac] uppercase">
+                    🎤 Recent Voice Notes
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {recentVoice.map((vn) => (
+                      <div key={vn.id} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="truncate font-semibold text-white">
+                          {stripSeatTag(vn.sender)} ({vn.duration || 2}s)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => playVoiceNote(vn.id)}
+                          className="cursor-pointer rounded-full border border-[#86efac] bg-[#166534] px-2.5 py-0.5 text-[11px] font-bold text-white hover:bg-[#15803d]"
+                        >
+                          ▶ Play
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Private Targeted Whisper Controls (Remote Human Seats in Online Multiplayer Only) */}
+            {isOnline && isHumanSeat && !isMyProfile && (() => {
+              const incomingFromSeat = incomingWhispers[profileSeatIdx];
+              const isWhisperBlocked = blockedWhisperSeats.includes(profileSeatIdx);
+              const isRecordingThisWhisper = whisperRecordingSeat === profileSeatIdx;
+              return (
+                <div className="space-y-2 rounded-2xl border border-[#c084fc]/60 bg-[#581c87]/30 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-display text-xs font-bold text-[#e9d5ff] uppercase">
+                      🤫 PRIVATE WHISPER
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleBlockWhisperSeat(profileSeatIdx)}
+                      className="cursor-pointer rounded-lg border border-white/30 bg-black/30 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-white/15"
+                    >
+                      {isWhisperBlocked ? '✅ UNBLOCK' : '🚫 BLOCK WHISPERS'}
+                    </button>
+                  </div>
+
+                  {incomingFromSeat && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => playIncomingWhisper(profileSeatIdx)}
+                        className="flex-1 cursor-pointer rounded-xl border border-[#e9d5ff] bg-[#7e22ce] py-2 font-display text-xs font-bold text-white shadow hover:bg-[#9333ea]"
+                      >
+                        🤫 PLAY WHISPER ({incomingFromSeat.duration}s)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dismissIncomingWhisper(profileSeatIdx)}
+                        className="cursor-pointer rounded-xl border border-white/30 bg-black/35 px-2.5 py-2 text-xs font-bold text-white"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (whisperRecorder.isRecording()) {
+                        whisperRecorder.stopAndSend();
+                      } else {
+                        void whisperRecorder.start(profileSeatIdx);
+                      }
+                    }}
+                    className="w-full cursor-pointer rounded-xl border border-[#d8b4fe]/75 py-2 font-display text-xs font-bold text-white"
+                    style={{
+                      background: isRecordingThisWhisper
+                        ? 'rgba(231, 76, 60, 0.85)'
+                        : 'rgba(126, 34, 206, 0.65)',
+                    }}
+                  >
+                    {isRecordingThisWhisper
+                      ? '⏹️ STOP & SEND PRIVATE WHISPER'
+                      : `🤫 WHISPER TO ${stripSeatTag(seatPlayer?.name || 'PLAYER').toUpperCase()}`}
+                  </button>
+                </div>
+              );
+            })()}
+
+            <div className="grid grid-cols-5 gap-2">
+              {['😂', '🔥', '👍', '😡', '👑', '🎲', '⚔️', '😭', '👏', '😈'].map((em) => (
+                <button
+                  key={em}
+                  type="button"
+                  onClick={() => {
+                    if (isOnline) multiplayerClient.sendReaction(em);
+                    else triggerReaction(profileSeatIdx, em);
+                    close();
+                  }}
+                  className="mirror-glass-btn flex h-11 w-full cursor-pointer items-center justify-center rounded-xl text-2xl"
+                >
+                  {em}
+                </button>
+              ))}
             </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleProfileVoiceRecord}
-            className="w-full cursor-pointer rounded-xl border border-white/25 py-2.5 font-display text-sm font-bold text-white"
-            style={{ background: recordingVoice ? '#e74c3c' : 'rgba(255,255,255,0.08)' }}
-          >
-            {recordingVoice ? '⏹️ STOP & SEND VOICE MSG' : '🎤 VOICE MSG'}
-          </button>
-
-          <div className="flex justify-center gap-2">
-            {['😂', '🔥', '👍', '😡', '👑'].map((em) => (
-              <button
-                key={em}
-                type="button"
-                onClick={() => {
-                  if (isOnline) multiplayerClient.sendReaction(em);
-                  else triggerReaction(profileSeatIdx, em);
-                  close();
-                }}
-                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/10 text-xl hover:bg-white/25"
-              >
-                {em}
-              </button>
-            ))}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {/* 6. Coach Skip Capture Confirmation */}
-      {activeModal === 'coachSkip' && (
-        <div className="royal-modal-card w-full max-w-[400px] space-y-4 text-center">
+      {/* 6. Coach Skip Capture Confirmation (Crystal Mirror-Glass Window) */}
+      {activeModal === 'coachSkip' && !turnAutoPlay && (
+        <div className="mirror-message-card w-full max-w-[400px] space-y-4 text-center">
           <div className="text-4xl">⚠️</div>
           <h2 className="royal-modal-title text-xl">CAPTURE OPPORTUNITY!</h2>
-          <p className="text-xs leading-relaxed text-white/80">
+          <p className="text-xs font-semibold leading-relaxed text-white">
             Compulsory capture rule: if you finish your turn without capturing an available opponent token on the open track, your token returns to base!
           </p>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
+              disabled={turnAutoPlay}
               onClick={close}
-              className="cursor-pointer rounded-xl bg-[#27ae60] py-3 font-display text-sm font-bold text-white"
+              className="cursor-pointer rounded-xl border border-white/65 bg-[#27ae60]/80 py-3 font-display text-sm font-bold text-white shadow-md hover:bg-[#27ae60]"
             >
               GO BACK &amp; CAPTURE
             </button>
             <button
               type="button"
-              onClick={confirmCoachSkipMove}
-              className="cursor-pointer rounded-xl border border-[#e74c3c] bg-[#e74c3c]/20 py-3 font-display text-sm font-bold text-[#ffb3ad]"
+              disabled={turnAutoPlay}
+              onClick={() => {
+                const st = useGameStore.getState();
+                const pending = st.pendingCoachMove;
+                confirmCoachSkipMove();
+                if (st.isOnline && pending) {
+                  multiplayerClient.movePawn(pending.pawnIdx, pending.steps, pending.dieIdx);
+                }
+              }}
+              className="mirror-glass-btn cursor-pointer rounded-xl border-[#ffb3ad] bg-[#e74c3c]/45 py-3 font-display text-sm font-bold text-white"
             >
               MOVE ANYWAY
             </button>
@@ -658,18 +864,20 @@ export const Modals: React.FC = () => {
         </div>
       )}
 
-      {/* 7. Gul or Pass Choice */}
-      {activeModal === 'gulPass' && pendingGulMove && (
-        <div className="royal-modal-card w-full max-w-[400px] space-y-4 text-center">
+      {/* 7. Gul or Pass Choice (Crystal Mirror-Glass Window) */}
+      {activeModal === 'gulPass' && pendingGulMove && !turnAutoPlay && (
+        <div className="mirror-message-card w-full max-w-[400px] space-y-4 text-center">
           <div className="text-4xl">👑</div>
           <h2 className="royal-modal-title text-2xl">GUL OR PASS?</h2>
-          <p className="text-xs leading-relaxed text-white/80">
+          <p className="text-xs font-semibold leading-relaxed text-white">
             Your token reached Centre Home (69)! Choose <strong>GUL (ENTER)</strong> for a bonus turn, or <strong>PASS</strong> to keep it on your home path.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
+              disabled={turnAutoPlay}
               onClick={() => {
+                if (useGameStore.getState().turnAutoPlay) return;
                 if (isOnline) {
                   setActiveModal(null);
                   multiplayerClient.submitGulChoice('gul');
@@ -677,13 +885,16 @@ export const Modals: React.FC = () => {
                   confirmGulChoice('gul');
                 }
               }}
-              className="cursor-pointer rounded-xl bg-[#f1c40f] py-3 font-display text-base font-bold text-black"
+              className="cursor-pointer rounded-xl border border-white/75 bg-[#f1c40f]/90 py-3 font-display text-base font-bold text-black shadow-md hover:bg-[#f1c40f]"
+              style={{ textShadow: 'none' }}
             >
               GUL (ENTER)
             </button>
             <button
               type="button"
+              disabled={turnAutoPlay}
               onClick={() => {
+                if (useGameStore.getState().turnAutoPlay) return;
                 if (isOnline) {
                   setActiveModal(null);
                   multiplayerClient.submitGulChoice('pass');
@@ -691,7 +902,7 @@ export const Modals: React.FC = () => {
                   confirmGulChoice('pass');
                 }
               }}
-              className="cursor-pointer rounded-xl border border-white/25 bg-white/10 py-3 font-display text-base font-bold text-white"
+              className="mirror-glass-btn cursor-pointer rounded-xl py-3 font-display text-base font-bold text-white"
             >
               PASS
             </button>
@@ -699,11 +910,16 @@ export const Modals: React.FC = () => {
         </div>
       )}
 
-      {/* 8. Tournament Rules Modal */}
+      {/* 8. Tournament Rules Modal (Coming Soon Preview) */}
       {activeModal === 'tournamentRules' && (
         <div className="royal-modal-card w-full max-w-[440px] space-y-4">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2 className="royal-modal-title text-2xl">🏆 {translate(prefs.language, 'tourney_rules_title')}</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="royal-modal-title text-2xl">🏆 {translate(prefs.language, 'tourney_rules_title')}</h2>
+              <span className="rounded-md border border-[#f1c40f]/55 bg-[#f1c40f]/20 px-2 py-0.5 font-display text-[11px] font-bold tracking-wider text-[#f1c40f] uppercase">
+                Coming Soon
+              </span>
+            </div>
             <button
               type="button"
               onClick={close}
@@ -734,10 +950,13 @@ export const Modals: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => startLocalMatch(true)}
-            className="w-full cursor-pointer rounded-xl bg-[#f1c40f] py-3 font-display text-base font-bold text-black"
+            onClick={() => {
+              showToast('🏆 Tournament Mode is Coming Soon!');
+              close();
+            }}
+            className="w-full cursor-pointer rounded-xl border border-[#f1c40f]/45 bg-[#f1c40f]/15 py-3 font-display text-base font-bold text-[#f1c40f] hover:bg-[#f1c40f]/25"
           >
-            {translate(prefs.language, 'start_tourney')}
+            🔒 COMING SOON — STAY TUNED
           </button>
         </div>
       )}

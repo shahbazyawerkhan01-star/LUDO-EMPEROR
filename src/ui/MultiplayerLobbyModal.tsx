@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
 import { stripSeatTag } from '../game/rules';
+import { sfx } from '../game/sfx';
 import { multiplayerClient } from '../network/multiplayerClient';
 import { runSdk } from '../sdk/runSdk';
 import { useGameStore } from '../state/store';
+
+const QUICK_CHAT_PRESETS = [
+  'Good move! 👏',
+  'Play fast! ⏱️',
+  'So lucky! 🍀',
+  'Watch out! 🔥',
+  'Oops! 😅',
+  'Well played! 👍',
+];
 
 export const MultiplayerLobbyModal: React.FC = () => {
   const {
@@ -11,12 +21,15 @@ export const MultiplayerLobbyModal: React.FC = () => {
     hostSeatIndex,
     amHost,
     fillBots,
+    secretWhispers,
     onlineTimerConfig,
     onlineSeats,
     chatMessages,
     roomError,
     gameStarted,
+    prefs,
     setActiveModal,
+    toggleSeatMute,
     showToast,
   } = useGameStore();
 
@@ -89,6 +102,11 @@ export const MultiplayerLobbyModal: React.FC = () => {
 
   return (
     <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget && gameStarted) {
+          setActiveModal(null);
+        }
+      }}
       style={{
         position: 'absolute',
         inset: 0,
@@ -96,23 +114,23 @@ export const MultiplayerLobbyModal: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(8px)',
+        background: gameStarted ? 'transparent' : 'rgba(0, 0, 0, 0.8)',
+        backdropFilter: gameStarted ? 'none' : 'blur(8px)',
         padding: '16px',
       }}
     >
       <div
-        className="royal-modal-card modal-scroll flex max-h-[92vh] w-full max-w-[500px] flex-col gap-3.5 overflow-y-auto"
-        style={{ borderColor: roomCode ? '#2ecc71' : '#f1c40f' }}
+        className={`${gameStarted ? 'mirror-message-card' : 'royal-modal-card'} modal-scroll flex max-h-[92vh] w-full max-w-[500px] flex-col gap-3.5 overflow-y-auto`}
+        style={{ borderColor: roomCode ? (gameStarted ? 'rgba(46, 204, 113, 0.85)' : '#2ecc71') : '#f1c40f' }}
       >
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className={`flex items-center justify-between border-b ${gameStarted ? 'border-white/35' : 'border-white/10'} pb-3`}>
           <h2 className="royal-modal-title text-xl" style={{ color: roomCode ? '#2ecc71' : '#f1c40f' }}>
             {roomCode ? `🌐 ONLINE ROOM: ${roomCode}` : '👥 ONLINE 5-WAY MULTIPLAYER'}
           </h2>
           <button
             type="button"
             onClick={() => setActiveModal(null)}
-            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-white/10 font-bold text-white hover:bg-white/20"
+            className={`${gameStarted ? 'mirror-glass-btn' : 'border border-white/25 bg-white/10 hover:bg-white/20'} flex h-9 w-9 cursor-pointer items-center justify-center rounded-full font-bold text-white`}
           >
             ✕
           </button>
@@ -240,16 +258,22 @@ export const MultiplayerLobbyModal: React.FC = () => {
               {[0, 1, 2, 3, 4].map((idx) => {
                 const s = onlineSeats[idx];
                 const isHostSeat = idx === hostSeatIndex;
+                const isRemoteHuman = !s?.isAI && mySeat !== idx;
+                const isSeatMuted = prefs.mutedSeats.includes(idx);
                 return (
                   <div
                     key={idx}
-                    className="flex items-center justify-between rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs"
+                    className={`flex items-center justify-between rounded-xl border px-3 py-2 text-xs ${
+                      gameStarted ? 'border-white/35 bg-black/22' : 'border-white/15 bg-white/5'
+                    }`}
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className="h-3 w-3 rounded-full"
+                        className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white/40 text-xs"
                         style={{ backgroundColor: s?.color || '#64748b' }}
-                      />
+                      >
+                        {s?.icon || '🤴'}
+                      </span>
                       <span className="font-display text-sm font-bold text-white">
                         {stripSeatTag(s?.name || `Player ${idx + 1}`)}
                       </span>
@@ -264,30 +288,43 @@ export const MultiplayerLobbyModal: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <span
-                      className="font-display font-bold"
-                      style={{
-                        color: s?.tempBotTakeover
-                          ? '#f39c12'
+                    <div className="flex items-center gap-2">
+                      {isRemoteHuman && s?.connected && (
+                        <button
+                          type="button"
+                          onClick={() => toggleSeatMute(idx)}
+                          title={isSeatMuted ? 'Unmute this player' : 'Mute this player'}
+                          className="cursor-pointer rounded-lg border border-white/25 bg-black/35 px-2 py-0.5 text-xs text-white hover:bg-white/20"
+                          style={{ opacity: isSeatMuted ? 0.6 : 1 }}
+                        >
+                          {isSeatMuted ? '🔇' : '🔊'}
+                        </button>
+                      )}
+                      <span
+                        className="font-display font-bold"
+                        style={{
+                          color: s?.tempBotTakeover
+                            ? '#f39c12'
+                            : s?.isAI
+                              ? '#c084fc'
+                              : !s?.connected
+                                ? '#e74c3c'
+                                : s?.ready
+                                  ? '#2ecc71'
+                                  : '#f1c40f',
+                        }}
+                      >
+                        {s?.tempBotTakeover
+                          ? 'BOT COVER'
                           : s?.isAI
-                            ? '#c084fc'
+                            ? 'AI BOT'
                             : !s?.connected
-                              ? '#e74c3c'
+                              ? 'OFFLINE'
                               : s?.ready
-                                ? '#2ecc71'
-                                : '#f1c40f',
-                      }}
-                    >
-                      {s?.tempBotTakeover
-                        ? 'BOT COVER'
-                        : s?.isAI
-                          ? 'AI BOT'
-                          : !s?.connected
-                            ? 'OFFLINE'
-                            : s?.ready
-                              ? 'READY'
-                              : 'WAITING'}
-                    </span>
+                                ? 'READY'
+                                : 'WAITING'}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
@@ -308,6 +345,22 @@ export const MultiplayerLobbyModal: React.FC = () => {
                     }}
                   >
                     {fillBots ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-display font-bold text-white">🤫 SECRET WHISPERS</span>
+                  <button
+                    type="button"
+                    onClick={() => multiplayerClient.toggleSecretWhispers(!secretWhispers)}
+                    className="cursor-pointer rounded-lg px-3 py-1 font-display text-xs font-bold"
+                    style={{
+                      background: secretWhispers ? '#9333ea' : 'rgba(255,255,255,0.12)',
+                      color: '#fff',
+                    }}
+                    title="When OFF (Transparent), room sees who whispered to whom without hearing audio"
+                  >
+                    {secretWhispers ? 'ON (HIDDEN)' : 'OFF (TRANSPARENT)'}
                   </button>
                 </div>
 
@@ -363,18 +416,46 @@ export const MultiplayerLobbyModal: React.FC = () => {
             )}
 
             {/* Live Room Chat */}
-            <div className="space-y-2 rounded-2xl border border-white/15 bg-white/5 p-3">
+            <div className={`space-y-2 rounded-2xl border p-3 ${gameStarted ? 'border-white/45 bg-black/20' : 'border-white/15 bg-white/5'}`}>
               <div className="modal-scroll max-h-28 space-y-1 overflow-y-auto text-xs">
                 {chatMessages.length === 0 ? (
-                  <div className="text-white/50">No messages yet. Say hello!</div>
+                  <div className={gameStarted ? 'text-white/85' : 'text-white/50'}>No messages yet. Say hello!</div>
                 ) : (
                   chatMessages.map((m) => (
-                    <div key={m.id}>
+                    <div key={m.id} className="flex flex-wrap items-center gap-1.5">
                       <span className="font-bold text-[#2ecc71]">{stripSeatTag(m.sender)}: </span>
-                      <span className="text-white/90">{m.text}</span>
+                      {m.audioData ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (m.audioData) {
+                              useGameStore.getState().playVoiceNote(m.id);
+                            }
+                          }}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-[#2ecc71]/60 bg-[#27ae60]/30 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-[#27ae60]/55"
+                        >
+                          <span>▶ Play ({m.duration || 2}s)</span>
+                        </button>
+                      ) : (
+                        <span className="text-white">{m.text}</span>
+                      )}
                     </div>
                   ))
                 )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_CHAT_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => multiplayerClient.sendChat(preset)}
+                    className={`cursor-pointer rounded-lg border px-2 py-1 text-[11px] font-bold text-white hover:border-[#f1c40f] ${
+                      gameStarted ? 'mirror-glass-btn' : 'border-white/20 bg-white/10'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
               </div>
               <form onSubmit={handleSendChat} className="flex gap-1.5">
                 <input
@@ -383,11 +464,11 @@ export const MultiplayerLobbyModal: React.FC = () => {
                   value={chatText}
                   onChange={(e) => setChatText(e.target.value)}
                   placeholder="Type message..."
-                  className="flex-1 rounded-xl border border-white/20 bg-black/70 px-3 py-2 text-xs text-white outline-none"
+                  className={`${gameStarted ? 'mirror-glass-input' : 'border border-white/20 bg-black/70 text-white'} flex-1 rounded-xl px-3 py-2 text-xs outline-none`}
                 />
                 <button
                   type="submit"
-                  className="cursor-pointer rounded-xl bg-[#27ae60] px-4 font-display text-xs font-bold text-white"
+                  className="cursor-pointer rounded-xl border border-white/55 bg-[#27ae60]/90 px-4 font-display text-xs font-bold text-white hover:bg-[#27ae60]"
                 >
                   SEND
                 </button>

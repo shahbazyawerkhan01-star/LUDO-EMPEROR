@@ -1,4 +1,4 @@
-import dialoguesData from './aiDialogues.json';
+import enDialoguePack from './dialogues/en.json';
 
 export type BanterEvent =
   | 'turn'
@@ -14,15 +14,21 @@ export type BanterEvent =
   | 'loss'
   | 'banter';
 
-type DialogueEntry = string | {
-  text: string;
-  roman?: string;
-};
+type DialogueEntry =
+  | string
+  | {
+      text: string;
+      roman?: string;
+    };
 
-type DialogueMap = Record<string, Record<string, DialogueEntry[]>>;
+type DialogueEventMap = Record<string, DialogueEntry[]>;
 
-const DIALOGUES = dialoguesData as unknown as DialogueMap;
+const EN_PACK = enDialoguePack as unknown as DialogueEventMap;
+const loadedLanguagePacks = new Map<string, DialogueEventMap>([['en', EN_PACK]]);
+const loadingPromises = new Map<string, Promise<void>>();
 const lastPickedIndex = new Map<string, number>();
+
+export const AI_EVENT_LINE_COUNT = 5;
 
 const PERSONALITY_EMOTES: Record<string, string[]> = {
   Strategist: ['🧐', '📊', '♟️', '⚡', '🎯'],
@@ -46,21 +52,78 @@ const FALLBACK_LINES: Record<BanterEvent, string[]> = {
   banter: ['Great match everyone! Stay sharp! 🎲'],
 };
 
-export function getAILine(lang: string, event: BanterEvent): string {
-  const langDict = DIALOGUES[lang] || DIALOGUES['en'] || {};
-  const list = langDict[event] || langDict['banter'] || DIALOGUES['en']?.[event] || [];
+export function preloadDialogueLanguage(lang: string): Promise<void> {
+  const safeLang = (lang || 'en').trim().toLowerCase();
+  if (!safeLang || loadedLanguagePacks.has(safeLang)) return Promise.resolve();
+  if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve();
+
+  const existing = loadingPromises.get(safeLang);
+  if (existing) return existing;
+
+  const p = fetch(`/dialogues/${encodeURIComponent(safeLang)}.json`)
+    .then(async (resp) => {
+      if (!resp.ok) return;
+      const json = (await resp.json()) as DialogueEventMap;
+      if (json && typeof json === 'object') {
+        loadedLanguagePacks.set(safeLang, json);
+      }
+    })
+    .catch(() => {
+      // Fall back cleanly to EN_PACK if offline
+    })
+    .finally(() => {
+      loadingPromises.delete(safeLang);
+    });
+
+  loadingPromises.set(safeLang, p);
+  return p;
+}
+
+export function getAILineWithIndex(
+  lang: string,
+  event: BanterEvent,
+  forcedIdx?: number,
+): { text: string; lineIdx: number } {
+  const safeLang = (lang || 'en').trim().toLowerCase();
+  if (!loadedLanguagePacks.has(safeLang)) {
+    void preloadDialogueLanguage(safeLang);
+  }
+  const langDict = loadedLanguagePacks.get(safeLang) || EN_PACK;
+  const list = langDict[event] || langDict['banter'] || EN_PACK[event] || [];
   if (list.length > 0) {
-    const key = `${lang}:${event}`;
-    let idx = Math.floor(Math.random() * list.length);
-    if (list.length > 1 && lastPickedIndex.get(key) === idx) {
-      idx = (idx + 1) % list.length;
+    let idx: number;
+    if (typeof forcedIdx === 'number' && Number.isInteger(forcedIdx) && forcedIdx >= 0) {
+      idx = forcedIdx % list.length;
+    } else {
+      const key = `${safeLang}:${event}`;
+      idx = Math.floor(Math.random() * list.length);
+      if (list.length > 1 && lastPickedIndex.get(key) === idx) {
+        idx = (idx + 1) % list.length;
+      }
+      lastPickedIndex.set(key, idx);
     }
-    lastPickedIndex.set(key, idx);
     const pick = list[idx];
-    return typeof pick === 'string' ? pick : pick.text;
+    return {
+      text: typeof pick === 'string' ? pick : pick.text,
+      lineIdx: idx,
+    };
   }
   const fb = FALLBACK_LINES[event] || FALLBACK_LINES.banter;
-  return fb[Math.floor(Math.random() * fb.length)];
+  const idx =
+    typeof forcedIdx === 'number' && Number.isInteger(forcedIdx) && forcedIdx >= 0
+      ? forcedIdx % fb.length
+      : Math.floor(Math.random() * fb.length);
+  return { text: fb[idx], lineIdx: idx };
+}
+
+export function getAILine(lang: string, event: BanterEvent, forcedIdx?: number): string {
+  return getAILineWithIndex(lang, event, forcedIdx).text;
+}
+
+export function getStaticAiClipUrl(lang: string, event: BanterEvent, lineIdx: number): string {
+  const safeLang = (lang || 'en').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'en';
+  const safeIdx = Math.max(0, Math.floor(lineIdx));
+  return `/audio/tts/${safeLang}/${event}_${safeIdx}.mp3`;
 }
 
 export function getPersonalityEmote(personality: string): string {

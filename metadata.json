@@ -1,6 +1,6 @@
 {
   "name": "Ludo Dethroned",
   "description": "5-way multiplayer Ludo Dethroned board game with real-time Socket.io networking.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

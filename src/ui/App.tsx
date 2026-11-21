@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LudoScene } from '../game/ludoScene';
+import { LudoScene, type NameplateScreenPos } from '../game/ludoScene';
+import { sfx } from '../game/sfx';
 import { multiplayerClient } from '../network/multiplayerClient';
 import { canMovePawn, isLoneTokenOnTrack } from '../game/rules';
 import { runSdk } from '../sdk/runSdk';
@@ -9,6 +10,8 @@ import { MainMenu } from './MainMenu';
 import { Modals } from './Modals';
 import { SetupScreen } from './SetupScreen';
 
+let bootInviteHandled = false;
+
 export const App: React.FC = () => {
   const viewportShellRef = useRef<HTMLDivElement | null>(null);
   const stageContainerRef = useRef<HTMLDivElement | null>(null);
@@ -17,6 +20,7 @@ export const App: React.FC = () => {
   const [viewModeOverride, setViewModeOverride] = useState<'auto' | 'portrait' | 'landscape'>('auto');
   const viewModeOverrideRef = useRef<'auto' | 'portrait' | 'landscape'>('auto');
   viewModeOverrideRef.current = viewModeOverride;
+  const [nameplates, setNameplates] = useState<NameplateScreenPos[]>([]);
 
   const [layoutMetrics, setLayoutMetrics] = useState<{
     isLandscape: boolean;
@@ -178,19 +182,32 @@ export const App: React.FC = () => {
     });
   };
 
-  // Check ?room=CODE invite query param or saved reconnect session on mount
+  // Check ?room=CODE invite query param or saved reconnect session on mount (once across StrictMode)
   useEffect(() => {
+    if (bootInviteHandled) return;
+    bootInviteHandled = true;
     const params = new URLSearchParams(window.location.search);
     const code = (params.get('room') || params.get('invite') || '').trim().toUpperCase();
     if (code) {
-      const savedName = runSdk.getOnlineName() || 'Guest';
+      const existingName = runSdk.getOnlineName().trim();
+      const savedName = existingName || 'Guest';
       const savedWish = runSdk.getOnlineWish();
-      multiplayerClient.joinRoom(code, savedName, savedWish).then((ok) => {
+      multiplayerClient.joinRoom(code, savedName, savedWish, !!existingName).then((ok) => {
         if (!ok) useGameStore.getState().setActiveModal('lobby');
       });
     } else {
       multiplayerClient.tryAutoReconnect();
     }
+  }, []);
+
+  // Unlock AudioContext & preload core SFX on first user interaction
+  useEffect(() => {
+    const onFirstTap = () => {
+      sfx.unlockAudio();
+      window.removeEventListener('pointerdown', onFirstTap, true);
+    };
+    window.addEventListener('pointerdown', onFirstTap, true);
+    return () => window.removeEventListener('pointerdown', onFirstTap, true);
   }, []);
 
   // Local 1s countdown timer
@@ -208,6 +225,7 @@ export const App: React.FC = () => {
     const scene = new LudoScene(stageContainerRef.current, {
       onPawnTap: (pIdx, pawnIdx) => {
         const st = useGameStore.getState();
+        if (st.turnAutoPlay) return;
         if (!st.isOnline) {
           st.handleLocalPawnTap(pIdx, pawnIdx);
           return;
@@ -254,11 +272,14 @@ export const App: React.FC = () => {
         }
 
         if (steps !== null && dieIdx !== -1) {
-          multiplayerClient.movePawn(pawnIdx, steps, dieIdx);
+          if (st.attemptOnlineMoveWithCoachCheck(pawnIdx, steps, dieIdx)) {
+            multiplayerClient.movePawn(pawnIdx, steps, dieIdx);
+          }
         }
       },
       onBaseTap: (pIdx) => {
         const st = useGameStore.getState();
+        if (st.turnAutoPlay) return;
         if (!st.isOnline) {
           st.handleLocalBaseTap(pIdx);
           return;
@@ -266,16 +287,24 @@ export const App: React.FC = () => {
         if (st.mySeat !== st.currentPlayer || pIdx !== st.currentPlayer || !st.hasRolled || st.isRolling) return;
         if (!st.movesAvailable.includes(6)) return;
         const homeIdx = st.pawns[pIdx].findIndex((p) => p.status === 'home');
-        if (homeIdx >= 0) multiplayerClient.movePawn(homeIdx, 6, st.movesAvailable.findIndex((v) => v === 6));
+        if (homeIdx >= 0) {
+          const sixIdx = st.movesAvailable.findIndex((v) => v === 6);
+          if (sixIdx >= 0 && st.attemptOnlineMoveWithCoachCheck(homeIdx, 6, sixIdx)) {
+            multiplayerClient.movePawn(homeIdx, 6, sixIdx);
+          }
+        }
       },
       onDiceTap: () => {
         const st = useGameStore.getState();
-        if (!st.gameStarted || st.matchOver || st.hasRolled || st.isRolling) return;
+        if (!st.gameStarted || st.matchOver || st.hasRolled || st.isRolling || st.turnAutoPlay) return;
         if (st.isOnline) {
           if (st.mySeat === st.currentPlayer) multiplayerClient.rollDice(false);
         } else if (!st.players[st.currentPlayer]?.isAI) {
           st.rollLocalDice(false);
         }
+      },
+      onNameplatesChange: (plates) => {
+        setNameplates(plates);
       },
     });
 
@@ -313,6 +342,7 @@ export const App: React.FC = () => {
       useGameStore.getState().setSceneHandlers({});
       scene.destroy();
       sceneRef.current = null;
+      setNameplates([]);
     };
   }, [screen]);
 
@@ -374,7 +404,12 @@ export const App: React.FC = () => {
         {screen === 'playing' && (
           <>
             <div id="game-stage" ref={stageContainerRef} />
-            <Hud onToggleAspectRatio={handleToggleAspectRatio} />
+            <Hud
+              onToggleAspectRatio={handleToggleAspectRatio}
+              nameplates={nameplates}
+              logicalW={layoutMetrics.logicalW}
+              logicalH={layoutMetrics.logicalH}
+            />
           </>
         )}
 

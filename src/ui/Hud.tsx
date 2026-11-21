@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { type NameplateScreenPos } from '../game/ludoScene';
 import {
   canAnyPawnMove,
   canMovePawn,
@@ -7,17 +8,25 @@ import {
   isLoneTokenOnTrack,
   stripSeatTag,
 } from '../game/rules';
+import { voiceNoteRecorder } from '../network/audioCapture';
 import { multiplayerClient } from '../network/multiplayerClient';
+import { whisperRecorder } from '../network/whisperRecorder';
 import { useGameStore } from '../state/store';
 import { translate } from '../i18n';
 
-const REACTION_EMOJIS = ['😂', '❤️', '🔥', '😡', '👍'];
-
 interface HudProps {
   onToggleAspectRatio: () => void;
+  nameplates: NameplateScreenPos[];
+  logicalW: number;
+  logicalH: number;
 }
 
-export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
+export const Hud: React.FC<HudProps> = ({
+  onToggleAspectRatio,
+  nameplates,
+  logicalW,
+  logicalH,
+}) => {
   const {
     players,
     pawns,
@@ -31,27 +40,72 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
     isOnline,
     mySeat,
     turnSecondsLeft,
+    turnAutoPlay,
     prefs,
     winStats,
     wishUsedThisMatch,
     roomCode,
     onlineTimerConfig,
     speakingSeat,
+    onlineSeats,
+    incomingWhispers,
+    pendingVoiceNotes,
+    whisperRecordingSeat,
     selectDieIndex,
     rollLocalDice,
     setActiveModal,
     openProfileModal,
-    triggerReaction,
     toggleAiVoiceMute,
-    toggleSeatMute,
-    showToast,
+    playIncomingWhisper,
+    dismissIncomingWhisper,
+    playVoiceNote,
+    dismissVoiceNote,
   } = useGameStore();
 
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const [isRecording, setIsRecording] = useState(() => voiceNoteRecorder.isRecording());
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextClickRef = useRef(false);
 
-  // Exact original updateAIJudge: Top 3 leaders with short name + % + inline reaction tray
+  const clearLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleSeatPointerDown = (seatIdx: number, canWhisperTarget: boolean, hasPendingWhisper: boolean) => {
+    clearLongPress();
+    suppressNextClickRef.current = false;
+    if (!canWhisperTarget || hasPendingWhisper) return;
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      suppressNextClickRef.current = true;
+      void whisperRecorder.start(seatIdx);
+    }, 450);
+  };
+
+  const handleSeatPointerEnd = (seatIdx: number) => {
+    clearLongPress();
+    if (whisperRecorder.isRecording() && whisperRecorder.getTargetSeat() === seatIdx) {
+      whisperRecorder.stopAndSend();
+    }
+  };
+
+  useEffect(() => {
+    const unsub = voiceNoteRecorder.subscribe(setIsRecording);
+    return () => {
+      unsub();
+      clearLongPress();
+      if (voiceNoteRecorder.isRecording()) {
+        voiceNoteRecorder.cancel();
+      }
+      if (whisperRecorder.isRecording()) {
+        whisperRecorder.cancel();
+      }
+    };
+  }, []);
+
+  // Exact original updateAIJudge: Top 3 leaders with short name + %
   const top3Judges = useMemo(() => {
     const progressValues = players.map((p, idx) => {
       const { percentage } = getPlayerProgressPercent(pawns, idx);
@@ -99,8 +153,8 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
   }, [players, winStats, isTournament]);
 
   const isMyTurn = isOnline ? mySeat === currentPlayer : !players[currentPlayer]?.isAI;
-  const canRoll = isMyTurn && !hasRolled && !isRolling;
-  const wishAvailable = isMyTurn && !hasRolled && !isRolling && !wishUsedThisMatch[currentPlayer];
+  const canRoll = isMyTurn && !hasRolled && !isRolling && !turnAutoPlay;
+  const wishAvailable = isMyTurn && !hasRolled && !isRolling && !turnAutoPlay && !wishUsedThisMatch[currentPlayer];
 
   const timerEnabled = isOnline ? onlineTimerConfig.enabled : prefs.turnTimerEnabled;
   const timerDuration = isOnline ? onlineTimerConfig.duration : prefs.turnTimerDuration;
@@ -113,6 +167,7 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
   const combinedTotal = movesAvailable.reduce((a, b) => a + b, 0);
   const canCombinedMove =
     isMyTurn &&
+    !turnAutoPlay &&
     hasRolled &&
     isLone &&
     movesAvailable.length > 1 &&
@@ -136,69 +191,29 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
     const lonePawnIdx = pawns[currentPlayer].findIndex((p) => p.status === 'on-path');
     if (lonePawnIdx < 0) return;
     if (isOnline) {
-      multiplayerClient.movePawn(lonePawnIdx, combinedTotal, 'combined');
+      if (useGameStore.getState().attemptOnlineMoveWithCoachCheck(lonePawnIdx, combinedTotal, 'combined')) {
+        multiplayerClient.movePawn(lonePawnIdx, combinedTotal, 'combined');
+      }
     } else {
       useGameStore.getState().handleLocalPawnTap(currentPlayer, lonePawnIdx);
     }
   };
 
-  const handleToggleVoiceRecord = async () => {
-    if (isRecording && mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      showToast('Microphone unavailable in this browser.');
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      const startedAt = Date.now();
-      mr.ondataavailable = (ev) => {
-        if (ev.data.size > 0) audioChunksRef.current.push(ev.data);
-      };
-      mr.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64 = typeof reader.result === 'string' ? reader.result : '';
-          if (!base64) return;
-          const dur = Math.max(1, Math.min(10, Math.round((Date.now() - startedAt) / 1000)));
-          if (isOnline) {
-            multiplayerClient.sendVoiceNote(base64, dur);
-            showToast('Voice note sent!');
-          } else {
-            new Audio(base64).play().catch(() => {});
-            showToast('Voice note recorded!');
-          }
-        };
-        reader.readAsDataURL(blob);
-      };
-      mediaRecorderRef.current = mr;
-      mr.start();
-      setIsRecording(true);
-      setTimeout(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.stop();
-          setIsRecording(false);
-        }
-      }, 6500);
-    } catch {
-      showToast('Microphone permission denied.');
-    }
+  const handleToggleVoiceRecord = () => {
+    void voiceNoteRecorder.toggle();
   };
 
-  const sendEmoji = (seatIdx: number, emoji: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isOnline) {
-      multiplayerClient.sendReaction(emoji);
-    } else {
-      triggerReaction(seatIdx, emoji);
-    }
+  const handleOpenQuickChat = () => {
+    const targetSeat =
+      isOnline && typeof mySeat === 'number'
+        ? mySeat
+        : !players[currentPlayer]?.isAI
+          ? currentPlayer
+          : Math.max(
+              0,
+              players.findIndex((p) => !p.isAI),
+            );
+    openProfileModal(targetSeat);
   };
 
   return (
@@ -227,11 +242,10 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
       {/* Portrait Game Title */}
       <h1 id="title">{isTournament ? '👑 TOURNAMENT LUDO 5 WAY' : 'LUDO DETHRONED 5 WAY'}</h1>
 
-      {/* Exact Original Top-3 AI Judge Progress Bar with Inline Emoji & Mute Controls */}
+      {/* Clean Top-3 AI Judge Progress Bar (Progress % & Speaking Status Only) */}
       <div id="ai-judge-bar" className={isTournament ? 'tournament' : ''}>
         {top3Judges.map((entry) => {
-          const isSeatMuted = prefs.aiVoiceMuted || prefs.mutedSeats.includes(entry.idx);
-          const isSpeakingNow = speakingSeat === entry.idx;
+          const isAiSpeakingNow = speakingSeat === entry.idx;
           return (
             <div
               key={entry.idx}
@@ -240,67 +254,18 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
               style={{
                 width: `${entry.widthPct}%`,
                 backgroundColor: entry.color,
-                boxShadow: isSpeakingNow
+                boxShadow: isAiSpeakingNow
                   ? 'inset 0 0 0 3px #f1c40f'
                   : currentPlayer === entry.idx
                     ? 'inset 0 0 0 2px #ffffff'
                     : undefined,
               }}
             >
-              <div className="judge-name">
-                {isSpeakingNow ? '🗣️ ' : ''}
-                {entry.shortName}: {entry.pct}%
-              </div>
-              <div
-                className="emoji-tray"
-                style={{ fontSize: entry.widthPct < 24 ? '10px' : '13px' }}
-              >
-                <button
-                  type="button"
-                  className="react-btn"
-                  title={
-                    entry.isAI
-                      ? isSeatMuted
-                        ? `Unmute ${entry.fullName}`
-                        : `Mute ${entry.fullName}`
-                      : 'Send Voice Note'
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!entry.isAI) {
-                      handleToggleVoiceRecord();
-                    } else if (prefs.aiVoiceMuted) {
-                      toggleAiVoiceMute();
-                    } else {
-                      toggleSeatMute(entry.idx);
-                    }
-                  }}
-                  style={{ fontSize: '12px', opacity: entry.isAI && isSeatMuted ? 0.55 : 0.92 }}
-                >
-                  {entry.isAI ? (isSeatMuted ? '🔇' : '🔊') : '🎤'}
-                </button>
-                <button
-                  type="button"
-                  className="react-btn"
-                  title="Player Profile & Chat"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openProfileModal(entry.idx);
-                  }}
-                  style={{ opacity: 0.85 }}
-                >
-                  💬
-                </button>
-                {REACTION_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    className="react-btn"
-                    onClick={(e) => sendEmoji(entry.idx, emoji, e)}
-                  >
-                    {emoji}
-                  </button>
-                ))}
+              <div className="judge-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {isAiSpeakingNow ? <span>🗣️</span> : null}
+                <span>
+                  {entry.shortName}: {entry.pct}%
+                </span>
               </div>
             </div>
           );
@@ -332,6 +297,99 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
         ))}
       </div>
 
+      {/* Whisper-Only Layer for Board Nameplates (Online Remote Connected Humans + Incoming Whisper Badges) */}
+      {isOnline &&
+        nameplates.map((plate) => {
+          const seatPlayer = players[plate.seatIdx];
+          if (!seatPlayer) return null;
+          const cleanName = stripSeatTag(seatPlayer.name);
+          const isMe = mySeat === plate.seatIdx;
+          const canWhisperTarget =
+            !seatPlayer.isAI && !isMe && !!onlineSeats[plate.seatIdx]?.connected;
+          const pendingWhisper = incomingWhispers[plate.seatIdx];
+          if (!canWhisperTarget && !pendingWhisper) return null;
+
+          const isWhisperTargetNow = whisperRecordingSeat === plate.seatIdx;
+          const badgeX = Math.max(22, Math.min(logicalW - 22, plate.x + Math.max(36, plate.w * 0.42)));
+          const badgeY = Math.max(22, Math.min(logicalH - 22, plate.y - Math.max(15, plate.h * 0.48)));
+
+          return (
+            <React.Fragment key={`plate-whisper-${plate.seatIdx}`}>
+              {(canWhisperTarget || !!pendingWhisper) && (
+                <button
+                  type="button"
+                  className={`nameplate-hit-btn ${isWhisperTargetNow ? 'is-whisper-target' : ''} ${pendingWhisper ? 'has-pending-whisper' : ''}`}
+                  title={
+                    pendingWhisper
+                      ? `Tap to listen to private whisper from ${cleanName}`
+                      : isWhisperTargetNow
+                        ? `Tap to send private whisper to ${cleanName}`
+                        : `Whisper to ${cleanName} (Tap or Hold)`
+                  }
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    handleSeatPointerDown(plate.seatIdx, canWhisperTarget, !!pendingWhisper);
+                  }}
+                  onPointerUp={(e) => {
+                    e.stopPropagation();
+                    handleSeatPointerEnd(plate.seatIdx);
+                  }}
+                  onPointerCancel={() => handleSeatPointerEnd(plate.seatIdx)}
+                  onPointerLeave={() => clearLongPress()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (suppressNextClickRef.current) {
+                      suppressNextClickRef.current = false;
+                      return;
+                    }
+                    if (pendingWhisper) {
+                      playIncomingWhisper(plate.seatIdx);
+                      return;
+                    }
+                    if (!canWhisperTarget) return;
+                    if (
+                      whisperRecorder.isRecording() &&
+                      whisperRecorder.getTargetSeat() === plate.seatIdx
+                    ) {
+                      whisperRecorder.stopAndSend();
+                    } else {
+                      void whisperRecorder.start(plate.seatIdx);
+                    }
+                  }}
+                  style={{
+                    left: `${plate.x}px`,
+                    top: `${plate.y}px`,
+                    width: `${Math.max(88, plate.w)}px`,
+                    height: `${Math.max(36, plate.h)}px`,
+                    transform: `translate(-50%, -50%) rotate(${plate.angleDeg}deg)`,
+                  }}
+                  aria-label={
+                    pendingWhisper
+                      ? `Listen to private whisper from ${cleanName}`
+                      : `Private whisper to ${cleanName}`
+                  }
+                />
+              )}
+
+              {pendingWhisper && (
+                <button
+                  type="button"
+                  className="nameplate-status-badge whisper-pill"
+                  style={{ left: `${badgeX}px`, top: `${badgeY}px` }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playIncomingWhisper(plate.seatIdx);
+                  }}
+                  title="Tap to listen to private whisper"
+                >
+                  🔊 🤫
+                </button>
+              )}
+            </React.Fragment>
+          );
+        })}
+
       {/* Turn Timer Bar */}
       {timerEnabled && timerDuration > 0 && (
         <div id="turn-timer-container">
@@ -347,7 +405,7 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
             style={{ width: `${timerPercent}%` }}
           />
           <div id="turn-timer-text">
-            ⏳ {turnSecondsLeft}s
+            {turnAutoPlay ? '🤖 Auto-playing...' : `⏳ ${turnSecondsLeft}s`}
           </div>
         </div>
       )}
@@ -360,17 +418,27 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
         Promotional Content Section
       </div>
 
-      {/* Lucky Wish Floating Button (Bottom-Left) */}
-      {wishAvailable && (
+      {/* Bottom-Left Actions: Lucky Wish + Quick Chat / Message Icon */}
+      <div id="bottom-left-actions">
+        {wishAvailable && (
+          <button
+            id="wish-btn"
+            type="button"
+            onClick={() => handleRoll(true)}
+            title={`Use Lucky Wish (${players[currentPlayer]?.wish.join(' + ')})`}
+          >
+            <span>✨</span>
+          </button>
+        )}
         <button
-          id="wish-btn"
+          id="quick-msg-btn"
           type="button"
-          onClick={() => handleRoll(true)}
-          title={`Use Lucky Wish (${players[currentPlayer]?.wish.join(' + ')})`}
+          onClick={handleOpenQuickChat}
+          title="Quick Chat & Messages"
         >
-          <span>✨</span>
+          <span>💬</span>
         </button>
-      )}
+      </div>
 
       {/* Classic Roll Hint & Dice Results HUD */}
       {hasRolled && !isRolling && movesAvailable.length > 0 ? (
@@ -382,11 +450,11 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
               <button
                 key={`${idx}-${val}`}
                 type="button"
-                disabled={!isMyTurn || !playable}
+                disabled={!isMyTurn || !playable || turnAutoPlay}
                 onClick={() => selectDieIndex(idx)}
                 className={`dice-val ${selected ? 'selected' : ''} ${isDoubleOrLucky ? 'bonus' : ''}`}
                 style={{
-                  opacity: playable ? 1 : 0.4,
+                  opacity: playable && !turnAutoPlay ? 1 : 0.4,
                   borderColor: selected ? '#ffffff' : getPlayerColor(currentPlayer, isTournament),
                 }}
               >
@@ -397,6 +465,7 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
           {canCombinedMove && (
             <button
               type="button"
+              disabled={turnAutoPlay}
               onClick={handleCombinedMove}
               className="dice-val selected"
               style={{
@@ -415,6 +484,7 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
         <button
           id="roll-hint"
           type="button"
+          disabled={!canRoll}
           onClick={() => handleRoll(false)}
           style={{
             cursor: canRoll ? 'pointer' : 'default',
@@ -422,11 +492,13 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
             pointerEvents: canRoll ? 'auto' : 'none',
           }}
         >
-          {isRolling
-            ? 'Rolling...'
-            : canRoll
-              ? translate(prefs.language, 'roll_hint')
-              : `${stripSeatTag(players[currentPlayer]?.name || 'Player')}'s turn!`}
+          {turnAutoPlay
+            ? "⏱️ Time's up! Auto-playing..."
+            : isRolling
+              ? 'Rolling...'
+              : canRoll
+                ? translate(prefs.language, 'roll_hint')
+                : `${stripSeatTag(players[currentPlayer]?.name || 'Player')}'s turn!`}
         </button>
       )}
 
@@ -447,19 +519,21 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
         >
           {prefs.aiVoiceMuted ? '🔇' : '🗣️'}
         </button>
-        <button
-          type="button"
-          onClick={handleToggleVoiceRecord}
-          className="music-btn"
-          style={
-            isRecording
-              ? { background: '#e74c3c', borderColor: '#fff', animation: 'pulse-red-timer 0.5s infinite alternate' }
-              : undefined
-          }
-          title="Voice Note"
-        >
-          🎤
-        </button>
+        {isOnline && (
+          <button
+            type="button"
+            onClick={handleToggleVoiceRecord}
+            className="music-btn"
+            style={
+              isRecording
+                ? { background: '#e74c3c', borderColor: '#fff', animation: 'pulse-red-timer 0.5s infinite alternate' }
+                : undefined
+            }
+            title="Voice Note"
+          >
+            🎤
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setActiveModal('music')}
@@ -477,6 +551,99 @@ export const Hud: React.FC<HudProps> = ({ onToggleAspectRatio }) => {
           ⚙️
         </button>
       </div>
+
+      {/* Tap-to-Listen Whisper & Voice Note Pills + Active Whisper Recording Indicator (Online Only) */}
+      {isOnline &&
+        (whisperRecordingSeat !== null ||
+          Object.keys(incomingWhispers).length > 0 ||
+          pendingVoiceNotes.length > 0) && (
+          <div
+            style={{
+              position: 'absolute',
+              left: '14px',
+              bottom: '130px',
+              zIndex: 1850,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              pointerEvents: 'auto',
+            }}
+          >
+            {whisperRecordingSeat !== null && (
+              <div className="flex items-center gap-2 rounded-full border border-[#e9d5ff] bg-[#6b21a8]/95 px-3 py-1.5 text-xs font-bold text-white shadow-lg">
+                <span>
+                  🤫 Whispering to {stripSeatTag(players[whisperRecordingSeat]?.name || '')}...
+                </span>
+                <button
+                  type="button"
+                  onClick={() => whisperRecorder.stopAndSend()}
+                  className="cursor-pointer rounded-full bg-[#2ecc71] px-2 py-0.5 text-[10px] font-bold text-black"
+                >
+                  SEND
+                </button>
+                <button
+                  type="button"
+                  onClick={() => whisperRecorder.cancel()}
+                  className="cursor-pointer rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {Object.values(incomingWhispers).map((w) => (
+              <div
+                key={w.id}
+                className="flex items-center gap-1.5 rounded-full border border-[#e9d5ff] bg-[#581c87]/92 px-3 py-1.5 text-xs font-bold text-white shadow-lg"
+              >
+                <button
+                  type="button"
+                  onClick={() => playIncomingWhisper(w.fromSeat)}
+                  className="flex cursor-pointer items-center gap-1.5 text-left"
+                >
+                  <span>🔊</span>
+                  <span>
+                    Whisper from {stripSeatTag(w.senderName)} ({w.duration}s) — Tap
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissIncomingWhisper(w.fromSeat)}
+                  className="ml-1 cursor-pointer rounded-full bg-black/35 px-1.5 py-0.5 text-[10px] text-white/80 hover:text-white"
+                  title="Dismiss whisper"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {pendingVoiceNotes.map((vn) => (
+              <div
+                key={vn.id}
+                className="flex items-center gap-1.5 rounded-full border border-[#86efac] bg-[#14532d]/92 px-3 py-1.5 text-xs font-bold text-white shadow-lg"
+              >
+                <button
+                  type="button"
+                  onClick={() => playVoiceNote(vn.id)}
+                  className="flex cursor-pointer items-center gap-1.5 text-left"
+                >
+                  <span>🔊</span>
+                  <span>
+                    Voice from {stripSeatTag(vn.sender)} ({vn.duration || 2}s) — Tap
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => dismissVoiceNote(vn.id)}
+                  className="ml-1 cursor-pointer rounded-full bg-black/35 px-1.5 py-0.5 text-[10px] text-white/80 hover:text-white"
+                  title="Dismiss voice note"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
     </div>
   );
 };

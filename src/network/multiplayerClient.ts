@@ -1,8 +1,11 @@
 import { io, type Socket } from 'socket.io-client';
+import { type BanterEvent } from '../game/banter';
 import { sfx } from '../game/sfx';
 import { runSdk } from '../sdk/runSdk';
-import { useGameStore, type RoomSeatPublic } from '../state/store';
+import { useGameStore, type RoomSeatPublic, type VoiceCallParticipant } from '../state/store';
 import type { RankingEntry } from '../game/rules';
+import { binaryPayloadToAudioUrl } from './audioCapture';
+import { voiceCallManager } from './voiceCallManager';
 
 const STORAGE_ROOM_KEY = 'ludo_room_code';
 const STORAGE_TOKEN_KEY = 'ludo_player_token';
@@ -10,9 +13,12 @@ const STORAGE_SEAT_KEY = 'ludo_seat_index';
 
 function saveSessionCreds(roomCode: string, token: string, seatIdx: number): void {
   try {
-    localStorage.setItem(STORAGE_ROOM_KEY, roomCode);
-    localStorage.setItem(STORAGE_TOKEN_KEY, token);
-    localStorage.setItem(STORAGE_SEAT_KEY, String(seatIdx));
+    sessionStorage.setItem(STORAGE_ROOM_KEY, roomCode);
+    sessionStorage.setItem(STORAGE_TOKEN_KEY, token);
+    sessionStorage.setItem(STORAGE_SEAT_KEY, String(seatIdx));
+    localStorage.removeItem(STORAGE_ROOM_KEY);
+    localStorage.removeItem(STORAGE_TOKEN_KEY);
+    localStorage.removeItem(STORAGE_SEAT_KEY);
   } catch {}
 }
 
@@ -37,13 +43,16 @@ function makeClientActionId(): string {
 class MultiplayerClient {
   private socket: Socket | null = null;
   private token: string | null = null;
+  private manualSessionPending = false;
+  private didTryAutoReconnect = false;
 
   constructor() {
     if (typeof window !== 'undefined') {
       try {
-        this.token =
-          localStorage.getItem(STORAGE_TOKEN_KEY) ||
-          sessionStorage.getItem(STORAGE_TOKEN_KEY);
+        this.token = sessionStorage.getItem(STORAGE_TOKEN_KEY);
+        localStorage.removeItem(STORAGE_ROOM_KEY);
+        localStorage.removeItem(STORAGE_TOKEN_KEY);
+        localStorage.removeItem(STORAGE_SEAT_KEY);
       } catch {
         this.token = null;
       }
@@ -51,11 +60,12 @@ class MultiplayerClient {
   }
 
   public tryAutoReconnect(): void {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || this.didTryAutoReconnect) return;
+    this.didTryAutoReconnect = true;
     try {
-      const code = localStorage.getItem(STORAGE_ROOM_KEY);
-      const tok = localStorage.getItem(STORAGE_TOKEN_KEY);
-      const seat = localStorage.getItem(STORAGE_SEAT_KEY);
+      const code = sessionStorage.getItem(STORAGE_ROOM_KEY);
+      const tok = sessionStorage.getItem(STORAGE_TOKEN_KEY);
+      const seat = sessionStorage.getItem(STORAGE_SEAT_KEY);
       if (code && tok && seat !== null) {
         this.ensureSocket();
       }
@@ -73,14 +83,26 @@ class MultiplayerClient {
       timeout: 10000,
     });
 
+    voiceCallManager.attachTransport({
+      getSocketId: () => this.socket?.id || null,
+      getToken: () => this.token,
+      emit: (event, payload, ack) => {
+        if (!this.socket || !this.socket.connected) return false;
+        if (ack) this.socket.emit(event, payload, ack);
+        else this.socket.emit(event, payload);
+        return true;
+      },
+    });
+
     sock.on('connect', () => {
+      if (this.manualSessionPending || useGameStore.getState().roomCode) return;
       let code: string | null = null;
       let tok: string | null = null;
       let seat: string | null = null;
       try {
-        code = localStorage.getItem(STORAGE_ROOM_KEY) || sessionStorage.getItem(STORAGE_ROOM_KEY);
-        tok = localStorage.getItem(STORAGE_TOKEN_KEY) || sessionStorage.getItem(STORAGE_TOKEN_KEY);
-        seat = localStorage.getItem(STORAGE_SEAT_KEY) || sessionStorage.getItem(STORAGE_SEAT_KEY);
+        code = sessionStorage.getItem(STORAGE_ROOM_KEY);
+        tok = sessionStorage.getItem(STORAGE_TOKEN_KEY);
+        seat = sessionStorage.getItem(STORAGE_SEAT_KEY);
       } catch {}
 
       if (code && tok && seat !== null) {
@@ -97,6 +119,7 @@ class MultiplayerClient {
                 amHost: res.seatIndex === (res.roomState.hostSeatIndex ?? 0),
                 roomState: res.roomState,
               });
+              voiceCallManager.handleSocketReconnected();
             } else if (res && res.success === false && !useGameStore.getState().roomCode) {
               clearSessionCreds();
             }
@@ -117,6 +140,7 @@ class MultiplayerClient {
           started: true,
           matchEnded: false,
           fillBots: st.fillBots,
+          secretWhispers: st.secretWhispers,
           hostSeatIndex: payload.hostSeatIndex ?? st.hostSeatIndex,
           timerConfig: payload.timerConfig || st.onlineTimerConfig,
           seats: payload.seats || st.onlineSeats,
@@ -135,6 +159,7 @@ class MultiplayerClient {
           started: true,
           matchEnded: payload.matchState?.winner !== null && payload.matchState?.winner !== undefined,
           fillBots: st.fillBots,
+          secretWhispers: st.secretWhispers,
           hostSeatIndex: payload.hostSeatIndex ?? st.hostSeatIndex,
           timerConfig: payload.timerConfig || st.onlineTimerConfig,
           seats: payload.seats || st.onlineSeats,
@@ -150,8 +175,19 @@ class MultiplayerClient {
         dice: payload.dice,
         player: payload.player,
         isLucky7: !!payload.isLucky7,
+        isAutoPlay: !!payload.isAutoPlay,
         actionSeq: payload.actionSeq,
       });
+    });
+
+    sock.on('ludo:action_rejected', (payload: { action?: string; error?: string }) => {
+      const st = useGameStore.getState();
+      if (st.activeModal === 'coachSkip' || st.activeModal === 'gulPass') {
+        st.setActiveModal(null);
+      }
+      if (payload?.error) {
+        st.showToast(`⏱️ ${payload.error}`);
+      }
     });
 
     sock.on('ludo:gul_prompt', (payload) => {
@@ -163,6 +199,7 @@ class MultiplayerClient {
     });
 
     sock.on('ludo:match_ended', (payload: { winner: number; rankings: RankingEntry[] }) => {
+      voiceCallManager.leaveCall({ notifyServer: false, silent: true });
       useGameStore.getState().applyServerMatchEnded(payload);
     });
 
@@ -182,16 +219,101 @@ class MultiplayerClient {
       sfx.play('notification', 0.35);
     });
 
+    sock.on('ludo:ai_dialogue', (payload: { seatIdx: number; event: BanterEvent; lineIdx: number }) => {
+      if (
+        typeof payload?.seatIdx === 'number' &&
+        typeof payload?.event === 'string' &&
+        typeof payload?.lineIdx === 'number'
+      ) {
+        useGameStore.getState().playSyncedAiDialogue(payload.seatIdx, payload.event, payload.lineIdx);
+      }
+    });
+
     sock.on('ludo:voice', (msg) => {
+      const audioUrl = binaryPayloadToAudioUrl(msg.audio, msg.mimeType);
+      if (!audioUrl) return;
       useGameStore.getState().appendChatMessage({
         id: `voice_${msg.timestamp}_${msg.seatIndex}`,
         sender: msg.sender,
         text: `🎤 Voice note (${msg.duration}s)`,
         seatIndex: msg.seatIndex,
         timestamp: msg.timestamp,
-        audioData: msg.audio,
+        audioData: audioUrl,
         duration: msg.duration,
       });
+    });
+
+    sock.on('voice:whisper', (msg: {
+      id: string;
+      fromSeat: number;
+      senderName: string;
+      clip: unknown;
+      mimeType?: string;
+      duration: number;
+      timestamp: number;
+    }) => {
+      const clipUrl = binaryPayloadToAudioUrl(msg.clip, msg.mimeType);
+      if (!clipUrl) return;
+      useGameStore.getState().receiveWhisper({
+        id: msg.id,
+        fromSeat: msg.fromSeat,
+        senderName: msg.senderName,
+        clip: clipUrl,
+        duration: msg.duration,
+        timestamp: msg.timestamp,
+      });
+    });
+
+    sock.on('ludo:whisper_notice', (msg: {
+      fromSeat: number;
+      senderName: string;
+      toSeats: number[];
+      targetNames: string[];
+      timestamp: number;
+    }) => {
+      const st = useGameStore.getState();
+      if (st.secretWhispers) return;
+      const fromClean = msg.senderName.replace(/\s*\(Seat\s*\d+\)/gi, '').trim();
+      const targetClean = (msg.targetNames || [])
+        .map((n) => n.replace(/\s*\(Seat\s*\d+\)/gi, '').trim())
+        .join(', ');
+      const noticeText = `whispered privately to ${targetClean}`;
+      useGameStore.setState((prev) => ({
+        chatMessages: [
+          ...prev.chatMessages.slice(-50),
+          {
+            id: `whisper_notice_${msg.timestamp}_${msg.fromSeat}`,
+            sender: `🤫 ${fromClean}`,
+            text: noticeText,
+            seatIndex: msg.fromSeat,
+            timestamp: msg.timestamp,
+          },
+        ],
+      }));
+      if (msg.fromSeat !== st.mySeat && !msg.toSeats?.includes(st.mySeat ?? -1)) {
+        st.showToast(`🤫 ${fromClean} whispered to ${targetClean}`);
+      }
+    });
+
+    // Live WebRTC Voice Call Signaling Listeners
+    sock.on('voice:participants', (payload: { participants?: VoiceCallParticipant[] }) => {
+      voiceCallManager.handleParticipantsUpdate(payload?.participants || []);
+    });
+
+    sock.on('voice:offer', (payload: { fromSocketId: string; fromSeat: number; sdp: RTCSessionDescriptionInit }) => {
+      voiceCallManager.handleOffer(payload);
+    });
+
+    sock.on('voice:answer', (payload: { fromSocketId: string; fromSeat: number; sdp: RTCSessionDescriptionInit }) => {
+      voiceCallManager.handleAnswer(payload);
+    });
+
+    sock.on('voice:ice', (payload: { fromSocketId: string; candidate: RTCIceCandidateInit }) => {
+      voiceCallManager.handleIceCandidate(payload);
+    });
+
+    sock.on('voice:mute-state', (payload: { socketId?: string; seat?: number; isMuted?: boolean }) => {
+      voiceCallManager.handleRemoteMuteState(payload);
     });
 
     this.socket = sock;
@@ -199,6 +321,7 @@ class MultiplayerClient {
   }
 
   public async createRoom(hostName: string, wish: [number, number]): Promise<boolean> {
+    this.manualSessionPending = true;
     const sock = this.ensureSocket();
     const st = useGameStore.getState();
     runSdk.setOnlineName(hostName);
@@ -226,6 +349,7 @@ class MultiplayerClient {
             started: boolean;
             matchEnded: boolean;
             fillBots: boolean;
+            secretWhispers?: boolean;
             hostSeatIndex?: number;
             timerConfig: { enabled: boolean; duration: 60 | 90 | 120 | 0 };
             seats: Record<number, RoomSeatPublic>;
@@ -234,6 +358,7 @@ class MultiplayerClient {
             serverTime?: number;
           };
         }) => {
+          this.manualSessionPending = false;
           if (!res?.success || !res.roomCode || !res.playerToken || !res.roomState) {
             useGameStore.getState().setRoomError(res?.error || 'Failed to create room.');
             return resolve(false);
@@ -254,9 +379,17 @@ class MultiplayerClient {
     });
   }
 
-  public async joinRoom(roomCode: string, playerName: string, wish: [number, number]): Promise<boolean> {
+  public async joinRoom(
+    roomCode: string,
+    playerName: string,
+    wish: [number, number],
+    persistName = true,
+  ): Promise<boolean> {
+    this.manualSessionPending = true;
     const sock = this.ensureSocket();
-    runSdk.setOnlineName(playerName);
+    if (persistName) {
+      runSdk.setOnlineName(playerName);
+    }
     runSdk.setOnlineWish(wish);
 
     return new Promise((resolve) => {
@@ -271,6 +404,7 @@ class MultiplayerClient {
           playerToken?: string;
           roomState?: any;
         }) => {
+          this.manualSessionPending = false;
           if (!res?.success || !res.roomCode || !res.playerToken || !res.roomState) {
             useGameStore.getState().setRoomError(res?.error || 'Could not join room.');
             return resolve(false);
@@ -300,6 +434,10 @@ class MultiplayerClient {
     this.ensureSocket().emit('ludo:toggle_fill_bots', { token: this.token, fillBots });
   }
 
+  public toggleSecretWhispers(secretWhispers?: boolean): void {
+    this.ensureSocket().emit('ludo:toggle_secret_whispers', { token: this.token, secretWhispers });
+  }
+
   public updateTimer(duration: 60 | 90 | 120 | 0): void {
     this.ensureSocket().emit('ludo:update_timer', {
       token: this.token,
@@ -321,6 +459,7 @@ class MultiplayerClient {
   }
 
   public rollDice(useWish = false): void {
+    if (useGameStore.getState().turnAutoPlay) return;
     this.ensureSocket().emit('ludo:roll_dice', {
       token: this.token,
       useWish,
@@ -329,6 +468,7 @@ class MultiplayerClient {
   }
 
   public movePawn(pawnIdx: number, steps: number, dieIndex: number | 'combined'): void {
+    if (useGameStore.getState().turnAutoPlay) return;
     this.ensureSocket().emit('ludo:move_pawn', {
       token: this.token,
       pawnIdx,
@@ -339,6 +479,7 @@ class MultiplayerClient {
   }
 
   public submitGulChoice(choice: 'gul' | 'pass'): void {
+    if (useGameStore.getState().turnAutoPlay) return;
     this.ensureSocket().emit('ludo:gul_choice', {
       token: this.token,
       choice,
@@ -354,11 +495,33 @@ class MultiplayerClient {
     this.ensureSocket().emit('ludo:reaction', { token: this.token, emoji });
   }
 
-  public sendVoiceNote(audioBase64: string, duration: number): void {
-    this.ensureSocket().emit('ludo:voice', { token: this.token, audio: audioBase64, duration });
+  public sendVoiceNoteBinary(
+    audio: ArrayBuffer,
+    mimeType: string,
+    callback?: (res: { success?: boolean; error?: string; duration?: number }) => void,
+  ): void {
+    this.ensureSocket().emit(
+      'ludo:voice',
+      { token: this.token, audio, mimeType },
+      callback,
+    );
+  }
+
+  public sendWhisper(
+    toSeats: number[],
+    clip: ArrayBuffer,
+    mimeType: string,
+    callback?: (res: { success?: boolean; error?: string; duration?: number; deliveredTo?: number[] }) => void,
+  ): void {
+    this.ensureSocket().emit(
+      'voice:whisper',
+      { token: this.token, toSeats, clip, mimeType },
+      callback,
+    );
   }
 
   public disconnectAndReset(): void {
+    voiceCallManager.leaveCall({ notifyServer: true, silent: true });
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;

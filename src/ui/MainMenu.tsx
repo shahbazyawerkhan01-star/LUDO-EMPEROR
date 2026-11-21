@@ -68,16 +68,21 @@ export const MainMenu: React.FC = () => {
 
           <button
             type="button"
-            className="main-menu-btn"
+            className="main-menu-btn relative"
             onClick={() => setActiveModal('tournamentRules')}
             style={{
-              background: 'linear-gradient(135deg, rgba(39, 174, 96, 0.2), rgba(39, 174, 96, 0.1))',
-              borderColor: 'rgba(39, 174, 96, 0.5)',
+              background: 'linear-gradient(135deg, rgba(39, 174, 96, 0.14), rgba(39, 174, 96, 0.06))',
+              borderColor: 'rgba(39, 174, 96, 0.35)',
             }}
           >
-            <span className="btn-icon">🏆</span>
-            <div>
-              <span>{translate(lang, 'tournament')}</span>
+            <span className="btn-icon opacity-85">🏆</span>
+            <div className="flex-1 text-left">
+              <div className="flex flex-wrap items-center gap-2">
+                <span>{translate(lang, 'tournament')}</span>
+                <span className="rounded-md border border-[#f1c40f]/50 bg-[#f1c40f]/20 px-2 py-0.5 font-display text-[10px] font-bold tracking-wider text-[#f1c40f] uppercase">
+                  Coming Soon
+                </span>
+              </div>
               <span className="btn-subtitle">{translate(lang, 'tournament_sub')}</span>
             </div>
           </button>

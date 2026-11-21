@@ -12,7 +12,10 @@ export interface WinStats {
   bonds: Record<string, number>;
   history: Record<string, AiBondHistory>;
   matchesPlayed: number;
+  playerMatches?: Record<string, number>;
 }
+
+export type CaptureWarningMode = 'first3' | 'always' | 'off';
 
 export interface SavedPreferences {
   language: string;
@@ -29,7 +32,9 @@ export interface SavedPreferences {
   turnTimerDuration: 60 | 90 | 120 | 0;
   hasSeenGuide: boolean;
   aiVoiceMuted: boolean;
+  autoPlayVoiceNotes: boolean;
   mutedSeats: number[];
+  captureWarningMode: CaptureWarningMode;
 }
 
 const STATS_KEY = 'ludo_dethroned_winstats_v2';
@@ -48,7 +53,7 @@ export function getDefaultWinStats(): WinStats {
     balances[p.name] = 5;
     bonds[p.name] = 50;
   });
-  return { wins, balances, bonds, history: {}, matchesPlayed: 0 };
+  return { wins, balances, bonds, history: {}, matchesPlayed: 0, playerMatches: {} };
 }
 
 export function getDefaultPreferences(): SavedPreferences {
@@ -67,7 +72,9 @@ export function getDefaultPreferences(): SavedPreferences {
     turnTimerDuration: 90,
     hasSeenGuide: false,
     aiVoiceMuted: false,
+    autoPlayVoiceNotes: true,
     mutedSeats: [],
+    captureWarningMode: 'first3',
   };
 }
 
@@ -84,6 +91,10 @@ export const runSdk = {
         bonds: { ...def.bonds, ...(parsed.bonds || {}) },
         history: { ...(parsed.history || {}) },
         matchesPlayed: Number(parsed.matchesPlayed) || 0,
+        playerMatches:
+          parsed.playerMatches && typeof parsed.playerMatches === 'object'
+            ? { ...parsed.playerMatches }
+            : {},
       };
     } catch {
       return def;
@@ -104,6 +115,10 @@ export const runSdk = {
       const raw = localStorage.getItem(PREFS_KEY);
       if (!raw) return def;
       const parsed = JSON.parse(raw);
+      const warnMode =
+        parsed.captureWarningMode === 'always' || parsed.captureWarningMode === 'off'
+          ? parsed.captureWarningMode
+          : 'first3';
       return {
         ...def,
         ...parsed,
@@ -111,6 +126,7 @@ export const runSdk = {
         mutedSeats: Array.isArray(parsed.mutedSeats)
           ? parsed.mutedSeats.filter((n: unknown) => typeof n === 'number' && n >= 0 && n <= 4)
           : def.mutedSeats,
+        captureWarningMode: warnMode,
       };
     } catch {
       return def;
