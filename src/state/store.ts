@@ -1,22 +1,21 @@
 import { create } from 'zustand';
 import {
   applyLucky7IfEligible,
-  applySplitSacrifice,
   canAnyPawnMove,
   canMovePawn,
-  checkCompulsoryCapturePenalty,
+  checkCompulsoryCapturePenalties,
   cloneDefaultPlayers,
   createInitialPawns,
   createInitialPlayerStats,
+  evaluateCaptureObligation,
   executePawnMove,
   getPawnPath,
   getPlayerRankings,
-  getPossibleCaptures,
   isLoneTokenOnTrack,
+  isMovePartOfCaptureSequence,
   pickBestAIMove,
   rollDicePair,
   stripSeatTag,
-  wouldMoveCapture,
   type CaptureCandidate,
   type ExtraTurnReason,
   type PawnState,
@@ -134,6 +133,11 @@ export interface GameStoreState {
   lucky7UsedThisTurn: boolean;
   turnCapturedPawn: boolean;
   turnStartCaptures: CaptureCandidate[];
+  turnRequiredCaptures: 0 | 1 | 2;
+  turnCapturesMade: number;
+  turnCandidatePawns: number[];
+  turnMidTurnMissedCandidates: number[];
+  turnCapturingPawns: number[];
   pawns: PawnState[][];
   playerStats: PlayerStats[];
   turnSecondsLeft: number;
@@ -332,16 +336,9 @@ function shouldShowCaptureWarning(
       0;
     if (playedCount >= 3) return false;
   }
-  const caps = getPossibleCaptures(st.pawns, pIdx, st.movesAvailable, st.dice);
-  if (caps.length === 0) return false;
-  const isDirect = wouldMoveCapture(st.pawns, pIdx, pawnIdx, steps, st.dice, st.movesAvailable);
-  if (isDirect) return false;
-  const isPart = caps.some(
-    (c) =>
-      c.pawnIdx === pawnIdx &&
-      (dieIdx === 'combined' ? c.diceIndices.length > 1 : c.diceIndices.includes(dieIdx)),
-  );
-  return !isPart;
+  const ob = evaluateCaptureObligation(st.pawns, pIdx, st.movesAvailable, st.dice);
+  if (ob.requiredCaptures === 0) return false;
+  return !isMovePartOfCaptureSequence(st.pawns, pIdx, pawnIdx, steps, dieIdx, st.movesAvailable, st.dice);
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => {
@@ -535,6 +532,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       lucky7UsedThisTurn: false,
       turnCapturedPawn: false,
       turnStartCaptures: [],
+      turnRequiredCaptures: 0,
+      turnCapturesMade: 0,
+      turnCandidatePawns: [],
+      turnMidTurnMissedCandidates: [],
+      turnCapturingPawns: [],
       pendingCoachMove: null,
       pendingGulMove: null,
       turnSecondsLeft: st.prefs.turnTimerEnabled ? st.prefs.turnTimerDuration : 0,
@@ -590,25 +592,20 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const nextStats = st.playerStats.map((s) => ({ ...s }));
     const nextMoves = [...st.movesAvailable];
     const startPos = nextPawns[pIdx][pawnIdx].pos;
-    const possibleCaptures =
-      dieIdx === 'combined' ? [] : getPossibleCaptures(nextPawns, pIdx, nextMoves, st.dice);
 
     const outcome = executePawnMove(nextPawns, nextStats, pIdx, pawnIdx, steps, st.dice, nextMoves);
     if (!outcome.moved) return;
 
     sfx.play('move', 0.85);
 
-    let splitSacrificeMsg = '';
-    if (dieIdx !== 'combined' && possibleCaptures.length > 0) {
-      if (applySplitSacrifice(nextPawns, pIdx, pawnIdx, startPos, possibleCaptures, dieIdx)) {
-        splitSacrificeMsg = 'Pair split sacrifice! Partner returned to base.';
-        sfx.play('whoosh', 0.8);
-      }
-    }
-
     let extraEarned = st.extraTurnEarned;
     let extraReason = st.extraTurnReason;
     let capturedFlag = st.turnCapturedPawn;
+    let capturesMade = st.turnCapturesMade;
+    const capturingPawns = [...st.turnCapturingPawns];
+    let requiredCaptures = st.turnRequiredCaptures;
+    let candidatePawns = [...st.turnCandidatePawns];
+    let midTurnMissed = [...st.turnMidTurnMissedCandidates];
 
     if (outcome.reachedCenterHome) {
       extraEarned = true;
@@ -621,6 +618,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       extraEarned = true;
       extraReason = 'capture';
       capturedFlag = true;
+      capturesMade += 1;
+      if (!capturingPawns.includes(pawnIdx)) capturingPawns.push(pawnIdx);
       sfx.play('capture');
       emitBanter(pIdx, 'capture');
       emitBanter(outcome.capturedVictims[0].playerIdx, 'captured', 2000);
@@ -642,17 +641,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       nextMoves.length > 0 && canAnyPawnMove(nextPawns, pIdx, nextMoves, st.dice);
 
     if (!remainingMovable) {
-      const penalized = checkCompulsoryCapturePenalty(
+      const penalized = checkCompulsoryCapturePenalties(
         nextPawns,
         nextStats,
         pIdx,
-        st.turnStartCaptures,
-        capturedFlag,
-        extraReason,
+        requiredCaptures,
+        capturesMade,
+        candidatePawns,
+        midTurnMissed,
+        capturingPawns,
       );
-      let banner = splitSacrificeMsg || (extraEarned ? 'Bonus Turn Earned!' : 'Turn finished!');
-      if (penalized !== null) {
-        banner = `⚠️ ${player.name}: ${translate(st.prefs.language, 'missed_capture_desc')}`;
+      let banner = extraEarned ? 'Bonus Turn Earned!' : 'Turn finished!';
+      if (penalized.length > 0) {
+        banner =
+          penalized.length > 1
+            ? `⚠️ ${player.name}: Missed capture! ${penalized.length} tokens sent back to base.`
+            : `⚠️ ${player.name}: ${translate(st.prefs.language, 'missed_capture_desc')}`;
         sfx.play('whoosh', 0.8);
         emitBanter(pIdx, 'penalty');
       }
@@ -664,18 +668,35 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         extraTurnEarned: extraEarned,
         extraTurnReason: extraReason,
         turnCapturedPawn: capturedFlag,
+        turnRequiredCaptures: requiredCaptures,
+        turnCapturesMade: capturesMade,
+        turnCandidatePawns: candidatePawns,
+        turnMidTurnMissedCandidates: midTurnMissed,
+        turnCapturingPawns: capturingPawns,
         bannerText: banner,
       });
       passTimeout = setTimeout(advanceLocalTurn, st.turnAutoPlay ? 820 : 1320);
     } else {
-      const extraCaps = getPossibleCaptures(nextPawns, pIdx, nextMoves, st.dice);
-      if (extraCaps.length > 0 && !capturedFlag) {
+      const nextOb = evaluateCaptureObligation(nextPawns, pIdx, nextMoves, st.dice);
+      if (nextOb.requiredCaptures > 0 && outcome.capturedVictims.length === 0) {
         sfx.play('heartbeat', 0.85);
       }
+      const extraCaps = [...nextOb.singleCaptures, ...nextOb.combinedCaptures];
       const mergedCaps = [...st.turnStartCaptures];
       for (const c of extraCaps) {
         if (!mergedCaps.some((m) => m.pawnIdx === c.pawnIdx)) mergedCaps.push(c);
       }
+
+      if (capturesMade === 0 && nextOb.requiredCaptures > 0) {
+        requiredCaptures = Math.max(requiredCaptures, nextOb.requiredCaptures) as 0 | 1 | 2;
+        for (const cp of nextOb.candidatePawns) {
+          if (!candidatePawns.includes(cp)) candidatePawns.push(cp);
+        }
+      } else if (capturesMade > 0 && nextOb.requiredCaptures > 0) {
+        requiredCaptures = Math.max(requiredCaptures, capturesMade + nextOb.requiredCaptures) as 0 | 1 | 2;
+        midTurnMissed = Array.from(new Set([...midTurnMissed, ...nextOb.candidatePawns]));
+      }
+
       set({
         pawns: nextPawns,
         playerStats: nextStats,
@@ -685,11 +706,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         extraTurnReason: extraReason,
         turnCapturedPawn: capturedFlag,
         turnStartCaptures: mergedCaps,
-        bannerText:
-          splitSacrificeMsg ||
-          (st.turnAutoPlay
-            ? "⏱️ Time's up! Auto-playing..."
-            : `${player.name}: Select next die or pawn`),
+        turnRequiredCaptures: requiredCaptures,
+        turnCapturesMade: capturesMade,
+        turnCandidatePawns: candidatePawns,
+        turnMidTurnMissedCandidates: midTurnMissed,
+        turnCapturingPawns: capturingPawns,
+        bannerText: st.turnAutoPlay
+          ? "⏱️ Time's up! Auto-playing..."
+          : `${player.name}: Select next die or pawn`,
       });
       if (player.isAI) {
         scheduleAITurnIfNeeded(1320);
@@ -724,6 +748,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     lucky7UsedThisTurn: false,
     turnCapturedPawn: false,
     turnStartCaptures: [],
+    turnRequiredCaptures: 0,
+    turnCapturesMade: 0,
+    turnCandidatePawns: [],
+    turnMidTurnMissedCandidates: [],
+    turnCapturingPawns: [],
     pawns: createInitialPawns(),
     playerStats: createInitialPlayerStats(),
     turnSecondsLeft: initialPrefs.turnTimerEnabled ? initialPrefs.turnTimerDuration : 0,
@@ -863,6 +892,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         lucky7UsedThisTurn: false,
         turnCapturedPawn: false,
         turnStartCaptures: [],
+        turnRequiredCaptures: 0,
+        turnCapturesMade: 0,
+        turnCandidatePawns: [],
+        turnMidTurnMissedCandidates: [],
+        turnCapturingPawns: [],
         pawns: createInitialPawns(),
         playerStats: createInitialPlayerStats(),
         wishUsedThisMatch: [false, false, false, false, false],
@@ -961,7 +995,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         const cur = get();
         if (!cur.gameStarted || cur.matchOver) return;
         const moves = [finalDice[0], finalDice[1]];
-        const startCaps = getPossibleCaptures(cur.pawns, pIdx, moves, finalDice);
+        const ob = evaluateCaptureObligation(cur.pawns, pIdx, moves, finalDice);
+        const startCaps = [...ob.singleCaptures, ...ob.combinedCaptures];
 
         if (lucky7.applied) {
           sfx.play('lucky7');
@@ -974,7 +1009,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
 
         const hasMoves = canAnyPawnMove(cur.pawns, pIdx, moves, finalDice);
-        if (hasMoves && startCaps.length > 0) {
+        if (hasMoves && ob.requiredCaptures > 0) {
           sfx.play('heartbeat', 0.92);
         }
         set({
@@ -983,6 +1018,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           movesAvailable: hasMoves ? moves : [],
           selectedDieIndex: hasMoves ? 0 : null,
           turnStartCaptures: startCaps,
+          turnRequiredCaptures: hasMoves ? ob.requiredCaptures : 0,
+          turnCapturesMade: 0,
+          turnCandidatePawns: hasMoves ? ob.candidatePawns : [],
+          turnMidTurnMissedCandidates: [],
+          turnCapturingPawns: [],
           bannerText: hasMoves
             ? cur.turnAutoPlay
               ? "⏱️ Time's up! Auto-playing..."
@@ -1100,7 +1140,29 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
         const canMoveRem = nextMoves.length > 0 && canAnyPawnMove(st.pawns, st.currentPlayer, nextMoves, st.dice);
         if (!canMoveRem) {
-          set({ movesAvailable: [], bannerText: 'Passed Gul entry! Next turn...' });
+          const nextPawns = st.pawns.map((row) => row.map((p) => ({ ...p })));
+          const nextStats = st.playerStats.map((s) => ({ ...s }));
+          const penalized = checkCompulsoryCapturePenalties(
+            nextPawns,
+            nextStats,
+            st.currentPlayer,
+            st.turnRequiredCaptures,
+            st.turnCapturesMade,
+            st.turnCandidatePawns,
+            st.turnMidTurnMissedCandidates,
+            st.turnCapturingPawns,
+          );
+          let banner = 'Passed Gul entry! Next turn...';
+          if (penalized.length > 0) {
+            const pName = st.players[st.currentPlayer]?.name || 'Player';
+            banner =
+              penalized.length > 1
+                ? `⚠️ ${pName}: Missed capture! ${penalized.length} tokens sent back to base.`
+                : `⚠️ ${pName}: ${translate(st.prefs.language, 'missed_capture_desc')}`;
+            sfx.play('whoosh', 0.8);
+            emitBanter(st.currentPlayer, 'penalty');
+          }
+          set({ pawns: nextPawns, playerStats: nextStats, movesAvailable: [], bannerText: banner });
           passTimeout = setTimeout(advanceLocalTurn, 750);
         } else {
           set({ movesAvailable: nextMoves, selectedDieIndex: 0, bannerText: 'Passed! Choose remaining die.' });
@@ -1481,8 +1543,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           !patch.turnAutoPlay &&
           (!prevHasRolled || prevMovesLen === 0 || movedForward)
         ) {
-          const capsNow = getPossibleCaptures(nextPawns, nextCurrentIdx, nextMovesArr, nextDicePair);
-          if (capsNow.length > 0) {
+          const obNow = evaluateCaptureObligation(nextPawns, nextCurrentIdx, nextMovesArr, nextDicePair);
+          if (obNow.requiredCaptures > 0) {
             sfx.play('heartbeat', 0.92);
           }
         }

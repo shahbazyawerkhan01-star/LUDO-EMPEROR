@@ -4,17 +4,16 @@ import path from 'path';
 import type { Server, Socket } from 'socket.io';
 import {
   applyLucky7IfEligible,
-  applySplitSacrifice,
   canAnyPawnMove,
   canMovePawn,
-  checkCompulsoryCapturePenalty,
+  checkCompulsoryCapturePenalties,
   cloneDefaultPlayers,
   createInitialPawns,
   createInitialPlayerStats,
+  evaluateCaptureObligation,
   executePawnMove,
   getPawnPath,
   getPlayerRankings,
-  getPossibleCaptures,
   isLoneTokenOnTrack,
   pickBestAIMove,
   rollDicePair,
@@ -75,6 +74,11 @@ export interface AuthoritativeMatchState {
   lucky7UsedThisTurn: boolean;
   turnCapturedPawn: boolean;
   turnStartCaptures: CaptureCandidate[];
+  turnRequiredCaptures: 0 | 1 | 2;
+  turnCapturesMade: number;
+  turnCandidatePawns: number[];
+  turnMidTurnMissedCandidates: number[];
+  turnCapturingPawns: number[];
   turnSecondsLeft: number;
   turnExpiresAt: number | null;
   turnAutoPlay: boolean;
@@ -613,7 +617,13 @@ export class RoomManager {
 
     m.movesAvailable = [m.dice[0], m.dice[1]];
     m.hasRolled = true;
-    m.turnStartCaptures = getPossibleCaptures(m.pawns, seatIdx, m.movesAvailable, m.dice);
+    const ob = evaluateCaptureObligation(m.pawns, seatIdx, m.movesAvailable, m.dice);
+    m.turnStartCaptures = [...ob.singleCaptures, ...ob.combinedCaptures];
+    m.turnRequiredCaptures = ob.requiredCaptures;
+    m.turnCapturesMade = 0;
+    m.turnCandidatePawns = ob.candidatePawns;
+    m.turnMidTurnMissedCandidates = [];
+    m.turnCapturingPawns = [];
     const autoPrefix = m.turnAutoPlay ? '⏱️ Auto-play: ' : '';
     m.lastEventText = lucky7.applied
       ? `${autoPrefix}✨ ${seat?.name || 'Player'} triggered Lucky 7 -> 6 + 6!`
@@ -710,8 +720,6 @@ export class RoomManager {
     }
 
     const startPos = currPawn.pos;
-    const preMoveCaptures =
-      actualDieIndex === 'combined' ? [] : getPossibleCaptures(m.pawns, seatIdx, m.movesAvailable, m.dice);
 
     const outcome = executePawnMove(
       m.pawns,
@@ -723,13 +731,6 @@ export class RoomManager {
       m.movesAvailable,
     );
     if (!outcome.moved) return;
-
-    if (actualDieIndex !== 'combined' && preMoveCaptures.length > 0) {
-      const sacrificed = applySplitSacrifice(m.pawns, seatIdx, pawnIdx, startPos, preMoveCaptures, actualDieIndex);
-      if (sacrificed) {
-        m.lastEventText = `${seat?.name || 'Player'}: Pair split sacrifice! Partner returned to base.`;
-      }
-    }
 
     if (outcome.reachedCenterHome) {
       m.extraTurnEarned = true;
@@ -748,6 +749,8 @@ export class RoomManager {
       m.extraTurnEarned = true;
       m.extraTurnReason = 'capture';
       m.turnCapturedPawn = true;
+      m.turnCapturesMade = (m.turnCapturesMade || 0) + 1;
+      if (!m.turnCapturingPawns.includes(pawnIdx)) m.turnCapturingPawns.push(pawnIdx);
       const victimSeatIdx = outcome.capturedVictims[0].playerIdx;
       const victimSeat = room.seats[victimSeatIdx];
       const victimName = victimSeat?.name || 'Rival';
@@ -774,16 +777,21 @@ export class RoomManager {
     const canMoveRemaining = m.movesAvailable.length > 0 && canAnyPawnMove(m.pawns, seatIdx, m.movesAvailable, m.dice);
     const roomCode = room.code;
     if (!canMoveRemaining) {
-      const penalizedPawn = checkCompulsoryCapturePenalty(
+      const penalizedPawns = checkCompulsoryCapturePenalties(
         m.pawns,
         m.playerStats,
         seatIdx,
-        m.turnStartCaptures,
-        m.turnCapturedPawn,
-        m.extraTurnReason,
+        m.turnRequiredCaptures,
+        m.turnCapturesMade,
+        m.turnCandidatePawns,
+        m.turnMidTurnMissedCandidates,
+        m.turnCapturingPawns,
       );
-      if (penalizedPawn !== null) {
-        m.lastEventText = `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — token sent back to base!`;
+      if (penalizedPawns.length > 0) {
+        m.lastEventText =
+          penalizedPawns.length > 1
+            ? `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — ${penalizedPawns.length} tokens sent back to base!`
+            : `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — token sent back to base!`;
         if (seat?.isAI || seat?.tempBotTakeover) {
           this.emitAiDialogue(room, seatIdx, 'penalty');
         }
@@ -798,11 +806,26 @@ export class RoomManager {
         this.advanceTurn(activeRoom);
       }, passDelay);
     } else {
-      const moreCaps = getPossibleCaptures(m.pawns, seatIdx, m.movesAvailable, m.dice);
+      const nextOb = evaluateCaptureObligation(m.pawns, seatIdx, m.movesAvailable, m.dice);
+      const moreCaps = [...nextOb.singleCaptures, ...nextOb.combinedCaptures];
       for (const rc of moreCaps) {
         if (!m.turnStartCaptures.some((c) => c.pawnIdx === rc.pawnIdx)) {
           m.turnStartCaptures.push(rc);
         }
+      }
+      if (m.turnCapturesMade === 0 && nextOb.requiredCaptures > 0) {
+        m.turnRequiredCaptures = Math.max(m.turnRequiredCaptures, nextOb.requiredCaptures) as 0 | 1 | 2;
+        for (const cp of nextOb.candidatePawns) {
+          if (!m.turnCandidatePawns.includes(cp)) m.turnCandidatePawns.push(cp);
+        }
+      } else if (m.turnCapturesMade > 0 && nextOb.requiredCaptures > 0) {
+        m.turnRequiredCaptures = Math.max(
+          m.turnRequiredCaptures,
+          m.turnCapturesMade + nextOb.requiredCaptures,
+        ) as 0 | 1 | 2;
+        m.turnMidTurnMissedCandidates = Array.from(
+          new Set([...m.turnMidTurnMissedCandidates, ...nextOb.candidatePawns]),
+        );
       }
       this.broadcastRoom(room);
       if (m.turnAutoPlay) {
@@ -830,6 +853,25 @@ export class RoomManager {
     const canMoveRemaining = m.movesAvailable.length > 0 && canAnyPawnMove(m.pawns, seatIdx, m.movesAvailable, m.dice);
 
     if (!canMoveRemaining) {
+      const penalizedPawns = checkCompulsoryCapturePenalties(
+        m.pawns,
+        m.playerStats,
+        seatIdx,
+        m.turnRequiredCaptures,
+        m.turnCapturesMade,
+        m.turnCandidatePawns,
+        m.turnMidTurnMissedCandidates,
+        m.turnCapturingPawns,
+      );
+      if (penalizedPawns.length > 0) {
+        m.lastEventText =
+          penalizedPawns.length > 1
+            ? `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — ${penalizedPawns.length} tokens sent back to base!`
+            : `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — token sent back to base!`;
+        if (seat?.isAI || seat?.tempBotTakeover) {
+          this.emitAiDialogue(room, seatIdx, 'penalty');
+        }
+      }
       m.movesAvailable = [];
       this.broadcastRoom(room);
       this.clearRoomTimers(room);
@@ -861,6 +903,11 @@ export class RoomManager {
     m.lucky7UsedThisTurn = false;
     m.turnCapturedPawn = false;
     m.turnStartCaptures = [];
+    m.turnRequiredCaptures = 0;
+    m.turnCapturesMade = 0;
+    m.turnCandidatePawns = [];
+    m.turnMidTurnMissedCandidates = [];
+    m.turnCapturingPawns = [];
     m.pendingGul = null;
     m.turnAutoPlay = false;
     this.resetTurnExpiry(room);
@@ -1435,6 +1482,11 @@ export class RoomManager {
         lucky7UsedThisTurn: false,
         turnCapturedPawn: false,
         turnStartCaptures: [],
+        turnRequiredCaptures: 0,
+        turnCapturesMade: 0,
+        turnCandidatePawns: [],
+        turnMidTurnMissedCandidates: [],
+        turnCapturingPawns: [],
         turnSecondsLeft: room.timerConfig.enabled ? room.timerConfig.duration : 0,
         turnExpiresAt:
           room.timerConfig.enabled && room.timerConfig.duration > 0

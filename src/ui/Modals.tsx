@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { BACKGROUNDS, BOARD_THEMES, DICE_STYLES, getPlayerColor, stripSeatTag } from '../game/rules';
 import { MUSIC_TRACKS, sfx } from '../game/sfx';
-import { LANGUAGE_OPTIONS, TUTORIAL_SLIDES, translate } from '../i18n';
+import { LANGUAGE_OPTIONS, translate } from '../i18n';
 import { voiceNoteRecorder } from '../network/audioCapture';
 import { multiplayerClient } from '../network/multiplayerClient';
 import { whisperRecorder } from '../network/whisperRecorder';
 import { useGameStore } from '../state/store';
 import { MultiplayerLobbyModal } from './MultiplayerLobbyModal';
+import { TutorialModal } from './TutorialModal';
 
 const QUICK_CHAT_PRESETS = [
   'Good move! 👏',
@@ -56,7 +57,6 @@ export const Modals: React.FC = () => {
     showToast,
   } = useGameStore();
 
-  const [slideIdx, setSlideIdx] = useState(0);
   const [profileMsg, setProfileMsg] = useState('');
   const [wishSeat, setWishSeat] = useState(0);
   const [recordingVoice, setRecordingVoice] = useState(() => voiceNoteRecorder.isRecording());
@@ -91,7 +91,10 @@ export const Modals: React.FC = () => {
   return (
     <div
       onClick={(e) => {
-        if (e.target === e.currentTarget && (activeModal === 'profile' || activeModal === 'coachSkip')) {
+        if (
+          e.target === e.currentTarget &&
+          (activeModal === 'profile' || activeModal === 'coachSkip' || activeModal === 'howto')
+        ) {
           close();
         }
       }}
@@ -444,57 +447,7 @@ export const Modals: React.FC = () => {
       )}
 
       {/* 3. How To Play Modal */}
-      {activeModal === 'howto' && (
-        <div className="royal-modal-card w-full max-w-[460px] space-y-4">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h2 className="royal-modal-title text-xl">📖 {translate(prefs.language, 'guide_title')}</h2>
-            <button
-              type="button"
-              onClick={close}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-white/10 font-bold text-white"
-            >
-              ✕
-            </button>
-          </div>
-
-          <div className="rounded-2xl border border-[#f1c40f]/35 bg-white/5 p-5 text-center">
-            <div className="font-display text-xs font-bold tracking-wider text-[#f1c40f] uppercase">
-              {TUTORIAL_SLIDES[slideIdx].badge}
-            </div>
-            <div className="my-2 text-5xl">{TUTORIAL_SLIDES[slideIdx].icon}</div>
-            <h3 className="font-display text-xl font-bold text-white">
-              {TUTORIAL_SLIDES[slideIdx].titleKey
-                ? translate(prefs.language, TUTORIAL_SLIDES[slideIdx].titleKey!)
-                : TUTORIAL_SLIDES[slideIdx].title}
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-white/80">
-              {TUTORIAL_SLIDES[slideIdx].descKey
-                ? translate(prefs.language, TUTORIAL_SLIDES[slideIdx].descKey!)
-                : TUTORIAL_SLIDES[slideIdx].desc}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setSlideIdx((slideIdx - 1 + TUTORIAL_SLIDES.length) % TUTORIAL_SLIDES.length)}
-              className="cursor-pointer rounded-xl border border-white/25 bg-white/10 px-4 py-2 font-display text-sm font-bold text-white"
-            >
-              ◀ PREV
-            </button>
-            <span className="font-display text-sm font-bold text-[#f1c40f] tabular-nums">
-              {slideIdx + 1} / {TUTORIAL_SLIDES.length}
-            </span>
-            <button
-              type="button"
-              onClick={() => setSlideIdx((slideIdx + 1) % TUTORIAL_SLIDES.length)}
-              className="cursor-pointer rounded-xl bg-[#f1c40f] px-4 py-2 font-display text-sm font-bold text-black"
-            >
-              NEXT ▶
-            </button>
-          </div>
-        </div>
-      )}
+      {activeModal === 'howto' && <TutorialModal onClose={close} />}
 
       {/* 4. Local Lucky Wish Modal */}
       {activeModal === 'wish' && (
@@ -834,7 +787,7 @@ export const Modals: React.FC = () => {
           <div className="text-4xl">⚠️</div>
           <h2 className="royal-modal-title text-xl">CAPTURE OPPORTUNITY!</h2>
           <p className="text-xs font-semibold leading-relaxed text-white">
-            Compulsory capture rule: if you finish your turn without capturing an available opponent token on the open track, your token returns to base!
+            Compulsory capture rule: if you finish your turn without meeting an available capture on the open track, every non-capturing candidate token returns to base!
           </p>
           <div className="grid grid-cols-2 gap-3">
             <button

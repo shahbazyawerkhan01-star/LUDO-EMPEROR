@@ -54,6 +54,21 @@ export interface CaptureCandidate {
   targetPos: number;
 }
 
+export interface PairCaptureCandidate {
+  pawnIndices: [number, number];
+  diceIndices: [number, number];
+  targetPlayer: number;
+  targetPos: number;
+}
+
+export interface CaptureObligation {
+  requiredCaptures: 0 | 1 | 2;
+  singleCaptures: CaptureCandidate[];
+  combinedCaptures: CaptureCandidate[];
+  pairCaptures: PairCaptureCandidate[];
+  candidatePawns: number[];
+}
+
 export interface MoveOption {
   pawnIdx: number;
   dieIdx: number | 'combined';
@@ -596,39 +611,191 @@ export function getPossibleCaptures(
   return captures;
 }
 
-export function applySplitSacrifice(
+export function getPossiblePairCaptures(
   pawns: PawnState[][],
   pIdx: number,
-  movingPawnIdx: number,
-  startPos: number,
-  possibleCaptures: CaptureCandidate[],
-  usedDieIdx: number | 'combined',
-): boolean {
-  if (startPos < 0 || usedDieIdx === 'combined') return false;
-  if (!possibleCaptures || possibleCaptures.length === 0) return false;
-
-  const isCombinedCaptureStep = possibleCaptures.some(
-    (c) => c.pawnIdx === movingPawnIdx && c.diceIndices.length > 1 && c.diceIndices[0] === usedDieIdx,
-  );
-  if (!isCombinedCaptureStep) return false;
-
+  availableMoves: number[],
+  dice: number[],
+): PairCaptureCandidate[] {
+  if (!availableMoves || availableMoves.length !== 2) return [];
   const path = getPawnPath(pIdx);
-  const startSpace = path[startPos];
-  if (isSafeSpace(startSpace)) return false;
+  const results: PairCaptureCandidate[] = [];
+  const orders: Array<[number, number]> = [
+    [0, 1],
+    [1, 0],
+  ];
 
-  const partners: number[] = [];
-  pawns[pIdx].forEach((p, i) => {
-    if (i !== movingPawnIdx && p.status === 'on-path' && p.pos === startPos) {
-      partners.push(i);
+  for (const [idxA, idxB] of orders) {
+    const stepsA = Number(availableMoves[idxA]);
+    const stepsB = Number(availableMoves[idxB]);
+    if (Number.isNaN(stepsA) || Number.isNaN(stepsB) || stepsA <= 0 || stepsB <= 0) continue;
+
+    for (let pawnA = 0; pawnA < 4; pawnA++) {
+      const pA = pawns[pIdx]?.[pawnA];
+      if (!pA || pA.status === 'finished') continue;
+      if (!canMovePawn(pawns, pIdx, pawnA, stepsA, dice, availableMoves)) continue;
+      const posA = pA.status === 'home' ? 0 : pA.pos + stepsA;
+      if (posA < 0 || posA >= path.length) continue;
+      const spaceA = path[posA];
+      if (!spaceA || isSafeSpace(spaceA)) continue;
+
+      for (let pawnB = 0; pawnB < 4; pawnB++) {
+        if (pawnB === pawnA) continue;
+        const pB = pawns[pIdx]?.[pawnB];
+        if (!pB || pB.status === 'finished') continue;
+        if (pB.status === 'home' && stepsB !== 6) continue;
+        const posB = pB.status === 'home' ? 0 : pB.pos + stepsB;
+        if (posB !== posA || posB >= path.length) continue;
+
+        let alreadyFriendlyAtTarget = 0;
+        for (let k = 0; k < 4; k++) {
+          if (k === pawnA || k === pawnB) continue;
+          const pk = pawns[pIdx]?.[k];
+          if (pk && pk.status === 'on-path' && pk.pos === posA) {
+            alreadyFriendlyAtTarget++;
+          }
+        }
+        const singleCount = alreadyFriendlyAtTarget + 1;
+        const pairCount = alreadyFriendlyAtTarget + 2;
+
+        for (let oIdx = 0; oIdx < 5; oIdx++) {
+          if (oIdx === pIdx) continue;
+          const otherPath = getPawnPath(oIdx);
+          let otherCount = 0;
+          for (const op of pawns[oIdx] || []) {
+            if (op.status !== 'on-path') continue;
+            const sp = otherPath[op.pos];
+            if (sp && sp.arm === spaceA.arm && sp.c === spaceA.c && sp.r === spaceA.r) {
+              otherCount++;
+            }
+          }
+          if (otherCount > 0 && pairCount >= otherCount && singleCount < otherCount) {
+            results.push({
+              pawnIndices: [pawnA, pawnB],
+              diceIndices: [idxA, idxB],
+              targetPlayer: oIdx,
+              targetPos: posA,
+            });
+          }
+        }
+      }
     }
-  });
+  }
 
-  if (partners.length === 1) {
-    const partnerIdx = partners[0];
-    pawns[pIdx][partnerIdx] = { status: 'home', pos: -1 };
+  return results;
+}
+
+export function evaluateCaptureObligation(
+  pawns: PawnState[][],
+  pIdx: number,
+  availableMoves: number[],
+  dice: number[],
+): CaptureObligation {
+  const allCaptures = getPossibleCaptures(pawns, pIdx, availableMoves, dice);
+  const singleCaptures = allCaptures.filter((c) => c.diceIndices.length === 1);
+  const combinedCaptures = allCaptures.filter((c) => c.diceIndices.length > 1);
+  const pairCaptures = getPossiblePairCaptures(pawns, pIdx, availableMoves, dice);
+
+  const candidateSet = new Set<number>();
+  for (const c of singleCaptures) candidateSet.add(c.pawnIdx);
+  for (const c of combinedCaptures) candidateSet.add(c.pawnIdx);
+  for (const pc of pairCaptures) {
+    candidateSet.add(pc.pawnIndices[0]);
+    candidateSet.add(pc.pawnIndices[1]);
+  }
+
+  let requiredCaptures: 0 | 1 | 2 = 0;
+
+  if (availableMoves.length === 2 && singleCaptures.length > 0) {
+    for (const sc of singleCaptures) {
+      const dieIdx1 = sc.diceIndices[0];
+      const steps1 = availableMoves[dieIdx1];
+      const simPawns = pawns.map((row) => row.map((p) => ({ ...p })));
+      const simStats = createInitialPlayerStats();
+      const out1 = executePawnMove(simPawns, simStats, pIdx, sc.pawnIdx, steps1, dice, availableMoves);
+      if (out1.moved && out1.capturedVictims.length > 0) {
+        const remMoves = [availableMoves[1 - dieIdx1]];
+        const remCaps = getPossibleCaptures(simPawns, pIdx, remMoves, dice);
+        if (remCaps.length > 0) {
+          requiredCaptures = 2;
+          break;
+        }
+      }
+    }
+  }
+
+  if (
+    requiredCaptures === 0 &&
+    (singleCaptures.length > 0 || combinedCaptures.length > 0 || pairCaptures.length > 0)
+  ) {
+    requiredCaptures = 1;
+  }
+
+  return {
+    requiredCaptures,
+    singleCaptures,
+    combinedCaptures,
+    pairCaptures,
+    candidatePawns: Array.from(candidateSet).sort((a, b) => a - b),
+  };
+}
+
+export function isMovePartOfCaptureSequence(
+  pawns: PawnState[][],
+  pIdx: number,
+  pawnIdx: number,
+  steps: number,
+  dieIdx: number | 'combined',
+  availableMoves: number[],
+  dice: number[],
+): boolean {
+  if (wouldMoveCapture(pawns, pIdx, pawnIdx, steps, dice, availableMoves)) return true;
+  if (dieIdx === 'combined') return false;
+  const ob = evaluateCaptureObligation(pawns, pIdx, availableMoves, dice);
+  if (ob.combinedCaptures.some((c) => c.pawnIdx === pawnIdx && c.diceIndices[0] === dieIdx)) {
+    return true;
+  }
+  if (ob.pairCaptures.some((pc) => pc.pawnIndices[0] === pawnIdx && pc.diceIndices[0] === dieIdx)) {
     return true;
   }
   return false;
+}
+
+export function checkCompulsoryCapturePenalties(
+  pawns: PawnState[][],
+  playerStats: PlayerStats[],
+  pIdx: number,
+  requiredCaptures: 0 | 1 | 2,
+  capturesMadeThisTurn: number,
+  turnStartCandidatePawns: number[],
+  missedMidTurnCandidatePawns: number[] = [],
+  capturingPawnIndices: number[] = [],
+): number[] {
+  if (requiredCaptures === 0 || capturesMadeThisTurn >= requiredCaptures) return [];
+
+  let offendingPool: number[];
+  if (capturesMadeThisTurn === 0) {
+    offendingPool = Array.from(new Set(turnStartCandidatePawns));
+  } else if (missedMidTurnCandidatePawns.length > 0) {
+    offendingPool = Array.from(new Set(missedMidTurnCandidatePawns));
+  } else {
+    const capSet = new Set(capturingPawnIndices);
+    offendingPool = Array.from(new Set(turnStartCandidatePawns.filter((idx) => !capSet.has(idx))));
+  }
+
+  const penalized: number[] = [];
+  for (const pawnIdx of offendingPool) {
+    const pawn = pawns[pIdx]?.[pawnIdx];
+    if (pawn && pawn.status === 'on-path') {
+      pawn.status = 'home';
+      pawn.pos = -1;
+      if (playerStats[pIdx]) {
+        playerStats[pIdx].penalties = (playerStats[pIdx].penalties || 0) + 1;
+      }
+      penalized.push(pawnIdx);
+    }
+  }
+  return penalized;
 }
 
 export function checkCompulsoryCapturePenalty(
@@ -638,46 +805,20 @@ export function checkCompulsoryCapturePenalty(
   turnStartCaptures: CaptureCandidate[],
   turnCapturedPawn: boolean,
   extraTurnReason: ExtraTurnReason,
-  usedDieIndex?: number,
-  movedPawnIdx?: number,
 ): number | null {
   if (turnCapturedPawn || extraTurnReason === 'capture') return null;
   if (!turnStartCaptures || turnStartCaptures.length === 0) return null;
 
-  let penalizedPawnIdx: number | null = null;
-  if (movedPawnIdx !== undefined && turnStartCaptures.some((c) => c.pawnIdx === movedPawnIdx)) {
-    penalizedPawnIdx = movedPawnIdx;
-  } else if (usedDieIndex !== undefined) {
-    const matchDie = turnStartCaptures.find((c) => c.diceIndices[0] === usedDieIndex);
-    if (matchDie) penalizedPawnIdx = matchDie.pawnIdx;
-  }
-
-  if (penalizedPawnIdx === null) {
-    let maxPos = -2;
-    for (const c of turnStartCaptures) {
-      const p = pawns[pIdx]?.[c.pawnIdx];
-      if (p && p.status === 'on-path' && p.pos > maxPos) {
-        maxPos = p.pos;
-        penalizedPawnIdx = c.pawnIdx;
-      }
-    }
-    if (penalizedPawnIdx === null && turnStartCaptures[0]) {
-      penalizedPawnIdx = turnStartCaptures[0].pawnIdx;
-    }
-  }
-
-  if (penalizedPawnIdx !== null) {
-    const pawn = pawns[pIdx]?.[penalizedPawnIdx];
-    if (pawn && pawn.status === 'on-path') {
-      pawn.status = 'home';
-      pawn.pos = -1;
-      if (playerStats[pIdx]) {
-        playerStats[pIdx].penalties = (playerStats[pIdx].penalties || 0) + 1;
-      }
-      return penalizedPawnIdx;
-    }
-  }
-  return null;
+  const uniqueCandidates = Array.from(new Set(turnStartCaptures.map((c) => c.pawnIdx)));
+  const penalized = checkCompulsoryCapturePenalties(
+    pawns,
+    playerStats,
+    pIdx,
+    1,
+    0,
+    uniqueCandidates,
+  );
+  return penalized.length > 0 ? penalized[0] : null;
 }
 
 export interface StepMoveOutcome {
@@ -895,21 +1036,45 @@ export function pickBestAIMove(
   if (legalMoves.length === 0) return { move: null, hitsLeader: false };
 
   const { leaderIdx } = getMatchLeader(pawns, pIdx);
-  const possibleCaptures = getPossibleCaptures(pawns, pIdx, movesAvailable, dice);
+  const obligation = evaluateCaptureObligation(pawns, pIdx, movesAvailable, dice);
+  const possibleCaptures = [...obligation.singleCaptures, ...obligation.combinedCaptures];
 
   if (possibleCaptures.length > 0) {
-    const leaderCaptures = leaderIdx !== -1 ? possibleCaptures.filter((c) => c.targetPlayer === leaderIdx) : [];
+    // If 2 independent captures are required, prioritize a first single-die capture that keeps a 2nd capture alive
+    let candidateList = possibleCaptures;
+    if (obligation.requiredCaptures === 2 && movesAvailable.length === 2) {
+      const doubleChain = obligation.singleCaptures.filter((sc) => {
+        const dieIdx1 = sc.diceIndices[0];
+        const simPawns = pawns.map((row) => row.map((p) => ({ ...p })));
+        const simStats = createInitialPlayerStats();
+        const out1 = executePawnMove(simPawns, simStats, pIdx, sc.pawnIdx, movesAvailable[dieIdx1], dice, movesAvailable);
+        if (!out1.moved || out1.capturedVictims.length === 0) return false;
+        return getPossibleCaptures(simPawns, pIdx, [movesAvailable[1 - dieIdx1]], dice).length > 0;
+      });
+      if (doubleChain.length > 0) candidateList = doubleChain;
+    }
+
+    const leaderCaptures = leaderIdx !== -1 ? candidateList.filter((c) => c.targetPlayer === leaderIdx) : [];
     let selected: CaptureCandidate;
     if (leaderCaptures.length > 0) {
       leaderCaptures.sort((a, b) => b.targetPos - a.targetPos);
       selected = leaderCaptures[0];
     } else {
-      possibleCaptures.sort((a, b) => b.targetPos - a.targetPos);
-      selected = possibleCaptures[0];
+      candidateList.sort((a, b) => b.targetPos - a.targetPos);
+      selected = candidateList[0];
     }
     const found = legalMoves.find((m) => m.pawnIdx === selected.pawnIdx && m.dieIdx === selected.diceIndices[0]);
     if (found) {
       return { move: found, hitsLeader: leaderCaptures.length > 0 };
+    }
+  } else if (obligation.pairCaptures.length > 0) {
+    const leaderPairs = leaderIdx !== -1 ? obligation.pairCaptures.filter((pc) => pc.targetPlayer === leaderIdx) : [];
+    const pool = leaderPairs.length > 0 ? leaderPairs : obligation.pairCaptures;
+    pool.sort((a, b) => b.targetPos - a.targetPos);
+    const picked = pool[0];
+    const found = legalMoves.find((m) => m.pawnIdx === picked.pawnIndices[0] && m.dieIdx === picked.diceIndices[0]);
+    if (found) {
+      return { move: found, hitsLeader: leaderPairs.length > 0 };
     }
   }
 
