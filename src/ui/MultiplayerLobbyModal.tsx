@@ -25,20 +25,43 @@ export const MultiplayerLobbyModal: React.FC = () => {
     onlineTimerConfig,
     onlineSeats,
     chatMessages,
+    pendingInviteCode,
     roomError,
     gameStarted,
     prefs,
     setActiveModal,
+    openWhisperModal,
     toggleSeatMute,
     showToast,
   } = useGameStore();
 
-  const [playerName, setPlayerName] = useState(() => runSdk.getOnlineName() || 'Anees');
-  const [joinCode, setJoinCode] = useState('');
+  const [playerName, setPlayerName] = useState(
+    () => runSdk.getOnlineName() || (pendingInviteCode ? '' : 'Anees'),
+  );
+  const [joinCode, setJoinCode] = useState(() => pendingInviteCode || '');
+  const [roomEditName, setRoomEditName] = useState('');
   const [wish, setWish] = useState<[number, number]>(() => runSdk.getOnlineWish());
   const [pickingDie, setPickingDie] = useState<1 | 2 | null>(null);
   const [chatText, setChatText] = useState('');
   const [busy, setBusy] = useState(false);
+
+  React.useEffect(() => {
+    if (pendingInviteCode && !roomCode) {
+      setJoinCode(pendingInviteCode);
+      if (!runSdk.getOnlineName().trim()) {
+        setPlayerName('');
+      }
+    }
+  }, [pendingInviteCode, roomCode]);
+
+  const myCurrentSeatName =
+    typeof mySeat === 'number' ? stripSeatTag(onlineSeats[mySeat]?.name || '') : '';
+
+  React.useEffect(() => {
+    if (roomCode && myCurrentSeatName) {
+      setRoomEditName(myCurrentSeatName);
+    }
+  }, [roomCode, myCurrentSeatName]);
 
   const handleSelectWishNum = (num: number) => {
     let [w1, w2] = wish;
@@ -74,13 +97,34 @@ export const MultiplayerLobbyModal: React.FC = () => {
       showToast('Enter a room code first.');
       return;
     }
+    const cleanName = stripSeatTag(playerName).trim();
+    if (!cleanName) {
+      showToast('Please write your guest name first.');
+      return;
+    }
     setBusy(true);
     await multiplayerClient.joinRoom(
       joinCode.trim().toUpperCase(),
-      stripSeatTag(playerName) || 'Guest',
+      cleanName,
       wish,
     );
     setBusy(false);
+  };
+
+  const handleUpdateRoomName = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = stripSeatTag(roomEditName).trim();
+    if (!clean) {
+      showToast('Enter a valid name.');
+      return;
+    }
+    multiplayerClient.updateName(clean, (res) => {
+      if (res?.success) {
+        showToast(`Name updated to ${res.name}`);
+      } else if (res?.error) {
+        showToast(res.error);
+      }
+    });
   };
 
   const handleCopyInvite = () => {
@@ -195,9 +239,15 @@ export const MultiplayerLobbyModal: React.FC = () => {
 
         {!roomCode ? (
           <div className="space-y-3.5">
+            {pendingInviteCode && (
+              <div className="rounded-xl border border-[#2ecc71]/60 bg-[#27ae60]/20 px-3 py-2 text-xs font-bold text-[#d4ffe5]">
+                🎟️ Invited to Room <span className="font-mono tracking-wider">{pendingInviteCode}</span> — write your guest name and tap JOIN ROOM!
+              </div>
+            )}
+
             <div>
               <label className="mb-1 block font-display text-xs font-bold text-[#f1c40f] uppercase">
-                YOUR DISPLAY NAME
+                {pendingInviteCode ? 'YOUR GUEST NAME' : 'YOUR DISPLAY NAME'}
               </label>
               <input
                 type="text"
@@ -205,19 +255,22 @@ export const MultiplayerLobbyModal: React.FC = () => {
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
                 placeholder="Enter your name..."
+                autoFocus={!!pendingInviteCode}
                 className="setup-input w-full"
                 style={{ width: '100%' }}
               />
             </div>
 
-            <button
-              type="button"
-              disabled={busy}
-              onClick={handleHostCreate}
-              className="w-full cursor-pointer rounded-2xl bg-[#f1c40f] py-3 font-display text-lg font-bold text-black shadow-lg hover:brightness-110 disabled:opacity-50"
-            >
-              👑 CREATE / HOST ROOM
-            </button>
+            {!pendingInviteCode && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleHostCreate}
+                className="w-full cursor-pointer rounded-2xl bg-[#f1c40f] py-3 font-display text-lg font-bold text-black shadow-lg hover:brightness-110 disabled:opacity-50"
+              >
+                👑 CREATE / HOST ROOM
+              </button>
+            )}
 
             <div className="flex items-center gap-2 pt-1">
               <input
@@ -252,6 +305,31 @@ export const MultiplayerLobbyModal: React.FC = () => {
                 📋 COPY LINK
               </button>
             </div>
+
+            {!gameStarted && (
+              <form
+                onSubmit={handleUpdateRoomName}
+                className="flex items-center gap-2 rounded-xl border border-[#f1c40f]/35 bg-white/5 px-3 py-2"
+              >
+                <span className="font-display text-[11px] font-bold text-[#f1c40f] uppercase shrink-0">
+                  {amHost ? 'HOST NAME' : 'GUEST NAME'}
+                </span>
+                <input
+                  type="text"
+                  maxLength={20}
+                  value={roomEditName}
+                  onChange={(e) => setRoomEditName(e.target.value)}
+                  placeholder="Enter your name..."
+                  className="min-w-0 flex-1 rounded-lg border border-white/25 bg-black/70 px-2.5 py-1.5 text-xs font-semibold text-white outline-none focus:border-[#f1c40f]"
+                />
+                <button
+                  type="submit"
+                  className="cursor-pointer rounded-lg bg-[#f1c40f] px-3 py-1.5 font-display text-[11px] font-bold text-black hover:brightness-110"
+                >
+                  SAVE
+                </button>
+              </form>
+            )}
 
             {/* 5 Seats */}
             <div className="space-y-1.5">
@@ -349,7 +427,7 @@ export const MultiplayerLobbyModal: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-display font-bold text-white">🤫 SECRET WHISPERS</span>
+                  <span className="font-display font-bold text-white">🤫 WHISPER PRIVACY</span>
                   <button
                     type="button"
                     onClick={() => multiplayerClient.toggleSecretWhispers(!secretWhispers)}
@@ -358,9 +436,9 @@ export const MultiplayerLobbyModal: React.FC = () => {
                       background: secretWhispers ? '#9333ea' : 'rgba(255,255,255,0.12)',
                       color: '#fff',
                     }}
-                    title="When OFF (Transparent), room sees who whispered to whom without hearing audio"
+                    title="Hidden: Room cannot see whispers. Transparent: Room sees who whispered without audio."
                   >
-                    {secretWhispers ? 'ON (HIDDEN)' : 'OFF (TRANSPARENT)'}
+                    {secretWhispers ? '🤫 Whispers: Hidden' : '🤫 Whispers: Transparent'}
                   </button>
                 </div>
 
@@ -415,32 +493,89 @@ export const MultiplayerLobbyModal: React.FC = () => {
               </button>
             )}
 
+            {/* Read-Only Whisper Privacy Indicator for Non-Hosts (and In-Match View) */}
+            {(gameStarted || !amHost) && (
+              <div className="flex items-center justify-between rounded-xl border border-[#c084fc]/35 bg-[#581c87]/20 px-3 py-2 text-xs">
+                <span className="font-display font-bold text-[#e9d5ff]">🤫 WHISPERS</span>
+                <span className="font-semibold text-white/90">
+                  {secretWhispers
+                    ? '🕶️ Hidden Mode (Room cannot see whispers)'
+                    : '👁️ Transparent Mode (Room sees who whispered)'}
+                </span>
+              </div>
+            )}
+
             {/* Live Room Chat */}
             <div className={`space-y-2 rounded-2xl border p-3 ${gameStarted ? 'border-white/45 bg-black/20' : 'border-white/15 bg-white/5'}`}>
+              <div className="flex items-center justify-between border-b border-white/15 pb-1.5">
+                <span className="font-display text-xs font-bold text-[#f1c40f] uppercase">
+                  💬 Room Chat
+                </span>
+                <button
+                  type="button"
+                  onClick={() => openWhisperModal()}
+                  className="cursor-pointer rounded-lg border border-[#e9d5ff]/70 bg-[#7e22ce]/85 px-2.5 py-1 font-display text-[11px] font-bold text-white hover:bg-[#9333ea]"
+                >
+                  🤫 Whisper
+                </button>
+              </div>
               <div className="modal-scroll max-h-28 space-y-1 overflow-y-auto text-xs">
                 {chatMessages.length === 0 ? (
                   <div className={gameStarted ? 'text-white/85' : 'text-white/50'}>No messages yet. Say hello!</div>
                 ) : (
-                  chatMessages.map((m) => (
-                    <div key={m.id} className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-bold text-[#2ecc71]">{stripSeatTag(m.sender)}: </span>
-                      {m.audioData ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (m.audioData) {
-                              useGameStore.getState().playVoiceNote(m.id);
-                            }
-                          }}
-                          className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-[#2ecc71]/60 bg-[#27ae60]/30 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-[#27ae60]/55"
+                  chatMessages.map((m) => {
+                    const kind = m.kind || (m.audioData ? 'voice' : 'text');
+                    if (kind === 'whisper_in' || kind === 'whisper_out') {
+                      return (
+                        <div
+                          key={m.id}
+                          className="flex flex-wrap items-center justify-between gap-1.5 rounded-lg border border-[#c084fc]/45 bg-[#581c87]/35 px-2 py-1"
                         >
-                          <span>▶ Play ({m.duration || 2}s)</span>
-                        </button>
-                      ) : (
-                        <span className="text-white">{m.text}</span>
-                      )}
-                    </div>
-                  ))
+                          <span className="font-bold text-[#f3e8ff]">
+                            {kind === 'whisper_in'
+                              ? `🤫 ${stripSeatTag(m.sender)} → You`
+                              : `🤫 You → ${(m.targetNames || []).join(', ')}`}
+                          </span>
+                          {m.audioData && (
+                            <button
+                              type="button"
+                              onClick={() => useGameStore.getState().playVoiceNote(m.id)}
+                              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-[#e9d5ff]/75 bg-[#7e22ce] px-2 py-0.5 text-[11px] font-bold text-white hover:bg-[#9333ea]"
+                            >
+                              ▶ {m.duration || 2}s
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+                    if (kind === 'whisper_notice') {
+                      return (
+                        <div key={m.id} className="text-[11px] italic text-[#fde68a]">
+                          {m.sender} {m.text}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={m.id} className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-bold text-[#2ecc71]">{stripSeatTag(m.sender)}: </span>
+                        {m.audioData ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (m.audioData) {
+                                useGameStore.getState().playVoiceNote(m.id);
+                              }
+                            }}
+                            className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-[#2ecc71]/60 bg-[#27ae60]/30 px-2 py-0.5 text-[11px] font-bold text-white hover:bg-[#27ae60]/55"
+                          >
+                            <span>▶ {m.duration || 2}s</span>
+                          </button>
+                        ) : (
+                          <span className="text-white">{m.text}</span>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
               <div className="flex flex-wrap gap-1.5">

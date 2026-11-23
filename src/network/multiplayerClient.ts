@@ -204,18 +204,23 @@ class MultiplayerClient {
     });
 
     sock.on('ludo:chat', (msg) => {
-      useGameStore.getState().appendChatMessage({
+      const st = useGameStore.getState();
+      if (st.prefs.mutedSeats.includes(msg.seatIndex)) return;
+      st.appendChatMessage({
         id: `chat_${msg.timestamp}_${msg.seatIndex}`,
         sender: msg.sender,
         text: msg.text,
         seatIndex: msg.seatIndex,
         timestamp: msg.timestamp,
+        kind: 'text',
       });
       sfx.play('notification', 0.45);
     });
 
     sock.on('ludo:reaction', (payload: { seatIndex: number; emoji: string }) => {
-      useGameStore.getState().sceneHandlers.spawnReaction?.(payload.seatIndex, payload.emoji);
+      const st = useGameStore.getState();
+      if (st.prefs.mutedSeats.includes(payload.seatIndex)) return;
+      st.sceneHandlers.spawnReaction?.(payload.seatIndex, payload.emoji);
       sfx.play('notification', 0.35);
     });
 
@@ -230,17 +235,31 @@ class MultiplayerClient {
     });
 
     sock.on('ludo:voice', (msg) => {
+      const st = useGameStore.getState();
+      if (st.prefs.mutedSeats.includes(msg.seatIndex)) return;
       const audioUrl = binaryPayloadToAudioUrl(msg.audio, msg.mimeType);
       if (!audioUrl) return;
-      useGameStore.getState().appendChatMessage({
+      st.appendChatMessage({
         id: `voice_${msg.timestamp}_${msg.seatIndex}`,
         sender: msg.sender,
         text: `🎤 Voice note (${msg.duration}s)`,
         seatIndex: msg.seatIndex,
         timestamp: msg.timestamp,
+        kind: 'voice',
         audioData: audioUrl,
         duration: msg.duration,
       });
+    });
+
+    sock.on('ludo:secret_whispers_changed', (payload: { secretWhispers?: boolean }) => {
+      if (typeof payload?.secretWhispers !== 'boolean') return;
+      const st = useGameStore.getState();
+      st.setSecretWhispers(payload.secretWhispers);
+      st.showToast(
+        payload.secretWhispers
+          ? '🕶️ Host switched Whispers to Hidden Mode'
+          : '👁️ Host switched Whispers to Transparent Mode',
+      );
     });
 
     sock.on('voice:whisper', (msg: {
@@ -272,26 +291,24 @@ class MultiplayerClient {
       timestamp: number;
     }) => {
       const st = useGameStore.getState();
-      if (st.secretWhispers) return;
+      if (st.secretWhispers || st.prefs.mutedSeats.includes(msg.fromSeat)) return;
       const fromClean = msg.senderName.replace(/\s*\(Seat\s*\d+\)/gi, '').trim();
       const targetClean = (msg.targetNames || [])
         .map((n) => n.replace(/\s*\(Seat\s*\d+\)/gi, '').trim())
         .join(', ');
       const noticeText = `whispered privately to ${targetClean}`;
-      useGameStore.setState((prev) => ({
-        chatMessages: [
-          ...prev.chatMessages.slice(-50),
-          {
-            id: `whisper_notice_${msg.timestamp}_${msg.fromSeat}`,
-            sender: `🤫 ${fromClean}`,
-            text: noticeText,
-            seatIndex: msg.fromSeat,
-            timestamp: msg.timestamp,
-          },
-        ],
-      }));
+      st.appendChatMessage({
+        id: `whisper_notice_${msg.timestamp}_${msg.fromSeat}`,
+        sender: `👁️ ${fromClean}`,
+        text: noticeText,
+        seatIndex: msg.fromSeat,
+        timestamp: msg.timestamp,
+        kind: 'whisper_notice',
+        targetSeats: msg.toSeats,
+        targetNames: msg.targetNames,
+      });
       if (msg.fromSeat !== st.mySeat && !msg.toSeats?.includes(st.mySeat ?? -1)) {
-        st.showToast(`🤫 ${fromClean} whispered to ${targetClean}`);
+        st.showToast(`👁️ ${fromClean} whispered to ${targetClean}`);
       }
     });
 
@@ -450,6 +467,19 @@ class MultiplayerClient {
     this.ensureSocket().emit('ludo:update_wish', { token: this.token, wish });
   }
 
+  public updateName(
+    playerName: string,
+    callback?: (res: { success?: boolean; name?: string; error?: string }) => void,
+  ): void {
+    const clean = playerName.trim().slice(0, 20);
+    if (!clean) {
+      callback?.({ success: false, error: 'Enter a valid name.' });
+      return;
+    }
+    runSdk.setOnlineName(clean);
+    this.ensureSocket().emit('ludo:update_name', { token: this.token, playerName: clean }, callback);
+  }
+
   public startMatch(): void {
     this.ensureSocket().emit('ludo:start_match', { token: this.token }, (res: { success?: boolean; error?: string }) => {
       if (res && !res.success && res.error) {
@@ -513,9 +543,17 @@ class MultiplayerClient {
     mimeType: string,
     callback?: (res: { success?: boolean; error?: string; duration?: number; deliveredTo?: number[] }) => void,
   ): void {
+    const roomCode = useGameStore.getState().roomCode;
     this.ensureSocket().emit(
       'voice:whisper',
-      { token: this.token, toSeats, clip, mimeType },
+      {
+        roomCode,
+        sessionToken: this.token,
+        token: this.token,
+        toSeats,
+        clip,
+        mimeType,
+      },
       callback,
     );
   }

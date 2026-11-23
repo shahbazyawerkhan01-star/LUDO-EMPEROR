@@ -51,10 +51,13 @@ export type ActiveModal =
   | 'wish'
   | 'profile'
   | 'lobby'
+  | 'chat'
   | 'coachSkip'
   | 'gulPass'
   | 'victory'
   | 'tournamentRules';
+
+export type ChatMessageKind = 'text' | 'voice' | 'whisper_in' | 'whisper_out' | 'whisper_notice';
 
 export interface ChatMessage {
   id: string;
@@ -62,8 +65,11 @@ export interface ChatMessage {
   text: string;
   seatIndex: number;
   timestamp: number;
+  kind?: ChatMessageKind;
   audioData?: string;
   duration?: number;
+  targetSeats?: number[];
+  targetNames?: string[];
 }
 
 export interface RoomSeatPublic {
@@ -161,6 +167,7 @@ export interface GameStoreState {
   onlineTimerConfig: { enabled: boolean; duration: 60 | 90 | 120 | 0 };
   onlineSeats: Record<number, RoomSeatPublic>;
   chatMessages: ChatMessage[];
+  pendingInviteCode: string | null;
   roomError: string | null;
   lastActionSeq: number;
   serverClockOffsetMs: number;
@@ -177,12 +184,15 @@ export interface GameStoreState {
   voiceMicTestActive: boolean;
   voicePeerStatuses: Record<number, string>;
 
-  // Private Voice Whispers (Online Multiplayer Only, never auto-played, never stored on server)
+  // Private Voice Whispers (Online Multiplayer Only, never stored on server)
   secretWhispers: boolean;
   incomingWhispers: Record<number, IncomingWhisper>;
+  whisperBadges: Record<number, number>;
   pendingVoiceNotes: ChatMessage[];
   blockedWhisperSeats: number[];
   whisperRecordingSeat: number | null;
+  whisperModalOpen: boolean;
+  whisperPreselectSeats: number[];
 
   // Scene bridge hooks
   sceneHandlers: {
@@ -265,6 +275,7 @@ export interface GameStoreState {
   playSyncedAiDialogue: (seatIdx: number, event: BanterEvent, lineIdx: number) => void;
   appendChatMessage: (msg: ChatMessage) => void;
   setPendingServerGul: (choice: PendingMoveChoice | null) => void;
+  setPendingInviteCode: (code: string | null) => void;
   setRoomError: (err: string | null) => void;
   leaveOnlineRoomLocal: () => void;
 
@@ -282,6 +293,17 @@ export interface GameStoreState {
   setVoiceSeatVolume: (seatIdx: number, volume: number) => void;
 
   // Whisper & Voice Note Mutations
+  openWhisperModal: (preselectSeats?: number[]) => void;
+  closeWhisperModal: () => void;
+  setSecretWhispers: (secretWhispers: boolean) => void;
+  appendOutgoingWhisper: (payload: {
+    id: string;
+    toSeats: number[];
+    targetNames: string[];
+    audioUrl: string;
+    duration: number;
+    timestamp: number;
+  }) => void;
   receiveWhisper: (whisper: IncomingWhisper) => void;
   playIncomingWhisper: (fromSeat: number) => void;
   dismissIncomingWhisper: (fromSeat: number) => void;
@@ -299,6 +321,7 @@ let banterTimers: Array<ReturnType<typeof setTimeout>> = [];
 let lastRoutineSpeechAt = 0;
 let lastSyncedDialogueKey = '';
 let lastSyncedDialogueAt = 0;
+const whisperBadgeTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
 function clearLocalTimers() {
   if (aiTimeout) {
@@ -774,6 +797,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     onlineTimerConfig: { enabled: true, duration: 90 },
     onlineSeats: {},
     chatMessages: [],
+    pendingInviteCode: null,
     roomError: null,
     lastActionSeq: 0,
     serverClockOffsetMs: 0,
@@ -789,15 +813,41 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     voicePeerStatuses: {},
     secretWhispers: false,
     incomingWhispers: {},
+    whisperBadges: {},
     pendingVoiceNotes: [],
     blockedWhisperSeats: [],
     whisperRecordingSeat: null,
+    whisperModalOpen: false,
+    whisperPreselectSeats: [],
     sceneHandlers: {},
 
     setScreen: (screen) => set({ screen }),
     setActiveModal: (activeModal) => set({ activeModal }),
+    setPendingInviteCode: (pendingInviteCode) => set({ pendingInviteCode }),
     openProfileModal: (seatIdx) => set({ profileSeatIdx: seatIdx, activeModal: 'profile' }),
     openWishModal: (seatIdx) => set({ wishSeatIdx: seatIdx, activeModal: 'wish' }),
+    openWhisperModal: (preselectSeats) => {
+      const st = get();
+      if (!st.isOnline || st.matchOver) return;
+      const connectedHumanOpponents = [0, 1, 2, 3, 4].filter((seatIdx) => {
+        if (seatIdx === st.mySeat) return false;
+        const seat = st.onlineSeats[seatIdx];
+        return !!seat && !seat.isAI && !!seat.connected;
+      });
+      let selected: number[] = [];
+      if (Array.isArray(preselectSeats) && preselectSeats.length > 0) {
+        selected = preselectSeats.filter((s) => connectedHumanOpponents.includes(s));
+      } else if (connectedHumanOpponents.length > 0) {
+        selected = [connectedHumanOpponents[0]];
+      }
+      set({
+        whisperModalOpen: true,
+        whisperPreselectSeats: selected,
+        ...(st.activeModal === 'profile' ? { activeModal: null } : {}),
+      });
+    },
+    closeWhisperModal: () => set({ whisperModalOpen: false, whisperPreselectSeats: [] }),
+    setSecretWhispers: (secretWhispers) => set({ secretWhispers }),
 
     showToast: (text) => {
       if (toastTimer) clearTimeout(toastTimer);
@@ -1317,6 +1367,25 @@ export const useGameStore = create<GameStoreState>((set, get) => {
             set({ speakingSeat: null });
           }
         }
+        const nextIncoming = { ...get().incomingWhispers };
+        delete nextIncoming[seatIdx];
+        const nextBadges = { ...get().whisperBadges };
+        delete nextBadges[seatIdx];
+        const existingTimer = whisperBadgeTimers.get(seatIdx);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          whisperBadgeTimers.delete(seatIdx);
+        }
+        set((cur) => ({
+          incomingWhispers: nextIncoming,
+          whisperBadges: nextBadges,
+          pendingVoiceNotes: cur.pendingVoiceNotes.filter((v) => v.seatIndex !== seatIdx),
+          voiceSeatVolumes: { ...cur.voiceSeatVolumes, [seatIdx]: 0 },
+        }));
+      } else if ((get().voiceSeatVolumes[seatIdx] ?? 1) === 0) {
+        set((cur) => ({
+          voiceSeatVolumes: { ...cur.voiceSeatVolumes, [seatIdx]: 1 },
+        }));
       }
       const name = stripSeatTag(st.players[seatIdx]?.name || `Player ${seatIdx + 1}`);
       get().showToast(exists ? `🔊 Unmuted ${name}` : `🔇 Muted ${name}`);
@@ -1360,6 +1429,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         onlineTimerConfig: roomState.timerConfig,
         onlineSeats: roomState.seats,
         players: nextPlayers,
+        pendingInviteCode: null,
         roomError: null,
         lastActionSeq: roomState.actionSeq ?? 0,
         serverClockOffsetMs: clockOffset,
@@ -1595,6 +1665,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       };
       runSdk.saveWinStats(nextWinStats);
 
+      whisperBadgeTimers.forEach((t) => clearTimeout(t));
+      whisperBadgeTimers.clear();
+      sfx.setRoutineAiPaused(false);
+      st.chatMessages.forEach((m) => {
+        if (m.audioData) {
+          sfx.evictAudioClipCache(m.audioData);
+          revokeAudioUrl(m.audioData);
+        }
+      });
       Object.values(st.incomingWhispers).forEach((w) => {
         sfx.evictAudioClipCache(w.clip);
         revokeAudioUrl(w.clip);
@@ -1614,8 +1693,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         voiceCallParticipants: [],
         voiceSpeakingSeats: [],
         incomingWhispers: {},
+        whisperBadges: {},
         pendingVoiceNotes: [],
         whisperRecordingSeat: null,
+        whisperModalOpen: false,
+        whisperPreselectSeats: [],
         activeModal: 'victory',
       });
     },
@@ -1682,6 +1764,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
       const next = [...st.chatMessages.slice(-(maxMsgs - 1)), msg];
       set({ chatMessages: next });
+      const kind = msg.kind || (msg.audioData ? 'voice' : 'text');
+      if (kind === 'whisper_in' || kind === 'whisper_out' || kind === 'whisper_notice') {
+        return;
+      }
       if (msg.audioData) {
         void sfx.preloadAudioClip(msg.audioData);
         const cleanSender = stripSeatTag(msg.sender || `Player ${msg.seatIndex + 1}`);
@@ -1719,6 +1805,26 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
     },
 
+    appendOutgoingWhisper: ({ id, toSeats, targetNames, audioUrl, duration, timestamp }) => {
+      const st = get();
+      const myIdx = typeof st.mySeat === 'number' ? st.mySeat : 0;
+      const myName = st.players[myIdx]?.name || 'You';
+      const cleanTargets = targetNames.map((n) => stripSeatTag(n));
+      void sfx.preloadAudioClip(audioUrl);
+      get().appendChatMessage({
+        id,
+        sender: myName,
+        text: `Whispered to ${cleanTargets.join(', ')}`,
+        seatIndex: myIdx,
+        timestamp,
+        kind: 'whisper_out',
+        audioData: audioUrl,
+        duration,
+        targetSeats: toSeats,
+        targetNames: cleanTargets,
+      });
+    },
+
     playVoiceNote: (msgId) => {
       const st = get();
       const found =
@@ -1726,18 +1832,28 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         st.chatMessages.find((m) => m.id === msgId);
       if (!found?.audioData) return;
       const cleanSender = stripSeatTag(found.sender || `Player ${found.seatIndex + 1}`);
+      const isWhisper = found.kind === 'whisper_in' || found.kind === 'whisper_out';
+      if (isWhisper) {
+        sfx.setRoutineAiPaused(true);
+      }
       void sfx.playAudioClip(found.audioData, {
         gain: 2.0,
         onStart: () => {
-          get().showToast(`🔊 Playing voice note from ${cleanSender}...`);
+          get().showToast(
+            isWhisper
+              ? `🤫 Replaying whisper (${found.duration || 2}s)...`
+              : `🔊 Playing voice note from ${cleanSender}...`,
+          );
         },
         onEnded: () => {
+          if (isWhisper) sfx.setRoutineAiPaused(false);
           set((cur) => ({
             pendingVoiceNotes: cur.pendingVoiceNotes.filter((v) => v.id !== msgId),
           }));
         },
         onError: () => {
-          get().showToast(`🎤 Could not play voice note audio on this device`);
+          if (isWhisper) sfx.setRoutineAiPaused(false);
+          get().showToast(`🎤 Could not play audio clip on this device`);
         },
       });
     },
@@ -1773,8 +1889,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         sfx.evictAudioClipCache(w.clip);
         revokeAudioUrl(w.clip);
       });
+      whisperBadgeTimers.forEach((t) => clearTimeout(t));
+      whisperBadgeTimers.clear();
       sfx.stopSpeech();
       sfx.stopVoiceClip();
+      sfx.setRoutineAiPaused(false);
       sfx.setLiveVoiceActive(false);
       set({
         isOnline: false,
@@ -1786,6 +1905,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         onlineSeats: {},
         chatMessages: [],
         pendingVoiceNotes: [],
+        pendingInviteCode: null,
         roomError: null,
         lastActionSeq: 0,
         turnExpiresAt: null,
@@ -1802,8 +1922,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         voicePeerStatuses: {},
         secretWhispers: false,
         incomingWhispers: {},
+        whisperBadges: {},
         blockedWhisperSeats: [],
         whisperRecordingSeat: null,
+        whisperModalOpen: false,
+        whisperPreselectSeats: [],
         activeModal: null,
         screen: 'menu',
         gameStarted: false,
@@ -1837,25 +1960,94 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     receiveWhisper: (whisper) => {
       const st = get();
-      if (!st.isOnline || st.matchOver || whisper.fromSeat === st.mySeat || st.blockedWhisperSeats.includes(whisper.fromSeat)) {
+      if (
+        !st.isOnline ||
+        st.matchOver ||
+        whisper.fromSeat === st.mySeat ||
+        st.prefs.mutedSeats.includes(whisper.fromSeat) ||
+        st.blockedWhisperSeats.includes(whisper.fromSeat)
+      ) {
         revokeAudioUrl(whisper.clip);
         return;
       }
-      const existing = st.incomingWhispers[whisper.fromSeat];
-      if (existing) {
-        sfx.evictAudioClipCache(existing.clip);
-        revokeAudioUrl(existing.clip);
-      }
-      void sfx.preloadAudioClip(whisper.clip);
-      set({
-        incomingWhispers: {
-          ...st.incomingWhispers,
-          [whisper.fromSeat]: whisper,
-        },
-      });
-      sfx.play('notification', 0.35);
+
       const cleanName = stripSeatTag(whisper.senderName || `Player ${whisper.fromSeat + 1}`);
-      get().showToast(`🤫 Whisper from ${cleanName} — tap badge to listen`);
+      const badgeExpiry = Date.now() + 4500;
+      const prevTimer = whisperBadgeTimers.get(whisper.fromSeat);
+      if (prevTimer) clearTimeout(prevTimer);
+      whisperBadgeTimers.set(
+        whisper.fromSeat,
+        setTimeout(() => {
+          const cur = get();
+          if (cur.whisperBadges[whisper.fromSeat] === badgeExpiry) {
+            const nextBadges = { ...cur.whisperBadges };
+            delete nextBadges[whisper.fromSeat];
+            set({ whisperBadges: nextBadges });
+          }
+          whisperBadgeTimers.delete(whisper.fromSeat);
+        }, 4550),
+      );
+
+      set((cur) => ({
+        whisperBadges: {
+          ...cur.whisperBadges,
+          [whisper.fromSeat]: badgeExpiry,
+        },
+      }));
+
+      get().appendChatMessage({
+        id: whisper.id,
+        sender: whisper.senderName,
+        text: 'Whispered privately to you',
+        seatIndex: whisper.fromSeat,
+        timestamp: whisper.timestamp,
+        kind: 'whisper_in',
+        audioData: whisper.clip,
+        duration: whisper.duration,
+      });
+
+      const triggerAutoPlay = async () => {
+        await sfx.preloadAudioClip(whisper.clip);
+        const cur = get();
+        if (
+          !cur.isOnline ||
+          cur.matchOver ||
+          cur.prefs.mutedSeats.includes(whisper.fromSeat) ||
+          cur.blockedWhisperSeats.includes(whisper.fromSeat)
+        ) {
+          return;
+        }
+        sfx.setRoutineAiPaused(true);
+        void sfx.playAudioClip(whisper.clip, {
+          gain: 2.0,
+          onStart: () => {
+            get().showToast(`🤫 Whisper from ${cleanName} (${whisper.duration}s)`);
+          },
+          onEnded: () => {
+            sfx.setRoutineAiPaused(false);
+            const after = get();
+            const pending = after.incomingWhispers[whisper.fromSeat];
+            if (pending && pending.id === whisper.id) {
+              const next = { ...after.incomingWhispers };
+              delete next[whisper.fromSeat];
+              set({ incomingWhispers: next });
+            }
+          },
+          onError: () => {
+            sfx.setRoutineAiPaused(false);
+            set((after) => ({
+              incomingWhispers: {
+                ...after.incomingWhispers,
+                [whisper.fromSeat]: whisper,
+              },
+            }));
+            sfx.play('notification', 0.35);
+            get().showToast(`🤫 Whisper from ${cleanName} — tap pill to play`);
+          },
+        });
+      };
+
+      void triggerAutoPlay();
     },
 
     playIncomingWhisper: (fromSeat) => {
@@ -1863,7 +2055,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const whisper = st.incomingWhispers[fromSeat];
       if (!whisper) return;
       const cleanName = stripSeatTag(whisper.senderName || `Player ${fromSeat + 1}`);
-      const removeWhisper = (revoke: boolean) => {
+      const removeFallbackPill = () => {
         const cur = get();
         const existing = cur.incomingWhispers[fromSeat];
         if (existing && existing.id === whisper.id) {
@@ -1871,21 +2063,20 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           delete next[fromSeat];
           set({ incomingWhispers: next });
         }
-        if (revoke) {
-          sfx.evictAudioClipCache(whisper.clip);
-          revokeAudioUrl(whisper.clip);
-        }
       };
 
+      sfx.setRoutineAiPaused(true);
       void sfx.playAudioClip(whisper.clip, {
         gain: 2.0,
         onStart: () => {
           get().showToast(`🔊 Listening to whisper from ${cleanName}...`);
         },
         onEnded: () => {
-          removeWhisper(true);
+          sfx.setRoutineAiPaused(false);
+          removeFallbackPill();
         },
         onError: () => {
+          sfx.setRoutineAiPaused(false);
           get().showToast(`🤫 Could not play whisper audio — tap again to retry`);
         },
       });
@@ -1895,8 +2086,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const st = get();
       const existing = st.incomingWhispers[fromSeat];
       if (!existing) return;
-      sfx.evictAudioClipCache(existing.clip);
-      revokeAudioUrl(existing.clip);
       const next = { ...st.incomingWhispers };
       delete next[fromSeat];
       set({ incomingWhispers: next });
@@ -1909,7 +2098,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const nextBlocked = exists ? prev.filter((s) => s !== seatIdx) : [...prev, seatIdx];
       const nextIncoming = { ...st.incomingWhispers };
       if (!exists && nextIncoming[seatIdx]) {
-        revokeAudioUrl(nextIncoming[seatIdx].clip);
         delete nextIncoming[seatIdx];
       }
       set({ blockedWhisperSeats: nextBlocked, incomingWhispers: nextIncoming });

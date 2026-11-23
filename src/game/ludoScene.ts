@@ -875,7 +875,9 @@ export class LudoScene {
     const key = [
       themeId,
       this.snapshot.isTournament,
-      this.snapshot.players.map((p) => p.name).join('|'),
+      this.snapshot.isOnline ? '1' : '0',
+      this.snapshot.mySeat ?? 'none',
+      this.snapshot.players.map((p) => `${p.name}:${p.isAI ? 1 : 0}`).join('|'),
     ].join('::');
 
     if (key === this.lastBoardKey) return;
@@ -1033,8 +1035,11 @@ export class LudoScene {
         },
       });
       plateText.anchor.set(0.5);
-      if (plateText.width > plateWidth * 0.8) {
-        plateText.scale.set((plateWidth * 0.8) / plateText.width);
+      const hasWhisperBadge =
+        this.snapshot.isOnline && !!p && !p.isAI && i !== this.snapshot.mySeat;
+      const maxTextWidth = hasWhisperBadge ? plateWidth * 0.66 : plateWidth * 0.8;
+      if (plateText.width > maxTextWidth) {
+        plateText.scale.set(maxTextWidth / plateText.width);
       }
       plateWrap.addChild(plateText);
       baseCont.addChild(plateWrap);

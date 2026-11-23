@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { type NameplateScreenPos } from '../game/ludoScene';
 import {
   canAnyPawnMove,
@@ -10,22 +10,17 @@ import {
 } from '../game/rules';
 import { voiceNoteRecorder } from '../network/audioCapture';
 import { multiplayerClient } from '../network/multiplayerClient';
-import { whisperRecorder } from '../network/whisperRecorder';
 import { useGameStore } from '../state/store';
 import { translate } from '../i18n';
 
 interface HudProps {
   onToggleAspectRatio: () => void;
   nameplates: NameplateScreenPos[];
-  logicalW: number;
-  logicalH: number;
 }
 
 export const Hud: React.FC<HudProps> = ({
   onToggleAspectRatio,
   nameplates,
-  logicalW,
-  logicalH,
 }) => {
   const {
     players,
@@ -49,12 +44,13 @@ export const Hud: React.FC<HudProps> = ({
     speakingSeat,
     onlineSeats,
     incomingWhispers,
+    whisperBadges,
     pendingVoiceNotes,
-    whisperRecordingSeat,
     selectDieIndex,
     rollLocalDice,
     setActiveModal,
     openProfileModal,
+    openWhisperModal,
     toggleAiVoiceMute,
     playIncomingWhisper,
     dismissIncomingWhisper,
@@ -63,44 +59,13 @@ export const Hud: React.FC<HudProps> = ({
   } = useGameStore();
 
   const [isRecording, setIsRecording] = useState(() => voiceNoteRecorder.isRecording());
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const suppressNextClickRef = useRef(false);
-
-  const clearLongPress = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
-
-  const handleSeatPointerDown = (seatIdx: number, canWhisperTarget: boolean, hasPendingWhisper: boolean) => {
-    clearLongPress();
-    suppressNextClickRef.current = false;
-    if (!canWhisperTarget || hasPendingWhisper) return;
-    longPressTimerRef.current = setTimeout(() => {
-      longPressTimerRef.current = null;
-      suppressNextClickRef.current = true;
-      void whisperRecorder.start(seatIdx);
-    }, 450);
-  };
-
-  const handleSeatPointerEnd = (seatIdx: number) => {
-    clearLongPress();
-    if (whisperRecorder.isRecording() && whisperRecorder.getTargetSeat() === seatIdx) {
-      whisperRecorder.stopAndSend();
-    }
-  };
 
   useEffect(() => {
     const unsub = voiceNoteRecorder.subscribe(setIsRecording);
     return () => {
       unsub();
-      clearLongPress();
       if (voiceNoteRecorder.isRecording()) {
         voiceNoteRecorder.cancel();
-      }
-      if (whisperRecorder.isRecording()) {
-        whisperRecorder.cancel();
       }
     };
   }, []);
@@ -204,16 +169,7 @@ export const Hud: React.FC<HudProps> = ({
   };
 
   const handleOpenQuickChat = () => {
-    const targetSeat =
-      isOnline && typeof mySeat === 'number'
-        ? mySeat
-        : !players[currentPlayer]?.isAI
-          ? currentPlayer
-          : Math.max(
-              0,
-              players.findIndex((p) => !p.isAI),
-            );
-    openProfileModal(targetSeat);
+    setActiveModal('chat');
   };
 
   return (
@@ -297,7 +253,7 @@ export const Hud: React.FC<HudProps> = ({
         ))}
       </div>
 
-      {/* Whisper-Only Layer for Board Nameplates (Online Remote Connected Humans + Incoming Whisper Badges) */}
+      {/* Whisper Layer for Board Nameplates (Rendered Directly Inside Each Rotated Nameplate) */}
       {isOnline &&
         nameplates.map((plate) => {
           const seatPlayer = players[plate.seatIdx];
@@ -307,86 +263,120 @@ export const Hud: React.FC<HudProps> = ({
           const canWhisperTarget =
             !seatPlayer.isAI && !isMe && !!onlineSeats[plate.seatIdx]?.connected;
           const pendingWhisper = incomingWhispers[plate.seatIdx];
-          if (!canWhisperTarget && !pendingWhisper) return null;
+          const hasPulseBadge = !!whisperBadges[plate.seatIdx];
+          const isSeatMuted = !isMe && prefs.mutedSeats.includes(plate.seatIdx);
+          if (!canWhisperTarget && !pendingWhisper && !hasPulseBadge && !isSeatMuted) return null;
 
-          const isWhisperTargetNow = whisperRecordingSeat === plate.seatIdx;
-          const badgeX = Math.max(22, Math.min(logicalW - 22, plate.x + Math.max(36, plate.w * 0.42)));
-          const badgeY = Math.max(22, Math.min(logicalH - 22, plate.y - Math.max(15, plate.h * 0.48)));
+          const plateW = Math.max(88, plate.w);
+          const plateH = Math.max(22, plate.h);
+          const badgeSize = Math.max(16, Math.min(22, Math.round(plateH - 2)));
+          const iconFontSize = Math.max(11, badgeSize - 7);
 
           return (
-            <React.Fragment key={`plate-whisper-${plate.seatIdx}`}>
+            <div
+              key={`plate-whisper-${plate.seatIdx}`}
+              className="nameplate-overlay"
+              style={{
+                left: `${plate.x}px`,
+                top: `${plate.y}px`,
+                width: `${plateW}px`,
+                height: `${plateH}px`,
+                transform: `translate(-50%, -50%) rotate(${plate.angleDeg}deg)`,
+              }}
+            >
               {(canWhisperTarget || !!pendingWhisper) && (
                 <button
                   type="button"
-                  className={`nameplate-hit-btn ${isWhisperTargetNow ? 'is-whisper-target' : ''} ${pendingWhisper ? 'has-pending-whisper' : ''}`}
+                  className={`nameplate-hit-btn ${pendingWhisper ? 'has-pending-whisper' : ''}`}
                   title={
                     pendingWhisper
-                      ? `Tap to listen to private whisper from ${cleanName}`
-                      : isWhisperTargetNow
-                        ? `Tap to send private whisper to ${cleanName}`
-                        : `Whisper to ${cleanName} (Tap or Hold)`
+                      ? `Tap to play unheard whisper from ${cleanName}`
+                      : `Open Private Whisper to ${cleanName}`
                   }
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    handleSeatPointerDown(plate.seatIdx, canWhisperTarget, !!pendingWhisper);
-                  }}
-                  onPointerUp={(e) => {
-                    e.stopPropagation();
-                    handleSeatPointerEnd(plate.seatIdx);
-                  }}
-                  onPointerCancel={() => handleSeatPointerEnd(plate.seatIdx)}
-                  onPointerLeave={() => clearLongPress()}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (suppressNextClickRef.current) {
-                      suppressNextClickRef.current = false;
-                      return;
-                    }
                     if (pendingWhisper) {
                       playIncomingWhisper(plate.seatIdx);
                       return;
                     }
-                    if (!canWhisperTarget) return;
-                    if (
-                      whisperRecorder.isRecording() &&
-                      whisperRecorder.getTargetSeat() === plate.seatIdx
-                    ) {
-                      whisperRecorder.stopAndSend();
-                    } else {
-                      void whisperRecorder.start(plate.seatIdx);
+                    if (canWhisperTarget) {
+                      openWhisperModal([plate.seatIdx]);
                     }
-                  }}
-                  style={{
-                    left: `${plate.x}px`,
-                    top: `${plate.y}px`,
-                    width: `${Math.max(88, plate.w)}px`,
-                    height: `${Math.max(36, plate.h)}px`,
-                    transform: `translate(-50%, -50%) rotate(${plate.angleDeg}deg)`,
                   }}
                   aria-label={
                     pendingWhisper
-                      ? `Listen to private whisper from ${cleanName}`
-                      : `Private whisper to ${cleanName}`
+                      ? `Play whisper from ${cleanName}`
+                      : `Whisper to ${cleanName}`
                   }
                 />
               )}
 
-              {pendingWhisper && (
+              {pendingWhisper ? (
                 <button
                   type="button"
                   className="nameplate-status-badge whisper-pill"
-                  style={{ left: `${badgeX}px`, top: `${badgeY}px` }}
+                  style={{ height: `${badgeSize}px`, fontSize: `${Math.max(10, badgeSize - 8)}px` }}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     playIncomingWhisper(plate.seatIdx);
                   }}
-                  title="Tap to listen to private whisper"
+                  title="Tap to play private whisper"
                 >
                   🔊 🤫
                 </button>
-              )}
-            </React.Fragment>
+              ) : hasPulseBadge ? (
+                <button
+                  type="button"
+                  className="nameplate-status-badge whisper-pulse"
+                  style={{
+                    width: `${badgeSize}px`,
+                    height: `${badgeSize}px`,
+                    fontSize: `${iconFontSize}px`,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (canWhisperTarget) openWhisperModal([plate.seatIdx]);
+                  }}
+                  title={`${cleanName} whispered to you — tap to reply`}
+                >
+                  🤫
+                </button>
+              ) : isSeatMuted ? (
+                <button
+                  type="button"
+                  className="nameplate-status-badge muted-badge"
+                  style={{
+                    height: `${badgeSize}px`,
+                    fontSize: `${Math.max(10, badgeSize - 8)}px`,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (canWhisperTarget) openWhisperModal([plate.seatIdx]);
+                  }}
+                  title={`${cleanName} is muted`}
+                >
+                  {canWhisperTarget ? '🔇 🤫' : '🔇'}
+                </button>
+              ) : canWhisperTarget ? (
+                <button
+                  type="button"
+                  className="nameplate-status-badge whisper-hint"
+                  style={{
+                    width: `${badgeSize}px`,
+                    height: `${badgeSize}px`,
+                    fontSize: `${iconFontSize}px`,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openWhisperModal([plate.seatIdx]);
+                  }}
+                  title={`Whisper privately to ${cleanName}`}
+                >
+                  🤫
+                </button>
+              ) : null}
+            </div>
           );
         })}
 
@@ -552,11 +542,9 @@ export const Hud: React.FC<HudProps> = ({
         </button>
       </div>
 
-      {/* Tap-to-Listen Whisper & Voice Note Pills + Active Whisper Recording Indicator (Online Only) */}
+      {/* Autoplay-Blocked Fallback Whisper & Voice Note Pills (Online Only) */}
       {isOnline &&
-        (whisperRecordingSeat !== null ||
-          Object.keys(incomingWhispers).length > 0 ||
-          pendingVoiceNotes.length > 0) && (
+        (Object.keys(incomingWhispers).length > 0 || pendingVoiceNotes.length > 0) && (
           <div
             style={{
               position: 'absolute',
@@ -569,27 +557,6 @@ export const Hud: React.FC<HudProps> = ({
               pointerEvents: 'auto',
             }}
           >
-            {whisperRecordingSeat !== null && (
-              <div className="flex items-center gap-2 rounded-full border border-[#e9d5ff] bg-[#6b21a8]/95 px-3 py-1.5 text-xs font-bold text-white shadow-lg">
-                <span>
-                  🤫 Whispering to {stripSeatTag(players[whisperRecordingSeat]?.name || '')}...
-                </span>
-                <button
-                  type="button"
-                  onClick={() => whisperRecorder.stopAndSend()}
-                  className="cursor-pointer rounded-full bg-[#2ecc71] px-2 py-0.5 text-[10px] font-bold text-black"
-                >
-                  SEND
-                </button>
-                <button
-                  type="button"
-                  onClick={() => whisperRecorder.cancel()}
-                  className="cursor-pointer rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] text-white"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
 
             {Object.values(incomingWhispers).map((w) => (
               <div

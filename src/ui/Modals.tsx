@@ -4,10 +4,11 @@ import { MUSIC_TRACKS, sfx } from '../game/sfx';
 import { LANGUAGE_OPTIONS, translate } from '../i18n';
 import { voiceNoteRecorder } from '../network/audioCapture';
 import { multiplayerClient } from '../network/multiplayerClient';
-import { whisperRecorder } from '../network/whisperRecorder';
 import { useGameStore } from '../state/store';
+import { ChatDrawerModal } from './ChatDrawerModal';
 import { MultiplayerLobbyModal } from './MultiplayerLobbyModal';
 import { TutorialModal } from './TutorialModal';
+import { WhisperComposerModal } from './WhisperComposerModal';
 
 const QUICK_CHAT_PRESETS = [
   'Good move! 👏',
@@ -31,13 +32,14 @@ export const Modals: React.FC = () => {
     isTournament,
     isOnline,
     mySeat,
+    onlineSeats,
     turnAutoPlay,
     pendingGulMove,
     incomingWhispers,
-    blockedWhisperSeats,
-    whisperRecordingSeat,
     chatMessages,
+    whisperModalOpen,
     setActiveModal,
+    openWhisperModal,
     updatePrefs,
     updatePlayer,
     resetWinStats,
@@ -49,7 +51,6 @@ export const Modals: React.FC = () => {
     playIncomingWhisper,
     dismissIncomingWhisper,
     playVoiceNote,
-    toggleBlockWhisperSeat,
     triggerAiLine,
     triggerReaction,
     startLocalMatch,
@@ -72,8 +73,26 @@ export const Modals: React.FC = () => {
     };
   }, []);
 
-  if (!activeModal) return null;
-  if (activeModal === 'lobby') return <MultiplayerLobbyModal />;
+  if (!activeModal && !whisperModalOpen) return null;
+  if (activeModal === 'lobby') {
+    return (
+      <>
+        <MultiplayerLobbyModal />
+        <WhisperComposerModal />
+      </>
+    );
+  }
+  if (activeModal === 'chat') {
+    return (
+      <>
+        <ChatDrawerModal />
+        <WhisperComposerModal />
+      </>
+    );
+  }
+  if (!activeModal && whisperModalOpen) {
+    return <WhisperComposerModal />;
+  }
 
   const close = () => {
     setActiveModal(null);
@@ -671,7 +690,10 @@ export const Modals: React.FC = () => {
             )}
 
             {isOnline && (() => {
-              const recentVoice = chatMessages.filter((m) => !!m.audioData).slice(-3).reverse();
+              const recentVoice = chatMessages
+                .filter((m) => !!m.audioData && m.kind !== 'whisper_in' && m.kind !== 'whisper_out')
+                .slice(-3)
+                .reverse();
               if (recentVoice.length === 0) return null;
               return (
                 <div className="space-y-1.5 rounded-xl border border-white/25 bg-black/25 p-2.5">
@@ -701,23 +723,9 @@ export const Modals: React.FC = () => {
             {/* Private Targeted Whisper Controls (Remote Human Seats in Online Multiplayer Only) */}
             {isOnline && isHumanSeat && !isMyProfile && (() => {
               const incomingFromSeat = incomingWhispers[profileSeatIdx];
-              const isWhisperBlocked = blockedWhisperSeats.includes(profileSeatIdx);
-              const isRecordingThisWhisper = whisperRecordingSeat === profileSeatIdx;
+              const isRemoteConnected = !!onlineSeats[profileSeatIdx]?.connected;
               return (
                 <div className="space-y-2 rounded-2xl border border-[#c084fc]/60 bg-[#581c87]/30 p-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-display text-xs font-bold text-[#e9d5ff] uppercase">
-                      🤫 PRIVATE WHISPER
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => toggleBlockWhisperSeat(profileSeatIdx)}
-                      className="cursor-pointer rounded-lg border border-white/30 bg-black/30 px-2 py-0.5 text-[10px] font-bold text-white hover:bg-white/15"
-                    >
-                      {isWhisperBlocked ? '✅ UNBLOCK' : '🚫 BLOCK WHISPERS'}
-                    </button>
-                  </div>
-
                   {incomingFromSeat && (
                     <div className="flex items-center gap-1.5">
                       <button
@@ -725,7 +733,7 @@ export const Modals: React.FC = () => {
                         onClick={() => playIncomingWhisper(profileSeatIdx)}
                         className="flex-1 cursor-pointer rounded-xl border border-[#e9d5ff] bg-[#7e22ce] py-2 font-display text-xs font-bold text-white shadow hover:bg-[#9333ea]"
                       >
-                        🤫 PLAY WHISPER ({incomingFromSeat.duration}s)
+                        🔊 PLAY UNHEARD WHISPER ({incomingFromSeat.duration}s)
                       </button>
                       <button
                         type="button"
@@ -739,23 +747,11 @@ export const Modals: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (whisperRecorder.isRecording()) {
-                        whisperRecorder.stopAndSend();
-                      } else {
-                        void whisperRecorder.start(profileSeatIdx);
-                      }
-                    }}
-                    className="w-full cursor-pointer rounded-xl border border-[#d8b4fe]/75 py-2 font-display text-xs font-bold text-white"
-                    style={{
-                      background: isRecordingThisWhisper
-                        ? 'rgba(231, 76, 60, 0.85)'
-                        : 'rgba(126, 34, 206, 0.65)',
-                    }}
+                    disabled={!isRemoteConnected}
+                    onClick={() => openWhisperModal([profileSeatIdx])}
+                    className="w-full cursor-pointer rounded-xl border border-[#d8b4fe]/75 bg-[#7e22ce]/70 py-2.5 font-display text-xs font-bold text-white hover:bg-[#9333ea] disabled:cursor-not-allowed disabled:opacity-45"
                   >
-                    {isRecordingThisWhisper
-                      ? '⏹️ STOP & SEND PRIVATE WHISPER'
-                      : `🤫 WHISPER TO ${stripSeatTag(seatPlayer?.name || 'PLAYER').toUpperCase()}`}
+                    🤫 Whisper
                   </button>
                 </div>
               );
@@ -983,6 +979,7 @@ export const Modals: React.FC = () => {
           </div>
         </div>
       )}
+      <WhisperComposerModal />
     </div>
   );
 };

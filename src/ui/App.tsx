@@ -190,11 +190,20 @@ export const App: React.FC = () => {
     const code = (params.get('room') || params.get('invite') || '').trim().toUpperCase();
     if (code) {
       const existingName = runSdk.getOnlineName().trim();
-      const savedName = existingName || 'Guest';
-      const savedWish = runSdk.getOnlineWish();
-      multiplayerClient.joinRoom(code, savedName, savedWish, !!existingName).then((ok) => {
-        if (!ok) useGameStore.getState().setActiveModal('lobby');
-      });
+      if (!existingName) {
+        const st = useGameStore.getState();
+        st.setPendingInviteCode(code);
+        st.setActiveModal('lobby');
+      } else {
+        const savedWish = runSdk.getOnlineWish();
+        multiplayerClient.joinRoom(code, existingName, savedWish, true).then((ok) => {
+          if (!ok) {
+            const st = useGameStore.getState();
+            st.setPendingInviteCode(code);
+            st.setActiveModal('lobby');
+          }
+        });
+      }
     } else {
       multiplayerClient.tryAutoReconnect();
     }
@@ -407,8 +416,6 @@ export const App: React.FC = () => {
             <Hud
               onToggleAspectRatio={handleToggleAspectRatio}
               nameplates={nameplates}
-              logicalW={layoutMetrics.logicalW}
-              logicalH={layoutMetrics.logicalH}
             />
           </>
         )}

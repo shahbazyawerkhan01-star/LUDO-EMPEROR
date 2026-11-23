@@ -59,6 +59,8 @@ class SfxManager {
   private clipBufferCache = new Map<string, AudioBuffer | 'failed'>();
   private clipLoadingCache = new Map<string, Promise<AudioBuffer | 'failed'>>();
   private activeTtsIsAi = false;
+  private activeTtsPriority: 'high' | 'normal' = 'normal';
+  private routineAiPaused = false;
   private liveVoiceDucking = false;
   private speechRunId = 0;
   private activeSpeechKey = '';
@@ -132,6 +134,18 @@ class SfxManager {
     if (muted) {
       this.speechQueue = this.speechQueue.filter((item) => !item.isAi);
       if (this.activeTtsIsAi) {
+        this.skipCurrentSpeech();
+      }
+    }
+  }
+
+  public setRoutineAiPaused(paused: boolean): void {
+    this.routineAiPaused = paused;
+    if (paused) {
+      this.speechQueue = this.speechQueue.filter(
+        (item) => !(item.isAi && item.priority === 'normal'),
+      );
+      if (this.activeTtsIsAi && this.activeTtsPriority === 'normal') {
         this.skipCurrentSpeech();
       }
     }
@@ -753,6 +767,9 @@ class SfxManager {
     if (this.sfxVolume <= 0.01 || !text.trim()) return;
 
     const priority = options?.priority ?? 'normal';
+    if (options?.isAi && priority === 'normal' && this.routineAiPaused) {
+      return;
+    }
     if (priority === 'normal' && (this.isSpeaking || this.speechQueue.length > 0 || this.activeClipAudio || this.activeClipSource)) {
       return;
     }
@@ -825,6 +842,7 @@ class SfxManager {
     this.clearActivePlaybackHardware();
     this.isSpeaking = true;
     this.activeTtsIsAi = item.isAi;
+    this.activeTtsPriority = item.priority;
     this.activeSpeechKey = `${item.seatIdx}:${item.clean}`;
 
     let ended = false;

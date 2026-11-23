@@ -243,6 +243,7 @@ export interface CapturedAudioResult {
   buffer: ArrayBuffer;
   mimeType: string;
   silent?: boolean;
+  durationSec?: number;
 }
 
 /**
@@ -264,11 +265,14 @@ export class UniversalAudioCapture {
   private mrChunks: Blob[] = [];
   private mrMime = 'audio/webm';
   private maxBytes: number;
+  private onLevel?: (level: number) => void;
+  private startedAtMs = 0;
   private active = false;
   private stopped = false;
 
-  constructor(maxBytes: number) {
+  constructor(maxBytes: number, options?: { onLevel?: (level: number) => void }) {
     this.maxBytes = maxBytes;
+    this.onLevel = options?.onLevel;
   }
 
   public initContextInGesture(): void {
@@ -292,6 +296,7 @@ export class UniversalAudioCapture {
     this.stream = stream;
     this.active = true;
     this.stopped = false;
+    this.startedAtMs = Date.now();
     this.pcmChunks = [];
     this.pcmPeak = 0;
     this.mrChunks = [];
@@ -315,9 +320,18 @@ export class UniversalAudioCapture {
           const copy = new Float32Array(input.length);
           copy.set(input);
           this.pcmChunks.push(copy);
+          let sumSq = 0;
+          let count = 0;
           for (let i = 0; i < input.length; i += 4) {
-            const av = Math.abs(input[i]);
+            const v = input[i];
+            const av = Math.abs(v);
             if (av > this.pcmPeak) this.pcmPeak = av;
+            sumSq += v * v;
+            count++;
+          }
+          if (this.onLevel && count > 0) {
+            const rms = Math.sqrt(sumSq / count);
+            this.onLevel(Math.max(0, Math.min(1, rms * 5.5)));
           }
         };
 
@@ -349,15 +363,21 @@ export class UniversalAudioCapture {
     return this.active && !this.stopped;
   }
 
-  public async stop(): Promise<CapturedAudioResult | null> {
+  public async stop(cancel = false): Promise<CapturedAudioResult | null> {
     if (this.stopped) return null;
+    if (cancel) {
+      this.dispose();
+      return null;
+    }
     this.stopped = true;
     this.active = false;
+    this.onLevel?.(0);
 
     const totalPcmSamples = this.pcmChunks.reduce((acc, c) => acc + c.length, 0);
     const capturedChunks = this.pcmChunks.slice();
     const capturedRate = this.pcmRate;
     const peak = this.pcmPeak;
+    const elapsedSec = this.startedAtMs > 0 ? Math.max(1, Math.min(6, Math.round((Date.now() - this.startedAtMs) / 1000))) : 1;
 
     let mrBlob: Blob | null = null;
     const mr = this.mediaRecorder;
@@ -391,7 +411,11 @@ export class UniversalAudioCapture {
       }
       const wav = encodeNormalizedWavFromChunks(capturedChunks, capturedRate, this.maxBytes);
       if (wav) {
-        return { buffer: wav.buffer, mimeType: 'audio/wav' };
+        return {
+          buffer: wav.buffer,
+          mimeType: 'audio/wav',
+          durationSec: Math.max(1, Math.min(6, Math.round(wav.durationSec))),
+        };
       }
     }
 
@@ -400,7 +424,11 @@ export class UniversalAudioCapture {
       try {
         const buf = await mrBlob.arrayBuffer();
         if (buf.byteLength >= 64) {
-          return { buffer: buf, mimeType: normalizeAudioMime(mrBlob.type || this.mrMime) };
+          return {
+            buffer: buf,
+            mimeType: normalizeAudioMime(mrBlob.type || this.mrMime),
+            durationSec: elapsedSec,
+          };
         }
       } catch {}
     }

@@ -1402,13 +1402,16 @@ export class RoomManager {
     });
 
     socket.on('ludo:toggle_secret_whispers', (payload) => {
-      const auth = this.verifySender(socket, payload?.token);
+      const auth = this.verifySender(socket, payload?.token || payload?.sessionToken);
       if (!auth || auth.seatIdx !== auth.room.hostSeatIndex) return;
       auth.room.secretWhispers =
         typeof payload?.secretWhispers === 'boolean'
           ? payload.secretWhispers
           : !auth.room.secretWhispers;
       auth.room.lastActivity = Date.now();
+      this.io.to(`ludo:${auth.room.code}`).emit('ludo:secret_whispers_changed', {
+        secretWhispers: auth.room.secretWhispers,
+      });
       this.broadcastRoom(auth.room);
     });
 
@@ -1426,6 +1429,35 @@ export class RoomManager {
       auth.seat.wish = this.sanitizeWish(payload?.wish);
       auth.room.lastActivity = Date.now();
       this.broadcastRoom(auth.room);
+    });
+
+    socket.on('ludo:update_name', (payload, callback) => {
+      const auth = this.verifySender(socket, payload?.token || payload?.sessionToken);
+      if (!auth || auth.room.started) {
+        return callback?.({ success: false, error: 'Cannot change name after match starts' });
+      }
+      const nameRes = this.formatDisplayName(payload?.playerName);
+      if (nameRes.error) {
+        return callback?.({ success: false, error: nameRes.error });
+      }
+      const rawName = nameRes.name!;
+      const existingNames = new Set(
+        Object.values(auth.room.seats)
+          .filter((s) => s && !s.isAI && s.seatIndex !== auth.seatIdx)
+          .map((s) => s.name.toLowerCase()),
+      );
+      let finalName = rawName;
+      if (existingNames.has(finalName.toLowerCase())) {
+        let suffix = 2;
+        while (existingNames.has(`${rawName} (${suffix})`.toLowerCase())) {
+          suffix++;
+        }
+        finalName = `${rawName} (${suffix})`;
+      }
+      auth.seat.name = finalName;
+      auth.room.lastActivity = Date.now();
+      this.broadcastRoom(auth.room);
+      callback?.({ success: true, name: finalName });
     });
 
     socket.on('ludo:start_match', (payload, callback) => {
@@ -1672,8 +1704,14 @@ export class RoomManager {
 
     // Private targeted voice whisper relay (never stored, never broadcasts audio to room)
     socket.on('voice:whisper', (payload, callback) => {
-      const auth = this.verifySender(socket, payload?.token);
-      if (!auth || auth.seat.isAI || auth.seat.socketId !== socket.id || auth.room.matchEnded) {
+      const auth = this.verifySender(socket, payload?.token || payload?.sessionToken);
+      if (
+        !auth ||
+        auth.seat.isAI ||
+        auth.seat.socketId !== socket.id ||
+        auth.room.matchEnded ||
+        (payload?.roomCode && String(payload.roomCode).trim().toUpperCase() !== auth.room.code)
+      ) {
         return callback?.({ success: false, error: 'Cannot send whisper right now' });
       }
       const now = Date.now();
