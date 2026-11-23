@@ -11,7 +11,9 @@ import {
   createInitialPawns,
   createInitialPlayerStats,
   evaluateCaptureObligation,
+  evaluateRivalryState,
   executePawnMove,
+  getMatchLeader,
   getPawnPath,
   getPlayerRankings,
   isLoneTokenOnTrack,
@@ -122,6 +124,8 @@ export interface LudoRoom {
   turnPassTimer: ReturnType<typeof setTimeout> | null;
   lastRoutineDialogueAt: number;
   lastDialogueLineIdx: Map<string, number>;
+  grudges: Record<number, { attackerIdx: number; turnsLeft: number }>;
+  dethroneAlertedSeat: number | null;
 }
 
 export interface RoomManagerOptions {
@@ -507,7 +511,10 @@ export class RoomManager {
         if (!activeRoom || !activeRoom.started || activeRoom.matchEnded || !activeRoom.match) return;
         const am = activeRoom.match;
         if (am.currentPlayer !== expectedSeat || !am.hasRolled) return;
-        const { move } = pickBestAIMove(am.pawns, expectedSeat, am.movesAvailable, am.dice);
+        const { move } = pickBestAIMove(am.pawns, expectedSeat, am.movesAvailable, am.dice, {
+          personality: activeRoom.seats[expectedSeat]?.personality,
+          grudgeTargetIdx: activeRoom.grudges[expectedSeat]?.attackerIdx ?? null,
+        });
         if (!move) {
           this.advanceTurn(activeRoom);
           return;
@@ -526,7 +533,10 @@ export class RoomManager {
       if (!activeRoom || !activeRoom.started || activeRoom.matchEnded || !activeRoom.match) return;
       const m = activeRoom.match;
       if (m.currentPlayer !== expectedSeatIdx || !m.hasRolled || !m.turnAutoPlay) return;
-      const { move } = pickBestAIMove(m.pawns, expectedSeatIdx, m.movesAvailable, m.dice);
+      const { move } = pickBestAIMove(m.pawns, expectedSeatIdx, m.movesAvailable, m.dice, {
+        personality: activeRoom.seats[expectedSeatIdx]?.personality,
+        grudgeTargetIdx: activeRoom.grudges[expectedSeatIdx]?.attackerIdx ?? null,
+      });
       if (!move) {
         this.advanceTurn(activeRoom);
         return;
@@ -720,6 +730,12 @@ export class RoomManager {
     }
 
     const startPos = currPawn.pos;
+    const preRivalry = evaluateRivalryState(m.pawns, -1);
+    const preTargetLeader =
+      preRivalry.leaderIdx !== -1 && preRivalry.leaderIdx !== seatIdx
+        ? preRivalry.leaderIdx
+        : getMatchLeader(m.pawns, seatIdx).leaderIdx;
+    const preGrudgeTarget = room.grudges[seatIdx]?.attackerIdx ?? -1;
 
     const outcome = executePawnMove(
       m.pawns,
@@ -754,12 +770,71 @@ export class RoomManager {
       const victimSeatIdx = outcome.capturedVictims[0].playerIdx;
       const victimSeat = room.seats[victimSeatIdx];
       const victimName = victimSeat?.name || 'Rival';
-      m.lastEventText = `⚔️ ${seat?.name || 'Player'} captured ${victimName}! Bonus Roll!`;
-      if (seat?.isAI || seat?.tempBotTakeover) {
-        this.emitAiDialogue(room, seatIdx, 'capture');
+
+      room.grudges[victimSeatIdx] = { attackerIdx: seatIdx, turnsLeft: 6 };
+      const hitGrudge = outcome.capturedVictims.some((v) => v.playerIdx === preGrudgeTarget);
+      if (hitGrudge) {
+        delete room.grudges[seatIdx];
+      }
+
+      const hitLeader =
+        preTargetLeader !== -1 &&
+        preRivalry.leaderPct >= 30 &&
+        outcome.capturedVictims.some((v) => v.playerIdx === preTargetLeader);
+
+      if (hitLeader) {
+        const leaderName = room.seats[preTargetLeader]?.name || victimName;
+        m.lastEventText = `🎯 ${seat?.name || 'Player'} dethroned leader ${leaderName}! Bonus Roll!`;
+        const cheerActor =
+          seat?.isAI || seat?.tempBotTakeover
+            ? seatIdx
+            : Object.values(room.seats).find((s) => s && (s.isAI || s.tempBotTakeover) && s.seatIndex !== preTargetLeader)?.seatIndex ?? -1;
+        if (cheerActor !== -1) {
+          this.io.to(`ludo:${room.code}`).emit('ludo:rivalry_event', {
+            kind: 'leader_hit',
+            actorSeat: cheerActor,
+            targetSeat: preTargetLeader,
+            leaderPct: preRivalry.leaderPct,
+            seedIdx: Math.floor(this.rng() * 10),
+          });
+        }
+      } else {
+        m.lastEventText = `⚔️ ${seat?.name || 'Player'} captured ${victimName}! Bonus Roll!`;
+        if (hitGrudge && (seat?.isAI || seat?.tempBotTakeover)) {
+          this.io.to(`ludo:${room.code}`).emit('ludo:rivalry_event', {
+            kind: 'grudge_hit',
+            actorSeat: seatIdx,
+            targetSeat: preGrudgeTarget,
+            seedIdx: Math.floor(this.rng() * 10),
+          });
+        } else if (seat?.isAI || seat?.tempBotTakeover) {
+          this.emitAiDialogue(room, seatIdx, 'capture');
+        }
       }
       if (victimSeat?.isAI || victimSeat?.tempBotTakeover) {
         this.emitAiDialogue(room, victimSeatIdx, 'captured');
+      }
+    }
+
+    const postRivalry = evaluateRivalryState(m.pawns, -1);
+    if (
+      !outcome.wonMatch &&
+      postRivalry.tier === 'dethrone' &&
+      postRivalry.leaderIdx !== -1 &&
+      room.dethroneAlertedSeat !== postRivalry.leaderIdx
+    ) {
+      room.dethroneAlertedSeat = postRivalry.leaderIdx;
+      const herald = Object.values(room.seats).find(
+        (s) => s && (s.isAI || s.tempBotTakeover) && s.seatIndex !== postRivalry.leaderIdx,
+      );
+      if (herald) {
+        this.io.to(`ludo:${room.code}`).emit('ludo:rivalry_event', {
+          kind: 'dethrone_alert',
+          actorSeat: herald.seatIndex,
+          targetSeat: postRivalry.leaderIdx,
+          leaderPct: postRivalry.leaderPct,
+          seedIdx: Math.floor(this.rng() * 10),
+        });
       }
     }
 
@@ -894,6 +969,13 @@ export class RoomManager {
     const keepSame = m.extraTurnEarned;
     if (!keepSame) {
       m.currentPlayer = (m.currentPlayer + 1) % 5;
+    }
+
+    for (const key of Object.keys(room.grudges)) {
+      const seatKey = Number(key);
+      const g = room.grudges[seatKey];
+      if (!g || g.turnsLeft <= 1) delete room.grudges[seatKey];
+      else g.turnsLeft -= 1;
     }
 
     m.hasRolled = false;
@@ -1130,6 +1212,8 @@ export class RoomManager {
           turnPassTimer: null,
           lastRoutineDialogueAt: 0,
           lastDialogueLineIdx: new Map(),
+          grudges: {},
+          dethroneAlertedSeat: null,
           voiceParticipants: new Map(),
           seats: {
             0: {
@@ -1499,6 +1583,8 @@ export class RoomManager {
 
       room.started = true;
       room.matchEnded = false;
+      room.grudges = {};
+      room.dethroneAlertedSeat = null;
       room.startedAt = Date.now();
       room.lastActivity = Date.now();
       const firstPlayerIdx = room.hostSeatIndex;

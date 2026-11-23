@@ -11,6 +11,7 @@ import {
   createInitialPlayerStats,
   createSeededRng,
   evaluateCaptureObligation,
+  evaluateRivalryState,
   executePawnMove,
   extractPlayerEmoji,
   extractPlayerInitial,
@@ -20,6 +21,7 @@ import {
   getPossibleCaptures,
   getPossiblePairCaptures,
   isMovePartOfCaptureSequence,
+  pickBestAIMove,
   rollDicePair,
 } from '../src/game/rules';
 import { validateMatchResultsInput } from '../server/supabaseRecords';
@@ -385,5 +387,96 @@ test('2 independent single-die captures require 2 captures and penalize only the
   assert.equal(pawns[0][1].status, 'home');
   assert.equal(stats[0].penalties, 1);
 });
+
+test('evaluateRivalryState escalates across normal, heat, and dethrone tiers', () => {
+  const pawns = createInitialPawns();
+
+  // Normal early match
+  pawns[1][0] = { status: 'on-path', pos: 15 };
+  pawns[2][0] = { status: 'on-path', pos: 12 };
+  const normal = evaluateRivalryState(pawns, -1);
+  assert.equal(normal.leaderIdx, 1);
+  assert.equal(normal.tier, 'normal');
+
+  // Heat tier: leader >= 30% with >= 12% margin (2 finished + 1 far runner ~= 65%)
+  pawns[1][1] = { status: 'finished', pos: 68 };
+  pawns[1][2] = { status: 'on-path', pos: 45 };
+  const heat = evaluateRivalryState(pawns, -1);
+  assert.equal(heat.leaderIdx, 1);
+  assert.ok(heat.tier === 'heat' || heat.tier === 'dethrone');
+
+  // Dethrone tier: leader >= 75% (3 finished pawns + 1 on path)
+  pawns[1][0] = { status: 'finished', pos: 68 };
+  pawns[1][2] = { status: 'finished', pos: 68 };
+  pawns[1][3] = { status: 'on-path', pos: 30 };
+  const dethrone = evaluateRivalryState(pawns, -1);
+  assert.equal(dethrone.leaderIdx, 1);
+  assert.equal(dethrone.tier, 'dethrone');
+  assert.ok(dethrone.leaderPct >= 75);
+});
+
+test('pickBestAIMove prioritizes Leader capture over neutral and Grudge over neutral', () => {
+  const path0 = getPawnPath(0);
+  const path1 = getPawnPath(1);
+  const path2 = getPawnPath(2);
+
+  let capA0 = -1;
+  let capA1 = -1;
+  let capB0 = -1;
+  let capB2 = -1;
+  for (let i = 10; i < 40; i++) {
+    const sp0 = path0[i];
+    if ((sp0.c === 2 && sp0.r === 4) || (sp0.c === 0 && sp0.r === 3)) continue;
+    const m1 = path1.findIndex((s) => !s.isHome && s.arm === sp0.arm && s.c === sp0.c && s.r === sp0.r);
+    if (m1 >= 0 && capA0 === -1) {
+      capA0 = i;
+      capA1 = m1;
+      continue;
+    }
+    const m2 = path2.findIndex((s) => !s.isHome && s.arm === sp0.arm && s.c === sp0.c && s.r === sp0.r);
+    if (m2 >= 0 && capA0 !== -1 && i > capA0 + 5) {
+      capB0 = i;
+      capB2 = m2;
+      break;
+    }
+  }
+  assert.ok(capA0 >= 10 && capB0 > capA0);
+
+  // Seat 1 is the clear Leader; Seat 2 is behind, yet closer/higher targetPos normally
+  const pawns = createInitialPawns();
+  pawns[0][0] = { status: 'on-path', pos: capA0 - 3 }; // can capture Seat 1 (Leader) with die 3
+  pawns[0][1] = { status: 'on-path', pos: capB0 - 5 }; // can capture Seat 2 (non-leader, higher pos) with die 5
+  pawns[1][0] = { status: 'on-path', pos: capA1 };
+  pawns[1][1] = { status: 'finished', pos: 68 };
+  pawns[1][2] = { status: 'finished', pos: 68 };
+  pawns[2][0] = { status: 'on-path', pos: capB2 };
+
+  const leaderPick = pickBestAIMove(pawns, 0, [3, 5], [3, 5], {
+    personality: 'Rival',
+    grudgeTargetIdx: 2,
+  });
+  assert.ok(leaderPick.move);
+  assert.equal(leaderPick.hitsLeader, true);
+  assert.equal(leaderPick.move.pawnIdx, 0);
+
+  // If Seat 1 is NOT leader and Seat 3 holds a distant lead with no capture available on Seat 3,
+  // Grudge target Seat 2 beats neutral target Seat 1
+  const pawnsGrudge = createInitialPawns();
+  pawnsGrudge[0][0] = { status: 'on-path', pos: capA0 - 3 }; // can capture Seat 1 (at lower pos)
+  pawnsGrudge[0][1] = { status: 'on-path', pos: capB0 - 5 }; // can capture Seat 2 (grudge target)
+  pawnsGrudge[1][0] = { status: 'on-path', pos: capA1 };
+  pawnsGrudge[2][0] = { status: 'on-path', pos: capB2 };
+  pawnsGrudge[3][0] = { status: 'finished', pos: 68 };
+  pawnsGrudge[3][1] = { status: 'finished', pos: 68 };
+  const grudgePick = pickBestAIMove(pawnsGrudge, 0, [3, 5], [3, 5], {
+    personality: 'Strategist',
+    grudgeTargetIdx: 2,
+  });
+  assert.ok(grudgePick.move);
+  assert.equal(grudgePick.hitsGrudge, true);
+  assert.equal(grudgePick.hitsLeader, false);
+  assert.equal(grudgePick.move.pawnIdx, 1);
+});
+
 
 

@@ -130,3 +130,79 @@ export function getPersonalityEmote(personality: string): string {
   const list = PERSONALITY_EMOTES[personality] || ['🎲', '🔥', '👍'];
   return list[Math.floor(Math.random() * list.length)];
 }
+
+export type RivalryCalloutKind = 'dethrone_alert' | 'leader_hit' | 'grudge_hit';
+
+const RIVALRY_LINES: Record<string, Record<RivalryCalloutKind, string[]>> = {
+  Strategist: {
+    dethrone_alert: [
+      'Alert: {target} is at {pct}%! Build 2-token roadblocks before their home stretch!',
+      '{target} leads at {pct}% — hold a truce and cut off their path!',
+    ],
+    leader_hit: [
+      'Calculated ambush! {target} goes back to base!',
+      'Dethroned {target}! The board is wide open again!',
+    ],
+    grudge_hit: [
+      'Debt settled, {target}. Check the math on that payback!',
+    ],
+  },
+  Confidante: {
+    dethrone_alert: [
+      'Everyone watch {target} at {pct}%! Truce for now until we slow them down!',
+      'Hold on — {target} is pulling away ({pct}%). Team up and stop the leader!',
+    ],
+    leader_hit: [
+      'Needed that! Sorry {target}, the table needed a reset!',
+      'Whew! {target} was too close to winning — great stop!',
+    ],
+    grudge_hit: [
+      'Got you back, {target}! Now we are even!',
+    ],
+  },
+  Rival: {
+    dethrone_alert: [
+      '{target} at {pct}%?! Nobody let them walk into home!',
+      'Crown check on {target} ({pct}%) — hunting the leader now!',
+    ],
+    leader_hit: [
+      'Sit down, {target}! Nobody runs away with my crown!',
+      'Target eliminated! Back to base, {target}!',
+    ],
+    grudge_hit: [
+      'Told you I do not forget, {target}! Back to base!',
+    ],
+  },
+  Rideordie: {
+    dethrone_alert: [
+      'Yo squad, {target} hit {pct}%! Whisper to your allies and trap them!',
+      '{target} is running away at {pct}% — all hands on the leader!',
+    ],
+    leader_hit: [
+      'Boom! Took out the leader {target} for the table!',
+      'Not on my watch, {target}! Back to yard!',
+    ],
+    grudge_hit: [
+      'Payback delivered to {target}! Loyalty remembers!',
+    ],
+  },
+};
+
+export function getRivalryCalloutLine(opts: {
+  kind: RivalryCalloutKind;
+  personality?: string;
+  targetName: string;
+  leaderPct?: number;
+  seedIdx?: number;
+}): string {
+  const persona = opts.personality && RIVALRY_LINES[opts.personality] ? opts.personality : 'Rival';
+  const pool = RIVALRY_LINES[persona][opts.kind] || RIVALRY_LINES.Rival[opts.kind];
+  const idx =
+    typeof opts.seedIdx === 'number' && Number.isInteger(opts.seedIdx) && opts.seedIdx >= 0
+      ? opts.seedIdx % pool.length
+      : Math.floor(Math.random() * pool.length);
+  const pctStr = String(Math.max(0, Math.round(opts.leaderPct ?? 0)));
+  return pool[idx]
+    .replace(/\{target\}/g, opts.targetName || 'Leader')
+    .replace(/\{pct\}/g, pctStr);
+}

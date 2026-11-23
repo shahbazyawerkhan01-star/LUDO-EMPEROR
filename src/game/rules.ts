@@ -982,6 +982,21 @@ export function getPlayerRankings(
   }));
 }
 
+export type RivalryTier = 'normal' | 'heat' | 'dethrone';
+
+export interface RivalryState {
+  leaderIdx: number;
+  leaderPct: number;
+  runnerUpPct: number;
+  leadMargin: number;
+  tier: RivalryTier;
+}
+
+export interface AIMoveRivalryOptions {
+  personality?: string;
+  grudgeTargetIdx?: number | null;
+}
+
 export function getMatchLeader(pawns: PawnState[][], excludePIdx: number): { leaderIdx: number; score: number } {
   let leaderIdx = -1;
   let maxScore = -1;
@@ -998,6 +1013,70 @@ export function getMatchLeader(pawns: PawnState[][], excludePIdx: number): { lea
     }
   }
   return { leaderIdx, score: maxScore };
+}
+
+export function evaluateRivalryState(pawns: PawnState[][], excludePIdx = -1): RivalryState {
+  const entries: Array<{ idx: number; pct: number; rawScore: number }> = [];
+  for (let i = 0; i < 5; i++) {
+    if (i === excludePIdx) continue;
+    const { percentage } = getPlayerProgressPercent(pawns, i);
+    let rawScore = 0;
+    for (const p of pawns[i] || []) {
+      if (p.status === 'finished') rawScore += 1000;
+      else if (p.status === 'on-path') rawScore += p.pos + 1;
+    }
+    entries.push({ idx: i, pct: percentage, rawScore });
+  }
+  entries.sort((a, b) => (b.pct !== a.pct ? b.pct - a.pct : b.rawScore - a.rawScore));
+  const top = entries[0];
+  const second = entries[1];
+  if (!top || top.rawScore <= 0) {
+    return { leaderIdx: -1, leaderPct: 0, runnerUpPct: 0, leadMargin: 0, tier: 'normal' };
+  }
+  const leaderPct = Math.round(top.pct);
+  const runnerUpPct = second ? Math.round(second.pct) : 0;
+  const leadMargin = Math.max(0, leaderPct - runnerUpPct);
+
+  let tier: RivalryTier = 'normal';
+  if (leaderPct >= 75 || (leaderPct >= 45 && leadMargin >= 20)) {
+    tier = 'dethrone';
+  } else if (leaderPct >= 55 || (leaderPct >= 30 && leadMargin >= 12)) {
+    tier = 'heat';
+  }
+
+  return {
+    leaderIdx: top.idx,
+    leaderPct,
+    runnerUpPct,
+    leadMargin,
+    tier,
+  };
+}
+
+function isTrackSafeNode(node?: PathNode | null): boolean {
+  if (!node) return false;
+  if (node.isHome) return true;
+  return (node.c === 2 && node.r === 4) || (node.c === 0 && node.r === 3);
+}
+
+function countSameColorAtNode(
+  pawns: PawnState[][],
+  seatIdx: number,
+  targetNode: PathNode,
+  excludePawnIdx = -1,
+): number {
+  const path = getPawnPath(seatIdx);
+  let count = 0;
+  for (let t = 0; t < 4; t++) {
+    if (t === excludePawnIdx) continue;
+    const p = pawns[seatIdx]?.[t];
+    if (!p || p.status !== 'on-path') continue;
+    const sp = path[p.pos];
+    if (sp && !sp.isHome && sp.arm === targetNode.arm && sp.c === targetNode.c && sp.r === targetNode.r) {
+      count++;
+    }
+  }
+  return count;
 }
 
 export function isEntrySquareThreatened(pawns: PawnState[][], pIdx: number): boolean {
@@ -1031,11 +1110,31 @@ export function pickBestAIMove(
   pIdx: number,
   movesAvailable: number[],
   dice: number[],
-): { move: MoveOption | null; hitsLeader: boolean } {
+  options?: AIMoveRivalryOptions,
+): { move: MoveOption | null; hitsLeader: boolean; hitsGrudge: boolean } {
   const legalMoves = getLegalMoves(pawns, pIdx, movesAvailable, dice);
-  if (legalMoves.length === 0) return { move: null, hitsLeader: false };
+  if (legalMoves.length === 0) return { move: null, hitsLeader: false, hitsGrudge: false };
 
-  const { leaderIdx } = getMatchLeader(pawns, pIdx);
+  const overallRivalry = evaluateRivalryState(pawns, -1);
+  const targetLeaderIdx =
+    overallRivalry.leaderIdx !== -1 && overallRivalry.leaderIdx !== pIdx
+      ? overallRivalry.leaderIdx
+      : getMatchLeader(pawns, pIdx).leaderIdx;
+  const targetIsOverallLeader = overallRivalry.leaderIdx === targetLeaderIdx && targetLeaderIdx !== -1;
+  const dethroneActive = targetIsOverallLeader && overallRivalry.tier === 'dethrone';
+  const heatActive = targetIsOverallLeader && (overallRivalry.tier === 'heat' || overallRivalry.tier === 'dethrone');
+
+  const personality = options?.personality || 'Strategist';
+  const isRival = personality === 'Rival';
+  const isStrategist = personality === 'Strategist';
+  const isConfidante = personality === 'Confidante';
+  const isRideOrDie = personality === 'Rideordie';
+
+  const grudgeTargetIdx =
+    typeof options?.grudgeTargetIdx === 'number' && options.grudgeTargetIdx !== pIdx
+      ? options.grudgeTargetIdx
+      : -1;
+
   const obligation = evaluateCaptureObligation(pawns, pIdx, movesAvailable, dice);
   const possibleCaptures = [...obligation.singleCaptures, ...obligation.combinedCaptures];
 
@@ -1054,55 +1153,161 @@ export function pickBestAIMove(
       if (doubleChain.length > 0) candidateList = doubleChain;
     }
 
-    const leaderCaptures = leaderIdx !== -1 ? candidateList.filter((c) => c.targetPlayer === leaderIdx) : [];
+    const leaderCaptures =
+      targetLeaderIdx !== -1 ? candidateList.filter((c) => c.targetPlayer === targetLeaderIdx) : [];
+    const grudgeCaptures =
+      grudgeTargetIdx !== -1 ? candidateList.filter((c) => c.targetPlayer === grudgeTargetIdx) : [];
+
     let selected: CaptureCandidate;
     if (leaderCaptures.length > 0) {
       leaderCaptures.sort((a, b) => b.targetPos - a.targetPos);
       selected = leaderCaptures[0];
+    } else if (grudgeCaptures.length > 0) {
+      grudgeCaptures.sort((a, b) => b.targetPos - a.targetPos);
+      selected = grudgeCaptures[0];
     } else {
       candidateList.sort((a, b) => b.targetPos - a.targetPos);
       selected = candidateList[0];
     }
+
     const found = legalMoves.find((m) => m.pawnIdx === selected.pawnIdx && m.dieIdx === selected.diceIndices[0]);
     if (found) {
-      return { move: found, hitsLeader: leaderCaptures.length > 0 };
+      return {
+        move: found,
+        hitsLeader: selected.targetPlayer === targetLeaderIdx,
+        hitsGrudge: selected.targetPlayer === grudgeTargetIdx,
+      };
     }
   } else if (obligation.pairCaptures.length > 0) {
-    const leaderPairs = leaderIdx !== -1 ? obligation.pairCaptures.filter((pc) => pc.targetPlayer === leaderIdx) : [];
-    const pool = leaderPairs.length > 0 ? leaderPairs : obligation.pairCaptures;
+    const leaderPairs =
+      targetLeaderIdx !== -1 ? obligation.pairCaptures.filter((pc) => pc.targetPlayer === targetLeaderIdx) : [];
+    const grudgePairs =
+      grudgeTargetIdx !== -1 ? obligation.pairCaptures.filter((pc) => pc.targetPlayer === grudgeTargetIdx) : [];
+    const pool = leaderPairs.length > 0 ? leaderPairs : grudgePairs.length > 0 ? grudgePairs : obligation.pairCaptures;
     pool.sort((a, b) => b.targetPos - a.targetPos);
     const picked = pool[0];
     const found = legalMoves.find((m) => m.pawnIdx === picked.pawnIndices[0] && m.dieIdx === picked.diceIndices[0]);
     if (found) {
-      return { move: found, hitsLeader: leaderPairs.length > 0 };
+      return {
+        move: found,
+        hitsLeader: picked.targetPlayer === targetLeaderIdx,
+        hitsGrudge: picked.targetPlayer === grudgeTargetIdx,
+      };
     }
   }
 
   const myPath = getPawnPath(pIdx);
+  const leaderMult = dethroneActive ? 1.55 : heatActive ? 1.25 : isRival ? 1.2 : 1.0;
+
   const scored = legalMoves.map((m) => {
     const pawn = pawns[pIdx][m.pawnIdx];
     let score = 0;
     const newPos = pawn.status === 'home' ? 0 : pawn.pos + m.steps;
+
+    // Immediate winning move: final token reaches coloured stretch (pos >= 63)
+    if (pawn.pos < 63 && newPos >= 63) {
+      const allNowWin = pawns[pIdx].every((op, idx) =>
+        idx === m.pawnIdx ? newPos >= 63 : op.status === 'finished' || (op.status === 'on-path' && op.pos >= 63),
+      );
+      if (allNowWin) score += 2000;
+      else score += 120;
+    }
 
     if (newPos >= myPath.length - 1) score += 500;
     if (pawn.status === 'home' && m.steps === 6) {
       score += isEntrySquareThreatened(pawns, pIdx) ? 20 : 150;
     }
 
-    if (leaderIdx !== -1 && pawns[leaderIdx] && newPos >= 0 && newPos < myPath.length) {
-      const leaderPath = getPawnPath(leaderIdx);
-      const newSpace = myPath[newPos];
-      if (newSpace && !newSpace.isHome) {
-        for (const lp of pawns[leaderIdx]) {
+    const newSpace = newPos >= 0 && newPos < myPath.length ? myPath[newPos] : null;
+    const landingOnSafe = isTrackSafeNode(newSpace);
+    const friendlyCountAtNew =
+      newSpace && !newSpace.isHome ? countSameColorAtNode(pawns, pIdx, newSpace, m.pawnIdx) : 0;
+
+    // Safe star shelter
+    if (newSpace && !newSpace.isHome && landingOnSafe) {
+      score += 80;
+    }
+
+    // 2-Token Stack Shield + Roadblock against the Leader's front path
+    if (newSpace && !newSpace.isHome && !landingOnSafe && friendlyCountAtNew >= 1) {
+      score += isStrategist || isRideOrDie ? 90 : 55;
+      if (targetLeaderIdx !== -1 && pawns[targetLeaderIdx]) {
+        const leaderPath = getPawnPath(targetLeaderIdx);
+        let blocksLeaderPath = false;
+        for (const lp of pawns[targetLeaderIdx]) {
           if (lp.status !== 'on-path') continue;
-          const lpSpace = leaderPath[lp.pos];
-          if (!lpSpace) continue;
-          for (let testRoll = 1; testRoll <= 6; testRoll++) {
-            const strikePos = newPos + testRoll;
-            if (strikePos < myPath.length) {
-              const strikeSpace = myPath[strikePos];
-              if (strikeSpace && strikeSpace.arm === lpSpace.arm && strikeSpace.c === lpSpace.c && strikeSpace.r === lpSpace.r) {
-                score += 260 + lp.pos;
+          for (let ahead = 1; ahead <= 8; ahead++) {
+            const aheadPos = lp.pos + ahead;
+            if (aheadPos >= leaderPath.length) break;
+            const aheadSpace = leaderPath[aheadPos];
+            if (aheadSpace && !aheadSpace.isHome && aheadSpace.arm === newSpace.arm && aheadSpace.c === newSpace.c && aheadSpace.r === newSpace.r) {
+              blocksLeaderPath = true;
+              break;
+            }
+          }
+          if (blocksLeaderPath) break;
+        }
+        if (blocksLeaderPath) {
+          score += (dethroneActive ? 145 : heatActive ? 105 : 70) + (isStrategist ? 45 : 0);
+        }
+      }
+    }
+
+    // Ambush Leader 1..6 steps behind their pawns
+    if (targetLeaderIdx !== -1 && pawns[targetLeaderIdx] && newSpace && !newSpace.isHome) {
+      const leaderPath = getPawnPath(targetLeaderIdx);
+      for (const lp of pawns[targetLeaderIdx]) {
+        if (lp.status !== 'on-path') continue;
+        const lpSpace = leaderPath[lp.pos];
+        if (!lpSpace || lpSpace.isHome) continue;
+        for (let testRoll = 1; testRoll <= 6; testRoll++) {
+          const strikePos = newPos + testRoll;
+          if (strikePos < myPath.length) {
+            const strikeSpace = myPath[strikePos];
+            if (strikeSpace && strikeSpace.arm === lpSpace.arm && strikeSpace.c === lpSpace.c && strikeSpace.r === lpSpace.r) {
+              const lateLeaderBonus = isStrategist && lp.pos >= 48 ? 110 : 0;
+              score += Math.round((260 + lp.pos) * leaderMult) + lateLeaderBonus;
+            }
+          }
+        }
+      }
+    }
+
+    // Grudge Revenge Stalking: position 1..6 steps behind the seat that captured us
+    if (grudgeTargetIdx !== -1 && grudgeTargetIdx !== targetLeaderIdx && pawns[grudgeTargetIdx] && newSpace && !newSpace.isHome) {
+      const grudgePath = getPawnPath(grudgeTargetIdx);
+      for (const gp of pawns[grudgeTargetIdx]) {
+        if (gp.status !== 'on-path') continue;
+        const gpSpace = grudgePath[gp.pos];
+        if (!gpSpace || gpSpace.isHome) continue;
+        for (let testRoll = 1; testRoll <= 6; testRoll++) {
+          const strikePos = newPos + testRoll;
+          if (strikePos < myPath.length) {
+            const strikeSpace = myPath[strikePos];
+            if (strikeSpace && strikeSpace.arm === gpSpace.arm && strikeSpace.c === gpSpace.c && strikeSpace.r === gpSpace.r) {
+              score += isRival ? 190 : 140;
+            }
+          }
+        }
+      }
+    }
+
+    // "Don't Feed the Leader": penalize exposing a lone pawn 1..6 steps ahead of opponents (especially #1)
+    if (newSpace && !newSpace.isHome && !landingOnSafe && friendlyCountAtNew === 0) {
+      for (let oIdx = 0; oIdx < 5; oIdx++) {
+        if (oIdx === pIdx) continue;
+        const oPath = getPawnPath(oIdx);
+        for (const op of pawns[oIdx] || []) {
+          if (op.status !== 'on-path') continue;
+          for (let d = 1; d <= 6; d++) {
+            const oTarget = op.pos + d;
+            if (oTarget >= oPath.length) break;
+            const oSpace = oPath[oTarget];
+            if (oSpace && !oSpace.isHome && oSpace.arm === newSpace.arm && oSpace.c === newSpace.c && oSpace.r === newSpace.r) {
+              if (oIdx === targetLeaderIdx) {
+                score -= dethroneActive ? 200 : isConfidante ? 160 : 135;
+              } else {
+                score -= 40;
               }
             }
           }
@@ -1110,11 +1315,9 @@ export function pickBestAIMove(
       }
     }
 
-    if (newPos >= 0 && newPos < myPath.length) {
-      const sp = myPath[newPos];
-      if (sp && ((sp.c === 2 && sp.r === 4) || (sp.c === 0 && sp.r === 3))) {
-        score += 80;
-      }
+    // Leaving a safe star when no immediate threat/ambush gains slightly lower preference vs staying sheltered
+    if (pawn.status === 'on-path' && isTrackSafeNode(myPath[pawn.pos]) && !landingOnSafe && friendlyCountAtNew === 0) {
+      score -= isStrategist ? 25 : 10;
     }
 
     score += Math.max(0, newPos);
@@ -1122,7 +1325,7 @@ export function pickBestAIMove(
   });
 
   scored.sort((a, b) => b.score - a.score);
-  return { move: scored[0]?.move || legalMoves[0], hitsLeader: false };
+  return { move: scored[0]?.move || legalMoves[0], hitsLeader: false, hitsGrudge: false };
 }
 
 // Progress bar display helpers (enforces rank 1..3 medals, rank 4..5 emoji if present, NO numbers/keycaps)

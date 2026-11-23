@@ -8,7 +8,9 @@ import {
   createInitialPawns,
   createInitialPlayerStats,
   evaluateCaptureObligation,
+  evaluateRivalryState,
   executePawnMove,
+  getMatchLeader,
   getPawnPath,
   getPlayerRankings,
   isLoneTokenOnTrack,
@@ -27,9 +29,11 @@ import {
   getAILine,
   getAILineWithIndex,
   getPersonalityEmote,
+  getRivalryCalloutLine,
   getStaticAiClipUrl,
   preloadDialogueLanguage,
   type BanterEvent,
+  type RivalryCalloutKind,
 } from '../game/banter';
 import { sfx } from '../game/sfx';
 import { getDefaultWinStats, runSdk, type SavedPreferences, type WinStats } from '../sdk/runSdk';
@@ -153,6 +157,8 @@ export interface GameStoreState {
   winner: number | null;
   bannerText: string;
   speakingSeat: number | null;
+  aiGrudges: Record<number, { attackerIdx: number; turnsLeft: number }>;
+  dethroneAlertedLeader: number | null;
 
   // Prompts
   pendingCoachMove: PendingMoveChoice | null;
@@ -273,6 +279,13 @@ export interface GameStoreState {
   }) => void;
   applyServerMatchEnded: (payload: { winner: number; rankings: RankingEntry[] }) => void;
   playSyncedAiDialogue: (seatIdx: number, event: BanterEvent, lineIdx: number) => void;
+  playSyncedRivalryEvent: (payload: {
+    kind: RivalryCalloutKind;
+    actorSeat: number;
+    targetSeat: number;
+    leaderPct?: number;
+    seedIdx?: number;
+  }) => void;
   appendChatMessage: (msg: ChatMessage) => void;
   setPendingServerGul: (choice: PendingMoveChoice | null) => void;
   setPendingInviteCode: (code: string | null) => void;
@@ -443,6 +456,71 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     }
   };
 
+  const triggerCrowdReactions = (targetSeat: number, actorSeat: number, emojis: string[]) => {
+    const st = get();
+    st.players.forEach((pl, idx) => {
+      if (idx === targetSeat || (!pl.isAI && idx !== actorSeat)) return;
+      const emoji = emojis[idx % emojis.length] || '🎯';
+      const delay = idx === actorSeat ? 0 : 180 + idx * 140;
+      const t = setTimeout(() => {
+        get().sceneHandlers.spawnReaction?.(idx, emoji);
+      }, delay);
+      banterTimers.push(t);
+    });
+  };
+
+  const emitRivalryCallout = (
+    pIdx: number,
+    kind: RivalryCalloutKind,
+    targetIdx: number,
+    leaderPct = 0,
+    delayMs = 0,
+    seedIdx?: number,
+  ) => {
+    const run = () => {
+      const st = get();
+      if (!st.gameStarted || st.matchOver) return;
+      const player = st.players[pIdx];
+      if (!player || !player.isAI) return;
+      const targetName = stripSeatTag(st.players[targetIdx]?.name || `Player ${targetIdx + 1}`);
+      const line = getRivalryCalloutLine({
+        kind,
+        personality: player.personality,
+        targetName,
+        leaderPct,
+        seedIdx,
+      });
+      st.sceneHandlers.spawnReaction?.(pIdx, kind === 'dethrone_alert' ? '🎯' : '🔥');
+      if (st.prefs.aiVoiceMuted || st.prefs.mutedSeats.includes(pIdx)) {
+        st.sceneHandlers.showSpeech?.(pIdx, line);
+        return;
+      }
+      if (st.prefs.volume > 0.01) {
+        sfx.speakTTS(line, 'en', {
+          isAi: true,
+          gender: player.gender,
+          seatIdx: pIdx,
+          priority: 'high',
+          onStart: () => {
+            get().sceneHandlers.showSpeech?.(pIdx, line);
+            set({ speakingSeat: pIdx });
+          },
+          onEnd: () => {
+            if (get().speakingSeat === pIdx) set({ speakingSeat: null });
+          },
+        });
+      } else {
+        st.sceneHandlers.showSpeech?.(pIdx, line);
+      }
+    };
+    if (delayMs > 0) {
+      const t = setTimeout(run, delayMs);
+      banterTimers.push(t);
+    } else {
+      run();
+    }
+  };
+
   const scheduleAITurnIfNeeded = (moveDelayMs?: number) => {
     const st = get();
     if (st.isOnline || !st.gameStarted || st.matchOver || st.screen !== 'playing') return;
@@ -469,7 +547,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         if (cur.isOnline || cur.matchOver || !cur.gameStarted || cur.currentPlayer !== expectedSeat) return;
         if (!cur.hasRolled || cur.isRolling) return;
         if (!cur.players[expectedSeat]?.isAI && !cur.turnAutoPlay) return;
-        const { move } = pickBestAIMove(cur.pawns, cur.currentPlayer, cur.movesAvailable, cur.dice);
+        const activePlayer = cur.players[cur.currentPlayer];
+        const { move } = pickBestAIMove(cur.pawns, cur.currentPlayer, cur.movesAvailable, cur.dice, {
+          personality: activePlayer?.personality,
+          grudgeTargetIdx: cur.aiGrudges[cur.currentPlayer]?.attackerIdx ?? null,
+        });
         if (!move) {
           advanceLocalTurn();
           return;
@@ -543,6 +625,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const nextP = keepSame ? st.currentPlayer : (st.currentPlayer + 1) % 5;
     const nextPlayerObj = st.players[nextP];
 
+    const nextGrudges: Record<number, { attackerIdx: number; turnsLeft: number }> = {};
+    for (const [k, v] of Object.entries(st.aiGrudges)) {
+      const seatKey = Number(k);
+      if (v && v.turnsLeft > 1) {
+        nextGrudges[seatKey] = { attackerIdx: v.attackerIdx, turnsLeft: v.turnsLeft - 1 };
+      }
+    }
+
     set({
       currentPlayer: nextP,
       hasRolled: false,
@@ -562,6 +652,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       turnCapturingPawns: [],
       pendingCoachMove: null,
       pendingGulMove: null,
+      aiGrudges: nextGrudges,
       turnSecondsLeft: st.prefs.turnTimerEnabled ? st.prefs.turnTimerDuration : 0,
       bannerText: keepSame
         ? `🎲 ${nextPlayerObj.name} Bonus Turn!`
@@ -616,6 +707,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const nextMoves = [...st.movesAvailable];
     const startPos = nextPawns[pIdx][pawnIdx].pos;
 
+    const preRivalry = evaluateRivalryState(st.pawns, -1);
+    const preTargetLeader =
+      preRivalry.leaderIdx !== -1 && preRivalry.leaderIdx !== pIdx
+        ? preRivalry.leaderIdx
+        : getMatchLeader(st.pawns, pIdx).leaderIdx;
+    const preGrudgeTarget = st.aiGrudges[pIdx]?.attackerIdx ?? -1;
+
     const outcome = executePawnMove(nextPawns, nextStats, pIdx, pawnIdx, steps, st.dice, nextMoves);
     if (!outcome.moved) return;
 
@@ -629,6 +727,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     let requiredCaptures = st.turnRequiredCaptures;
     let candidatePawns = [...st.turnCandidatePawns];
     let midTurnMissed = [...st.turnMidTurnMissedCandidates];
+    const nextGrudges = { ...st.aiGrudges };
+    let hitLeaderBanner = '';
 
     if (outcome.reachedCenterHome) {
       extraEarned = true;
@@ -644,8 +744,53 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       capturesMade += 1;
       if (!capturingPawns.includes(pawnIdx)) capturingPawns.push(pawnIdx);
       sfx.play('capture');
-      emitBanter(pIdx, 'capture');
-      emitBanter(outcome.capturedVictims[0].playerIdx, 'captured', 2000);
+
+      const victimIdx = outcome.capturedVictims[0].playerIdx;
+      nextGrudges[victimIdx] = { attackerIdx: pIdx, turnsLeft: 6 };
+      const hitGrudge = outcome.capturedVictims.some((v) => v.playerIdx === preGrudgeTarget);
+      if (hitGrudge) {
+        delete nextGrudges[pIdx];
+      }
+
+      const hitLeader =
+        preTargetLeader !== -1 &&
+        preRivalry.leaderPct >= 30 &&
+        outcome.capturedVictims.some((v) => v.playerIdx === preTargetLeader);
+
+      if (hitLeader) {
+        const victimName = stripSeatTag(st.players[preTargetLeader]?.name || `Player ${preTargetLeader + 1}`);
+        hitLeaderBanner = `🎯 ${stripSeatTag(player.name)} dethroned leader ${victimName}!`;
+        triggerCrowdReactions(preTargetLeader, pIdx, ['🎯', '🔥', '😱', '💥', '👑']);
+        if (player.isAI) {
+          emitRivalryCallout(pIdx, 'leader_hit', preTargetLeader, preRivalry.leaderPct);
+        } else {
+          const cheerAi = st.players.findIndex((pl, idx) => pl.isAI && idx !== preTargetLeader);
+          if (cheerAi !== -1) {
+            emitRivalryCallout(cheerAi, 'leader_hit', preTargetLeader, preRivalry.leaderPct, 250);
+          }
+        }
+      } else if (hitGrudge && player.isAI) {
+        emitRivalryCallout(pIdx, 'grudge_hit', preGrudgeTarget);
+      } else {
+        emitBanter(pIdx, 'capture');
+      }
+      emitBanter(victimIdx, 'captured', 2000);
+    }
+
+    const postRivalry = evaluateRivalryState(nextPawns, -1);
+    let nextDethroneAlert = st.dethroneAlertedLeader;
+    if (
+      !outcome.wonMatch &&
+      postRivalry.tier === 'dethrone' &&
+      postRivalry.leaderIdx !== -1 &&
+      nextDethroneAlert !== postRivalry.leaderIdx
+    ) {
+      nextDethroneAlert = postRivalry.leaderIdx;
+      const heraldSeat = st.players.findIndex((pl, idx) => pl.isAI && idx !== postRivalry.leaderIdx);
+      triggerCrowdReactions(postRivalry.leaderIdx, heraldSeat, ['🎯', '🚨', '⚔️', '🔥']);
+      if (heraldSeat !== -1) {
+        emitRivalryCallout(heraldSeat, 'dethrone_alert', postRivalry.leaderIdx, postRivalry.leaderPct, 650);
+      }
     }
 
     if (dieIdx === 'combined') {
@@ -655,7 +800,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     }
 
     if (outcome.wonMatch) {
-      set({ pawns: nextPawns, playerStats: nextStats, movesAvailable: [] });
+      set({
+        pawns: nextPawns,
+        playerStats: nextStats,
+        movesAvailable: [],
+        aiGrudges: nextGrudges,
+        dethroneAlertedLeader: nextDethroneAlert,
+      });
       finishLocalVictory(pIdx);
       return;
     }
@@ -674,7 +825,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         midTurnMissed,
         capturingPawns,
       );
-      let banner = extraEarned ? 'Bonus Turn Earned!' : 'Turn finished!';
+      let banner = hitLeaderBanner || (extraEarned ? 'Bonus Turn Earned!' : 'Turn finished!');
       if (penalized.length > 0) {
         banner =
           penalized.length > 1
@@ -696,6 +847,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         turnCandidatePawns: candidatePawns,
         turnMidTurnMissedCandidates: midTurnMissed,
         turnCapturingPawns: capturingPawns,
+        aiGrudges: nextGrudges,
+        dethroneAlertedLeader: nextDethroneAlert,
         bannerText: banner,
       });
       passTimeout = setTimeout(advanceLocalTurn, st.turnAutoPlay ? 820 : 1320);
@@ -734,9 +887,13 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         turnCandidatePawns: candidatePawns,
         turnMidTurnMissedCandidates: midTurnMissed,
         turnCapturingPawns: capturingPawns,
-        bannerText: st.turnAutoPlay
-          ? "⏱️ Time's up! Auto-playing..."
-          : `${player.name}: Select next die or pawn`,
+        aiGrudges: nextGrudges,
+        dethroneAlertedLeader: nextDethroneAlert,
+        bannerText:
+          hitLeaderBanner ||
+          (st.turnAutoPlay
+            ? "⏱️ Time's up! Auto-playing..."
+            : `${player.name}: Select next die or pawn`),
       });
       if (player.isAI) {
         scheduleAITurnIfNeeded(1320);
@@ -785,6 +942,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     winner: null,
     bannerText: '',
     speakingSeat: null,
+    aiGrudges: {},
+    dethroneAlertedLeader: null,
 
     pendingCoachMove: null,
     pendingGulMove: null,
@@ -956,6 +1115,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         pendingGulMove: null,
         winner: null,
         rankings: [],
+        aiGrudges: {},
+        dethroneAlertedLeader: null,
         bannerText: `${st.players[0].name}: ${translate(st.prefs.language, 'roll_hint')}`,
       });
 
@@ -994,6 +1155,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         roomCode: null,
         mySeat: null,
         speakingSeat: null,
+        aiGrudges: {},
+        dethroneAlertedLeader: null,
         voiceCallJoined: false,
         voiceCallConnecting: false,
         voiceCallMuted: false,
@@ -1753,6 +1916,30 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       void preloadDialogueLanguage(st.prefs.language).then(runDialogue);
     },
 
+    playSyncedRivalryEvent: ({ kind, actorSeat, targetSeat, leaderPct, seedIdx }) => {
+      const st = get();
+      if (!st.isOnline || st.matchOver) return;
+      const targetName = stripSeatTag(st.players[targetSeat]?.name || `Player ${targetSeat + 1}`);
+      const actor = st.players[actorSeat];
+      const actorName = stripSeatTag(actor?.name || `Player ${actorSeat + 1}`);
+      if (kind === 'leader_hit') {
+        triggerCrowdReactions(targetSeat, actorSeat, ['🎯', '🔥', '😱', '💥', '👑']);
+      } else if (kind === 'dethrone_alert') {
+        triggerCrowdReactions(targetSeat, actorSeat, ['🎯', '🚨', '⚔️', '🔥']);
+        st.appendChatMessage({
+          id: `rivalry_${Date.now()}_${targetSeat}`,
+          sender: `🤖 ${actorName}`,
+          text: `${targetName} hit ${Math.round(leaderPct || 0)}%! Whisper to allies & trap the leader! 🎯`,
+          seatIndex: actorSeat,
+          timestamp: Date.now(),
+          kind: 'text',
+        });
+      }
+      if (actor && actor.isAI && !st.prefs.mutedSeats.includes(actorSeat)) {
+        emitRivalryCallout(actorSeat, kind, targetSeat, leaderPct, kind === 'dethrone_alert' ? 350 : 0, seedIdx);
+      }
+    },
+
     appendChatMessage: (msg) => {
       const st = get();
       const maxMsgs = 50;
@@ -1902,6 +2089,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         hostSeatIndex: 0,
         amHost: false,
         speakingSeat: null,
+        aiGrudges: {},
+        dethroneAlertedLeader: null,
         onlineSeats: {},
         chatMessages: [],
         pendingVoiceNotes: [],

@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import { type BanterEvent } from '../game/banter';
+import { type BanterEvent, type RivalryCalloutKind } from '../game/banter';
 import { sfx } from '../game/sfx';
 import { runSdk } from '../sdk/runSdk';
 import { useGameStore, type RoomSeatPublic, type VoiceCallParticipant } from '../state/store';
@@ -233,6 +233,26 @@ class MultiplayerClient {
         useGameStore.getState().playSyncedAiDialogue(payload.seatIdx, payload.event, payload.lineIdx);
       }
     });
+
+    sock.on(
+      'ludo:rivalry_event',
+      (payload: {
+        kind: RivalryCalloutKind;
+        actorSeat: number;
+        targetSeat: number;
+        leaderPct?: number;
+        seedIdx?: number;
+      }) => {
+        if (
+          payload &&
+          typeof payload.kind === 'string' &&
+          typeof payload.actorSeat === 'number' &&
+          typeof payload.targetSeat === 'number'
+        ) {
+          useGameStore.getState().playSyncedRivalryEvent(payload);
+        }
+      },
+    );
 
     sock.on('ludo:voice', (msg) => {
       const st = useGameStore.getState();

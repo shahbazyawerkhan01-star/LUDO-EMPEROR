@@ -3,6 +3,7 @@ import { type NameplateScreenPos } from '../game/ludoScene';
 import {
   canAnyPawnMove,
   canMovePawn,
+  evaluateRivalryState,
   getPlayerColor,
   getPlayerProgressPercent,
   isLoneTokenOnTrack,
@@ -93,6 +94,8 @@ export const Hud: React.FC<HudProps> = ({
       return { ...item, pct, widthPct };
     });
   }, [players, pawns, isTournament]);
+
+  const rivalry = useMemo(() => evaluateRivalryState(pawns, -1), [pawns]);
 
   // Exact original updateWinStatsDisplay: Top 3 ranked players (#1, #2, #3) with Win:X and $bal
   const top3Rankings = useMemo(() => {
@@ -202,23 +205,32 @@ export const Hud: React.FC<HudProps> = ({
       <div id="ai-judge-bar" className={isTournament ? 'tournament' : ''}>
         {top3Judges.map((entry) => {
           const isAiSpeakingNow = speakingSeat === entry.idx;
+          const isDethroneTarget =
+            rivalry.tier === 'dethrone' && rivalry.leaderIdx === entry.idx;
           return (
             <div
               key={entry.idx}
               id={`judge-${entry.idx}`}
               className="judge-segment"
+              title={
+                isDethroneTarget
+                  ? `Dethrone Target (${rivalry.leaderPct}%)`
+                  : undefined
+              }
               style={{
                 width: `${entry.widthPct}%`,
                 backgroundColor: entry.color,
                 boxShadow: isAiSpeakingNow
                   ? 'inset 0 0 0 3px #f1c40f'
-                  : currentPlayer === entry.idx
-                    ? 'inset 0 0 0 2px #ffffff'
-                    : undefined,
+                  : isDethroneTarget
+                    ? 'inset 0 0 0 2px #ff4757'
+                    : currentPlayer === entry.idx
+                      ? 'inset 0 0 0 2px #ffffff'
+                      : undefined,
               }}
             >
               <div className="judge-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {isAiSpeakingNow ? <span>🗣️</span> : null}
+                {isAiSpeakingNow ? <span>🗣️</span> : isDethroneTarget ? <span>🎯</span> : null}
                 <span>
                   {entry.shortName}: {entry.pct}%
                 </span>
@@ -230,27 +242,40 @@ export const Hud: React.FC<HudProps> = ({
 
       {/* Portrait Ranking Bar (Exact Original Top 3: #1, #2, #3) */}
       <div id="ranking-bar" className={isTournament ? 'tournament' : ''}>
-        {top3Rankings.map((entry, rankIdx) => (
-          <div
-            key={entry.idx}
-            className="rank-segment"
-            onClick={() => openProfileModal(entry.idx)}
-            style={{
-              backgroundColor: entry.color,
-              cursor: 'pointer',
-              boxShadow: currentPlayer === entry.idx ? 'inset 0 0 0 2px #fff' : undefined,
-            }}
-          >
-            <div className="rank-header-row">
-              <span className="rank-badge">#{rankIdx + 1}</span>
-              <span className="rank-name">{entry.cleanName}</span>
+        {top3Rankings.map((entry, rankIdx) => {
+          const isDethroneTarget =
+            rivalry.tier === 'dethrone' && rivalry.leaderIdx === entry.idx;
+          return (
+            <div
+              key={entry.idx}
+              className="rank-segment"
+              onClick={() => openProfileModal(entry.idx)}
+              title={
+                isDethroneTarget
+                  ? `Dethrone Target (${rivalry.leaderPct}%)`
+                  : undefined
+              }
+              style={{
+                backgroundColor: entry.color,
+                cursor: 'pointer',
+                boxShadow: isDethroneTarget
+                  ? 'inset 0 0 0 2px #ff4757'
+                  : currentPlayer === entry.idx
+                    ? 'inset 0 0 0 2px #fff'
+                    : undefined,
+              }}
+            >
+              <div className="rank-header-row">
+                <span className="rank-badge">{isDethroneTarget ? '🎯' : `#${rankIdx + 1}`}</span>
+                <span className="rank-name">{entry.cleanName}</span>
+              </div>
+              <div className="rank-stats-row">
+                <span className="rank-wins">Win:{entry.wins}</span>
+                {isTournament && <span className="rank-balance">${entry.bal}</span>}
+              </div>
             </div>
-            <div className="rank-stats-row">
-              <span className="rank-wins">Win:{entry.wins}</span>
-              {isTournament && <span className="rank-balance">${entry.bal}</span>}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Whisper Layer for Board Nameplates (Rendered Directly Inside Each Rotated Nameplate) */}
