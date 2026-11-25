@@ -1099,7 +1099,8 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
 
     updatePrefs: (patch) => {
-      const next = { ...get().prefs, ...patch };
+      const st = get();
+      const next = { ...st.prefs, ...patch };
       runSdk.savePreferences(next);
       sfx.setVolumes(next.volume, next.musicVolume);
       if (patch.musicId !== undefined) {
@@ -1121,6 +1122,18 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
       if (patch.language !== undefined) {
         void preloadDialogueLanguage(next.language);
+      }
+      if (patch.tokenStyle !== undefined && st.gameStarted && !st.isOnline) {
+        const nextAi = pickRandomAiSeatTokenOverrides(
+          st.players,
+          next.tokenStyle,
+          lastPassPlayAiTokenOverrides,
+        );
+        if (Object.keys(nextAi).length > 0) {
+          lastPassPlayAiTokenOverrides = nextAi;
+        }
+        set({ prefs: next, aiTokenOverrides: nextAi });
+        return;
       }
       set({ prefs: next });
     },
@@ -1181,7 +1194,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         st.prefs.tokenStyle,
         lastPassPlayAiTokenOverrides,
       );
-      lastPassPlayAiTokenOverrides = nextAiTokenOverrides;
+      if (Object.keys(nextAiTokenOverrides).length > 0) {
+        lastPassPlayAiTokenOverrides = nextAiTokenOverrides;
+      }
 
       set({
         screen: 'playing',

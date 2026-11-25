@@ -260,6 +260,22 @@ export const App: React.FC = () => {
           }
         }
       },
+      onPawnDoubleTap: (pIdx, pawnIdx) => {
+        const st = useGameStore.getState();
+        if (st.turnAutoPlay || pIdx !== st.currentPlayer || !st.hasRolled || st.isRolling || st.matchOver) return;
+        if (st.movesAvailable.length < 2) return;
+        const pawn = st.pawns[pIdx]?.[pawnIdx];
+        if (!pawn || pawn.status !== 'on-path') return;
+        if (!st.isOnline) {
+          st.handleLocalCombinedMove(pIdx, pawnIdx);
+          return;
+        }
+        if (st.mySeat !== st.currentPlayer) return;
+        const total = st.movesAvailable.reduce((a, b) => a + Number(b), 0);
+        if (st.attemptOnlineMoveWithCoachCheck(pawnIdx, total, 'combined')) {
+          multiplayerClient.movePawn(pawnIdx, total, 'combined');
+        }
+      },
       onBaseTap: (pIdx) => {
         const st = useGameStore.getState();
         if (st.turnAutoPlay) return;

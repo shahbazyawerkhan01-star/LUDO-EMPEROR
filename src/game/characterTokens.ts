@@ -24,7 +24,7 @@ export interface CharacterTokenMeta {
   soundSummary: string;
 }
 
-export type TokenLocomotionMode = 'slither' | 'fly' | 'walk' | 'jump';
+export type TokenLocomotionMode = 'slither' | 'fly' | 'walk' | 'jump' | 'skid';
 
 export function isAnimalCharacter(id: CharacterArchetypeId | TokenStyleId | null | undefined): id is AnimalArchetypeId {
   return typeof id === 'string' && id.startsWith('animal_') && id !== 'animal_mix';
@@ -33,7 +33,7 @@ export function isAnimalCharacter(id: CharacterArchetypeId | TokenStyleId | null
 export function getTokenLocomotionMode(
   charId: CharacterArchetypeId | null | undefined,
 ): TokenLocomotionMode {
-  if (!charId) return 'jump';
+  if (!charId) return 'skid';
   if (charId === 'animal_cobra') return 'slither';
   if (charId === 'animal_eagle') return 'fly';
   if (
@@ -194,6 +194,9 @@ export function pickRandomAiSeatTokenOverrides(
   previousOverrides?: Partial<Record<number, CharacterArchetypeId | null>> | null,
   rng: () => number = Math.random,
 ): Partial<Record<number, CharacterArchetypeId>> {
+  if (!humanStyle || humanStyle === 'default') {
+    return {};
+  }
   const humanUsed = new Set<CharacterArchetypeId>();
   players.forEach((p, idx) => {
     if (!p.isAI) {

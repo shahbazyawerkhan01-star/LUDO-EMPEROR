@@ -44,6 +44,7 @@ import {
   getPlayerColor,
   isLoneTokenOnTrack,
   PAWN_ASSET_URLS,
+  resolvePawnTapMove,
   resolveSeatDicePalette,
   shadeRgb,
   stripSeatTag,
@@ -64,6 +65,7 @@ export interface NameplateScreenPos {
 
 export interface SceneCallbacks {
   onPawnTap: (playerIdx: number, pawnIdx: number) => void;
+  onPawnDoubleTap?: (playerIdx: number, pawnIdx: number) => void;
   onBaseTap: (playerIdx: number) => void;
   onDiceTap: () => void;
   onNameplatesChange?: (plates: NameplateScreenPos[]) => void;
@@ -110,12 +112,31 @@ interface AnimPawn {
   celebrateUntil: number;
   celebrateDuration: number;
   celebrateKind: CharacterCelebrationKind | null;
+  revUntil: number;
+  revDuration: number;
+  revFromPos: number;
+  revTargetPos: number;
+  smokeTimer: number;
+  turboSkidActive: boolean;
   container: Container;
   shadow: Graphics;
   ring: Graphics;
   sprite: Sprite | null;
   fallbackGfx: Graphics;
   characterGfx: Graphics;
+}
+
+interface SmokeParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  grow: number;
+  age: number;
+  maxAge: number;
+  alpha: number;
+  color: number;
 }
 
 interface Dice3DAnim {
@@ -511,6 +532,7 @@ export class LudoScene {
   private yardMetas: BoardYardMeta[] = [];
   private homeLabelNode: Text | null = null;
   private shadowLayer = new Container();
+  private smokeGfx = new Graphics();
   private pawnLayer = new Container();
 
   // Non-interactive 3D Physical Dice directly ON the board + Screen-space FX
@@ -520,6 +542,9 @@ export class LudoScene {
   private fxLayer = new Container();
 
   private animPawns: AnimPawn[][] = [];
+  private smokeParticles: SmokeParticle[] = [];
+  private lastPawnTap: { pIdx: number; iIdx: number; atMs: number } | null = null;
+  private pendingTapTimer: ReturnType<typeof setTimeout> | null = null;
   private pawnTextures: Array<Texture | null> = [null, null, null, null, null];
   private bgTextures = new Map<string, Texture>();
 
@@ -690,6 +715,8 @@ export class LudoScene {
     this.shadowLayer.eventMode = 'none';
     this.shadowLayer.interactiveChildren = false;
     this.boardRoot.addChild(this.shadowLayer);
+    this.smokeGfx.eventMode = 'none';
+    this.boardRoot.addChild(this.smokeGfx);
     this.boardRoot.addChild(this.pawnLayer);
 
     // Pre-allocated non-interactive 3D dice layer ON the board (never blocks pawn taps)
@@ -738,7 +765,82 @@ export class LudoScene {
     });
   }
 
+  private clearPendingTap(): void {
+    if (this.pendingTapTimer !== null) {
+      clearTimeout(this.pendingTapTimer);
+      this.pendingTapTimer = null;
+    }
+    this.lastPawnTap = null;
+  }
+
+  private canDoubleTapCombinedMove(pIdx: number, iIdx: number): boolean {
+    const snap = this.snapshot;
+    if (!snap || !snap.gameStarted || !snap.hasRolled || snap.isRolling) return false;
+    if (pIdx !== snap.currentPlayer) return false;
+    if (snap.isOnline && snap.mySeat !== snap.currentPlayer) return false;
+    if (snap.players[pIdx]?.isAI) return false;
+    if (snap.movesAvailable.length < 2) return false;
+    const pawn = snap.pawns[pIdx]?.[iIdx];
+    if (!pawn || pawn.status !== 'on-path') return false;
+    const total = snap.movesAvailable.reduce((a, b) => a + Number(b), 0);
+    if (!canMovePawn(snap.pawns, pIdx, iIdx, total, snap.dice, snap.movesAvailable)) return false;
+    const singleRes = resolvePawnTapMove(
+      snap.pawns,
+      pIdx,
+      iIdx,
+      snap.movesAvailable,
+      snap.dice,
+      snap.selectedDieIndex,
+      false,
+    );
+    if (singleRes?.dieIdx === 'combined') return false;
+    return true;
+  }
+
+  private handlePawnPointerTap(pIdx: number, iIdx: number): void {
+    const now = performance.now();
+    if (
+      this.lastPawnTap &&
+      this.lastPawnTap.pIdx === pIdx &&
+      this.lastPawnTap.iIdx === iIdx &&
+      now - this.lastPawnTap.atMs <= 320 &&
+      this.canDoubleTapCombinedMove(pIdx, iIdx)
+    ) {
+      this.clearPendingTap();
+      if (this.callbacks.onPawnDoubleTap) {
+        this.callbacks.onPawnDoubleTap(pIdx, iIdx);
+      } else {
+        this.callbacks.onPawnTap(pIdx, iIdx);
+      }
+      return;
+    }
+
+    if (this.pendingTapTimer !== null) {
+      const prev = this.lastPawnTap;
+      this.clearPendingTap();
+      if (prev) {
+        this.callbacks.onPawnTap(prev.pIdx, prev.iIdx);
+      }
+    }
+
+    if (this.callbacks.onPawnDoubleTap && this.canDoubleTapCombinedMove(pIdx, iIdx)) {
+      this.lastPawnTap = { pIdx, iIdx, atMs: now };
+      this.pendingTapTimer = setTimeout(() => {
+        this.pendingTapTimer = null;
+        this.lastPawnTap = null;
+        if (!this.destroyed) {
+          this.callbacks.onPawnTap(pIdx, iIdx);
+        }
+      }, 215);
+    } else {
+      this.callbacks.onPawnTap(pIdx, iIdx);
+    }
+  }
+
   private createPawnNodes(): void {
+    this.clearPendingTap();
+    this.smokeParticles.length = 0;
+    this.smokeGfx.clear();
     this.shadowLayer.removeChildren();
     this.pawnLayer.removeChildren();
     this.animPawns = Array.from({ length: 5 }, (_, pIdx) =>
@@ -748,7 +850,7 @@ export class LudoScene {
         container.cursor = 'pointer';
         container.on('pointertap', (e) => {
           e.stopPropagation();
-          this.callbacks.onPawnTap(pIdx, iIdx);
+          this.handlePawnPointerTap(pIdx, iIdx);
         });
 
         const ring = new Graphics();
@@ -784,6 +886,12 @@ export class LudoScene {
           celebrateUntil: 0,
           celebrateDuration: 1000,
           celebrateKind: null,
+          revUntil: 0,
+          revDuration: 460,
+          revFromPos: -1,
+          revTargetPos: -1,
+          smokeTimer: 0,
+          turboSkidActive: false,
           container,
           shadow,
           ring,
@@ -851,10 +959,21 @@ export class LudoScene {
       !!prevSnap && !next.isRolling && !next.hasRolled && (prevSnap.hasRolled || prevSnap.isRolling);
 
     if (matchReset || turnChanged || serverResyncCleared) {
+      this.clearPendingTap();
       this.flyActive = false;
       this.flyHoldingResult = false;
       this.flyStage = 0;
       this.flySeat = next.currentPlayer;
+      if (matchReset) {
+        this.smokeParticles.length = 0;
+        this.smokeGfx.clear();
+        for (const row of this.animPawns) {
+          for (const ap of row) {
+            ap.turboSkidActive = false;
+            ap.revUntil = 0;
+          }
+        }
+      }
     }
 
     if (next.isRolling && !prevRolling) {
@@ -1997,17 +2116,66 @@ export class LudoScene {
         const pawn = this.snapshot.pawns[pIdx][iIdx];
         const ap = this.animPawns[pIdx][iIdx];
         const diff = pawn.pos - ap.displayPos;
+        const isSkid = locomotion === 'skid';
+
+        // Trigger pre-launch rev-up & burnout smoke on far Classic forward runs (e.g. 5+4=9, 6+3=9, 5+5=10, 6+4=10, 6+5=11, 6+6=12)
+        if (isSkid && ap.initializedPos && ap.displayPos >= 0 && !ap.turboSkidActive && diff >= 8.95) {
+          ap.turboSkidActive = true;
+          ap.revDuration = 460;
+          ap.revUntil = nowMs + ap.revDuration;
+          ap.revFromPos = ap.displayPos;
+          ap.revTargetPos = pawn.pos;
+          ap.smokeTimer = 0;
+          sfx.playTurboSkidLaunch();
+        } else if (ap.turboSkidActive && diff < -0.05) {
+          ap.turboSkidActive = false;
+          ap.revUntil = 0;
+        }
+
+        const revRemaining = isSkid && ap.turboSkidActive ? Math.max(0, ap.revUntil - nowMs) : 0;
+        const isRevving = revRemaining > 0 && diff > 0.01;
+        const revProgress = isRevving && ap.revDuration > 0 ? 1 - revRemaining / ap.revDuration : 0;
+
         if (Math.abs(diff) > 0.01) {
-          if (locomotion === 'fly' && diff > 0.01) {
+          if (isRevving) {
+            // Hold position with subtle forward tire-creep vibration while revving up
+            ap.displayPos = ap.revFromPos + 0.08 * (revProgress * revProgress);
+          } else if (locomotion === 'fly' && diff > 0.01) {
             const flightSpan = Math.max(1, pawn.pos - ap.flightFromPos);
             const flySpeed = Math.max(0.115, flightSpan * 0.022) * delta;
             ap.displayPos += Math.min(diff, flySpeed);
+          } else if (isSkid && ap.turboSkidActive && diff > 0.01) {
+            const launchSpeed = Math.max(0.22, Math.min(0.42, 0.23 + diff * 0.018)) * delta;
+            ap.displayPos += Math.min(diff, launchSpeed);
+          } else if (isSkid && diff > 0.01) {
+            ap.displayPos += Math.min(diff, 0.155 * delta);
           } else {
             ap.displayPos += diff > 0 ? Math.min(diff, 0.105 * delta) : Math.max(diff, -0.34 * delta);
           }
         } else {
           ap.displayPos = pawn.pos;
           ap.flightFromPos = pawn.pos;
+          if (ap.turboSkidActive) {
+            ap.turboSkidActive = false;
+            ap.revUntil = 0;
+            // Emit crisp braking puff ring on stopping after a turbo skid
+            const stopProj = this.projectLocal(ap.renderX, ap.renderY, 0);
+            const stopScale = stopProj.persp * 0.84;
+            for (let b = 0; b < 5; b++) {
+              const ang = (b / 5) * Math.PI * 2 + Math.random() * 0.5;
+              this.spawnSmokeParticle(
+                stopProj.x + Math.cos(ang) * 5 * stopScale,
+                stopProj.y + Math.sin(ang) * 3 * stopScale,
+                Math.cos(ang) * 0.85 * stopScale,
+                Math.sin(ang) * 0.5 * stopScale - 0.35 * stopScale,
+                4.2 * stopScale,
+                0.24 * stopScale,
+                16 + Math.random() * 6,
+                0.42,
+                0xe2e8f0,
+              );
+            }
+          }
         }
 
         // Fire per-tile crisp character step cues (Eagle emits soar cue on takeoff / long span rather than ground tile clicks)
@@ -2115,17 +2283,19 @@ export class LudoScene {
           }
           const lerpAmt = isEagleFlight
             ? Math.min(1, 0.55 * delta)
-            : locomotion === 'slither'
-              ? Math.min(1, 0.24 * delta)
-              : Math.min(1, 0.18 * delta);
+            : isSkid
+              ? Math.min(1, (ap.turboSkidActive ? 0.5 : 0.3) * delta)
+              : locomotion === 'slither'
+                ? Math.min(1, 0.24 * delta)
+                : Math.min(1, 0.18 * delta);
           ap.renderX += (target.x + stackX - ap.renderX) * lerpAmt;
           ap.renderY += (target.y + stackY - ap.renderY) * lerpAmt;
         }
 
         const settleDist = Math.hypot(target.x + stackX - ap.renderX, target.y + stackY - ap.renderY);
-        const isMovingNow = Math.abs(diff) > 0.03 || settleDist > 1.8;
+        const isMovingNow = !isRevving && (Math.abs(diff) > 0.03 || settleDist > 1.8);
         if (isMovingNow) {
-          ap.travelPhase += delta * 0.22;
+          ap.travelPhase += delta * (isSkid && ap.turboSkidActive ? 0.38 : 0.22);
         } else if (Math.abs(diff) <= 0.01 && settleDist <= 1.2) {
           ap.travelPhase = 0;
           ap.flightFromX = ap.renderX;
@@ -2154,7 +2324,7 @@ export class LudoScene {
         const stepFraction = ((ap.displayPos % 1) + 1) % 1;
         const moveJumpLift =
           isJumper && isMovingNow && diff > 0.02
-            ? Math.sin(stepFraction * Math.PI) * (charId === null ? 16 : 15)
+            ? Math.sin(stepFraction * Math.PI) * 15
             : 0;
         const activeAirLift = isEagleFlight ? flightLift : bounce + moveJumpLift;
 
@@ -2165,46 +2335,8 @@ export class LudoScene {
         ap.container.y = proj.y;
         ap.container.scale.set(bodyScale);
 
-        const hopLiftScale = Math.max(0.45, 1 - activeAirLift * 0.012);
-        ap.shadow.x = proj.x;
-        ap.shadow.y = proj.y;
-        ap.shadow.scale.set(bodyScale);
-        ap.shadow.clear();
-        if (isAnimal) {
-          drawAnimalGroundAura(
-            ap.shadow,
-            colorHex,
-            groundFlatten,
-            hopLiftScale,
-            ap.dirX,
-            ap.dirY,
-            isMovable && !isMovingNow,
-            nowMs,
-            pIdx,
-            iIdx,
-          );
-        } else {
-          ap.shadow
-            .ellipse(0, 0, 11.5 * hopLiftScale, 11.5 * hopLiftScale * groundFlatten)
-            .fill({ color: 0x000000, alpha: 0.3 });
-        }
-
-        ap.ring.x = proj.x;
-        ap.ring.y = proj.y;
-        ap.ring.scale.set(bodyScale, bodyScale * groundFlatten);
-        ap.ring.clear();
-        if (isMovable) {
-          const basePulse = (ss * 0.58 + Math.sin(nowMs / 200) * 5) * 0.85;
-          const pulseR = isAnimal ? Math.max(21.5, basePulse) : basePulse;
-          ap.ring.ellipse(0, 0, pulseR, pulseR * 0.85).stroke({ width: 3.2, color: 0xffffff });
-        }
-
-        if (charId) {
-          if (ap.sprite) ap.sprite.visible = false;
-          ap.fallbackGfx.visible = false;
-          ap.characterGfx.visible = true;
-
-          // Determine projected screen-space path direction so token faces the square ahead (or flight destination)
+        // Compute screen-space path direction so both characters and classic skidding tokens know travel vector
+        if (charId || isSkid) {
           const isReturning = diff < -0.04;
           let dirFrom = { x: ap.renderX, y: ap.renderY };
           let dirTo: { x: number; y: number };
@@ -2241,6 +2373,119 @@ export class LudoScene {
               ap.facing = sDx >= 0 ? 1 : -1;
             }
           }
+        }
+
+        // Emit Classic burnout / turbo skid / light slide smoke particles behind travel direction
+        if (isSkid) {
+          if (isRevving) {
+            ap.smokeTimer -= delta;
+            if (ap.smokeTimer <= 0) {
+              ap.smokeTimer = 0.65;
+              const perpX = -ap.dirY;
+              const perpY = ap.dirX;
+              for (let k = 0; k < 2; k++) {
+                const spread = (Math.random() - 0.5) * 1.1;
+                const backSpd = (1.1 + revProgress * 1.4 + Math.random() * 0.6) * bodyScale;
+                const smokeColors = [0xf8fafc, 0xe2e8f0, 0xcbd5e1, 0x94a3b8];
+                const tint = smokeColors[Math.floor(Math.random() * smokeColors.length)];
+                this.spawnSmokeParticle(
+                  proj.x - ap.dirX * 8 * bodyScale + perpX * spread * 5 * bodyScale,
+                  proj.y - ap.dirY * 5 * bodyScale + perpY * spread * 3 * bodyScale,
+                  (-ap.dirX * backSpd + perpX * spread * 0.9 * bodyScale),
+                  (-ap.dirY * backSpd + perpY * spread * 0.6 * bodyScale) - 0.25 * bodyScale,
+                  (4.2 + revProgress * 3.0) * bodyScale,
+                  (0.28 + revProgress * 0.14) * bodyScale,
+                  20 + Math.random() * 10,
+                  0.52 + revProgress * 0.18,
+                  tint,
+                );
+              }
+              if (revProgress > 0.2) {
+                for (let spk = 0; spk < 2; spk++) {
+                  const sparkSpread = (Math.random() - 0.5) * 1.8;
+                  this.spawnSmokeParticle(
+                    proj.x - ap.dirX * 6 * bodyScale,
+                    proj.y - ap.dirY * 4 * bodyScale,
+                    (-ap.dirX * (2.0 + Math.random() * 0.8) + perpX * sparkSpread) * bodyScale,
+                    (-ap.dirY * (1.5 + Math.random() * 0.6) + perpY * sparkSpread * 0.7) * bodyScale,
+                    2.6 * bodyScale,
+                    0.06 * bodyScale,
+                    10 + Math.random() * 5,
+                    0.92,
+                    spk === 0 ? 0xfef08a : Math.random() > 0.4 ? 0xfbbf24 : 0xf97316,
+                  );
+                }
+              }
+            }
+          } else if (isMovingNow && diff > 0.03) {
+            ap.smokeTimer -= delta;
+            const interval = ap.turboSkidActive ? 0.55 : 2.1;
+            if (ap.smokeTimer <= 0) {
+              ap.smokeTimer = interval;
+              const perpX = -ap.dirY;
+              const perpY = ap.dirX;
+              const spread = (Math.random() - 0.5) * 0.8;
+              const speedFactor = ap.turboSkidActive ? 1.4 : 0.55;
+              this.spawnSmokeParticle(
+                proj.x - ap.dirX * 7 * bodyScale,
+                proj.y - ap.dirY * 4.5 * bodyScale,
+                (-ap.dirX * speedFactor + perpX * spread * 0.6) * bodyScale,
+                (-ap.dirY * speedFactor + perpY * spread * 0.4) * bodyScale - 0.15 * bodyScale,
+                (ap.turboSkidActive ? 4.4 : 2.8) * bodyScale,
+                (ap.turboSkidActive ? 0.24 : 0.14) * bodyScale,
+                ap.turboSkidActive ? 18 : 13,
+                ap.turboSkidActive ? 0.46 : 0.26,
+                ap.turboSkidActive ? 0xe2e8f0 : 0xf1f5f9,
+              );
+            }
+          }
+        }
+
+        const hopLiftScale = Math.max(0.45, 1 - activeAirLift * 0.012);
+        ap.shadow.x = proj.x;
+        ap.shadow.y = proj.y;
+        ap.shadow.scale.set(bodyScale);
+        ap.shadow.clear();
+        if (isAnimal) {
+          drawAnimalGroundAura(
+            ap.shadow,
+            colorHex,
+            groundFlatten,
+            hopLiftScale,
+            ap.dirX,
+            ap.dirY,
+            isMovable && !isMovingNow,
+            nowMs,
+            pIdx,
+            iIdx,
+          );
+        } else {
+          if (isRevving) {
+            const burnoutPulse = 0.5 + 0.5 * Math.sin(nowMs * 0.04);
+            ap.shadow
+              .ellipse(0, 0, (14.5 + revProgress * 5.5) * hopLiftScale, (14.5 + revProgress * 5.5) * hopLiftScale * groundFlatten)
+              .fill({ color: 0xf97316, alpha: 0.2 + burnoutPulse * 0.22 })
+              .stroke({ width: 2.2, color: 0xfbbf24, alpha: 0.55 + burnoutPulse * 0.35 });
+          }
+          ap.shadow
+            .ellipse(0, 0, 11.5 * hopLiftScale, 11.5 * hopLiftScale * groundFlatten)
+            .fill({ color: 0x000000, alpha: 0.3 });
+        }
+
+        ap.ring.x = proj.x;
+        ap.ring.y = proj.y;
+        ap.ring.scale.set(bodyScale, bodyScale * groundFlatten);
+        ap.ring.clear();
+        if (isMovable) {
+          const basePulse = (ss * 0.58 + Math.sin(nowMs / 200) * 5) * 0.85;
+          const pulseR = isAnimal ? Math.max(21.5, basePulse) : basePulse;
+          ap.ring.ellipse(0, 0, pulseR, pulseR * 0.85).stroke({ width: 3.2, color: 0xffffff });
+        }
+
+        if (charId) {
+          if (ap.sprite) ap.sprite.visible = false;
+          ap.fallbackGfx.visible = false;
+          ap.characterGfx.visible = true;
 
           const celebrateRemaining = ap.celebrateUntil - nowMs;
           const celebrateProgress =
@@ -2273,18 +2518,51 @@ export class LudoScene {
         } else {
           ap.characterGfx.visible = false;
           const classicLift = bounce + moveJumpLift;
+          const skidDirSign = Math.abs(ap.dirX) > 0.12 ? (ap.dirX >= 0 ? 1 : -1) : ap.facing;
+          let skidScaleX = 1;
+          let skidScaleY = 1;
+          let skidLeanRad = 0;
+          let skidShakeX = 0;
+          let skidShakeY = 0;
+
+          if (isRevving) {
+            const vib = 1.1 + revProgress * 2.1;
+            skidShakeX = Math.sin(nowMs * 0.095 + iIdx) * vib;
+            skidShakeY = Math.cos(nowMs * 0.12) * vib * 0.45;
+            skidScaleX = 1 + revProgress * 0.13;
+            skidScaleY = 1 - revProgress * 0.11;
+            // Coil back slightly before launching forward
+            skidLeanRad = -skidDirSign * (0.09 + revProgress * 0.13);
+          } else if (isMovingNow && diff > 0.02) {
+            if (ap.turboSkidActive) {
+              skidScaleX = 1.08;
+              skidScaleY = 0.93;
+              skidLeanRad = skidDirSign * 0.24;
+              skidShakeY = Math.sin(ap.travelPhase * 1.8) * 0.6;
+            } else {
+              skidScaleX = 1.03;
+              skidScaleY = 0.97;
+              skidLeanRad = skidDirSign * 0.12;
+            }
+          }
+
           if (ap.sprite) {
             ap.sprite.visible = true;
             const tex = this.pawnTextures[pIdx];
             if (tex) {
-              // Centered directly in the square (0,0) with upward hop bounce/step arc
               const targetW = ss * 0.88 * 0.8;
               const scale = targetW / tex.width;
-              ap.sprite.scale.set(scale, scale);
-              ap.sprite.y = -classicLift;
+              ap.sprite.scale.set(scale * skidScaleX, scale * skidScaleY);
+              ap.sprite.x = skidShakeX;
+              ap.sprite.y = -classicLift + skidShakeY;
+              ap.sprite.rotation = skidLeanRad;
             }
           } else {
             ap.fallbackGfx.visible = true;
+            ap.fallbackGfx.x = skidShakeX;
+            ap.fallbackGfx.y = skidShakeY;
+            ap.fallbackGfx.scale.set(skidScaleX, skidScaleY);
+            ap.fallbackGfx.rotation = skidLeanRad;
             ap.fallbackGfx.clear();
             ap.fallbackGfx
               .poly([-8.8, 2 - classicLift, 8.8, 2 - classicLift, 5.6, -15.6 - classicLift, -5.6, -15.6 - classicLift])
@@ -2299,6 +2577,8 @@ export class LudoScene {
         drawOrder.push({ pIdx, iIdx, pos: ap.displayPos, projY: proj.y, node: ap });
       }
     }
+
+    this.updateAndDrawSmoke(delta);
 
     drawOrder.sort((a, b) => (a.projY !== b.projY ? a.projY - b.projY : b.pos - a.pos));
     drawOrder.forEach((item, idx) => {
@@ -2358,8 +2638,52 @@ export class LudoScene {
     this.handleResize();
   }
 
+  private spawnSmokeParticle(
+    x: number,
+    y: number,
+    vx: number,
+    vy: number,
+    size: number,
+    grow: number,
+    maxAge: number,
+    alpha: number,
+    color: number,
+  ): void {
+    if (this.smokeParticles.length >= 90) {
+      this.smokeParticles.shift();
+    }
+    this.smokeParticles.push({ x, y, vx, vy, size, grow, age: 0, maxAge, alpha, color });
+  }
+
+  private updateAndDrawSmoke(delta: number): void {
+    this.smokeGfx.clear();
+    for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
+      const sp = this.smokeParticles[i];
+      sp.age += delta;
+      if (sp.age >= sp.maxAge) {
+        this.smokeParticles.splice(i, 1);
+        continue;
+      }
+      sp.x += sp.vx * delta;
+      sp.y += sp.vy * delta;
+      const damp = Math.pow(0.92, delta);
+      sp.vx *= damp;
+      sp.vy *= damp;
+      sp.size += sp.grow * delta;
+      const life = sp.age / sp.maxAge;
+      const fade = Math.sin(Math.min(1, life * 4) * (Math.PI / 2)) * (1 - life);
+      const a = sp.alpha * fade;
+      if (a > 0.01) {
+        this.smokeGfx.circle(sp.x, sp.y, sp.size).fill({ color: sp.color, alpha: a });
+      }
+    }
+  }
+
   public destroy(): void {
     this.destroyed = true;
+    this.clearPendingTap();
+    this.smokeParticles.length = 0;
+    this.smokeGfx.clear();
     if (this.floorTexture) {
       this.floorTexture.destroy(true);
       this.floorTexture = null;

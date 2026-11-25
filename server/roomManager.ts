@@ -684,13 +684,15 @@ export class RoomManager {
     const m = room.match;
     if (!m || room.matchEnded || m.currentPlayer !== seatIdx || !m.hasRolled) return;
 
-    const isLone = isLoneTokenOnTrack(m.pawns, seatIdx);
     const totalAvail = m.movesAvailable.reduce((a, b) => a + Number(b), 0);
     let actualDieIndex: number | 'combined' = dieIndex;
     let actualSteps = Number(steps);
 
     if (dieIndex === 'combined') {
-      if (!isLone || m.movesAvailable.length < 2 || actualSteps !== totalAvail) return;
+      const targetPawn = m.pawns[seatIdx]?.[pawnIdx];
+      if (!targetPawn || targetPawn.status !== 'on-path' || m.movesAvailable.length < 2 || actualSteps !== totalAvail) {
+        return;
+      }
     } else {
       const idx = Number(dieIndex);
       if (!Number.isInteger(idx) || idx < 0 || idx >= m.movesAvailable.length) {

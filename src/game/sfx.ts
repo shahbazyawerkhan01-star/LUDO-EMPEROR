@@ -26,6 +26,13 @@ export const MUSIC_TRACKS: MusicTrackOption[] = [
   { id: 'bgm_classic_ludo', label: 'Classic Ludo', url: '/audio/bgm-classic-ludo.mp3' },
   { id: 'bgm_royal_ambience', label: 'Royal Ambience', url: '/audio/bgm-royal-ambience.mp3' },
   { id: 'bgm_modern_beats', label: 'Modern Chill', url: '/audio/bgm-modern-beats.mp3' },
+  { id: 'bgm_afro_reggaeton', label: 'Afro Reggaeton', url: '/audio/bgm-afro-reggaeton.mp3' },
+  { id: 'bgm_downtempo', label: 'Downtempo Chill', url: '/audio/bgm-downtempo.mp3' },
+  { id: 'bgm_guitar_v5', label: 'Acoustic Guitar 1', url: '/audio/bgm-guitar-v5.mp3' },
+  { id: 'bgm_guitar_v9', label: 'Acoustic Guitar 2', url: '/audio/bgm-guitar-v9.mp3' },
+  { id: 'bgm_latin', label: 'Latin Groove', url: '/audio/bgm-latin.mp3' },
+  { id: 'bgm_nature', label: 'Nature Ambient', url: '/audio/bgm-nature.mp3' },
+  { id: 'bgm_rap', label: 'Urban Beat', url: '/audio/bgm-rap.mp3' },
   { id: 'custom', label: 'Custom (Device Library)' },
 ];
 
@@ -1151,6 +1158,30 @@ class SfxManager {
     // Double-die wooden clack separated by ~24ms
     triggerClack(0, 1.0, 0);
     triggerClack(0.024, 0.78, 85);
+  }
+
+  public playTurboSkidLaunch(): void {
+    const now = Date.now();
+    const prev = this.lastPlayed.get('turbo_skid') || 0;
+    if (now - prev < 350) return;
+    this.lastPlayed.set('turbo_skid', now);
+
+    if (this.sfxVolume <= 0.001) return;
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    const duckScale = this.getVoiceDuckScale();
+    const g = Math.min(0.45, this.sfxVolume * 0.36 * duckScale);
+    if (g <= 0.002) return;
+
+    const t0 = ctx.currentTime;
+    // Rising engine rev-up acceleration hum before burnout launch
+    this.playToneEnv(ctx, 'sawtooth', t0, 0.42, 82, 290, g * 0.42);
+    this.playToneEnv(ctx, 'triangle', t0 + 0.04, 0.38, 125, 420, g * 0.34);
+    // Filtered burnout tire smoke hiss
+    this.playNoiseEnv(ctx, t0 + 0.05, 0.36, 'bandpass', 720, 2200, 1.8, g * 0.35);
+    // Crisp high-speed skid launch whoosh at ~420ms
+    this.playNoiseEnv(ctx, t0 + 0.41, 0.28, 'highpass', 950, 1800, 1.2, g * 0.55);
   }
 
   public diceRoll(durationMs = 500): void {

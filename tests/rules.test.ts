@@ -632,10 +632,23 @@ test('Classic backgrounds restored, 10 Board Worlds active, and original non-dup
   assert.equal(DEFAULT_ENVIRONMENT_ID, 'none');
   assert.equal(getDefaultPreferences().backgroundId, DEFAULT_ENVIRONMENT_ID);
 
-  // Only original clean BGM tracks + none + custom (no extra overlapping/double-added tracks)
+  // All 10 bundled BGM tracks + none + custom (12 options total)
   assert.deepEqual(
     MUSIC_TRACKS.map((t) => t.id),
-    ['none', 'bgm_classic_ludo', 'bgm_royal_ambience', 'bgm_modern_beats', 'custom'],
+    [
+      'none',
+      'bgm_classic_ludo',
+      'bgm_royal_ambience',
+      'bgm_modern_beats',
+      'bgm_afro_reggaeton',
+      'bgm_downtempo',
+      'bgm_guitar_v5',
+      'bgm_guitar_v9',
+      'bgm_latin',
+      'bgm_nature',
+      'bgm_rap',
+      'custom',
+    ],
   );
   Object.values(BOARD_THEMES).forEach((theme) => {
     assert.equal(VALID_ENVIRONMENT_IDS.has(theme.bgId), true);
@@ -667,11 +680,12 @@ test('Per-seat dice styling computes seat face color, 0.72/0.52 shades, and lumi
   assert.equal(neonSeat2.glowColor, getPlayerColor(2, false));
 });
 
-test('Natural token locomotion classifies Cobra=slither, Eagle=fly, Jumpers=jump, and Walkers=walk', () => {
+test('Natural token locomotion classifies Classic=skid, Cobra=slither, Eagle=fly, Jumpers=jump, and Walkers=walk', () => {
+  assert.equal(getTokenLocomotionMode(null), 'skid');
   assert.equal(getTokenLocomotionMode('animal_cobra'), 'slither');
   assert.equal(getTokenLocomotionMode('animal_eagle'), 'fly');
 
-  for (const jumper of [null, 'animal_frog', 'animal_kangaroo', 'gymnast', 'climber_3d'] as const) {
+  for (const jumper of ['animal_frog', 'animal_kangaroo', 'gymnast', 'climber_3d'] as const) {
     assert.equal(getTokenLocomotionMode(jumper), 'jump');
   }
 
@@ -695,7 +709,7 @@ test('Natural token locomotion classifies Cobra=slither, Eagle=fly, Jumpers=jump
   }
 });
 
-test('Pass & Play assigns distinct AI token styles per seat and rotates styles on every match', () => {
+test('Pass & Play keeps AI Classic when Default is selected, and rotates distinct AI styles every match otherwise', () => {
   const players = [
     { isAI: false },
     { isAI: true },
@@ -704,6 +718,14 @@ test('Pass & Play assigns distinct AI token styles per seat and rotates styles o
     { isAI: true },
   ];
 
+  // Classic ('default'): AI bots stay Classic too
+  const classicOverrides = pickRandomAiSeatTokenOverrides(players, 'default', undefined, createSeededRng(99));
+  assert.deepEqual(classicOverrides, {});
+  for (const seat of [0, 1, 2, 3, 4]) {
+    assert.equal(resolveCharacterId('default', seat, classicOverrides), null);
+  }
+
+  // Non-Classic: AI bots pick distinct randomized styles (excluding human style) and change every match
   const match1 = pickRandomAiSeatTokenOverrides(players, 'animal_lion', undefined, createSeededRng(101));
   assert.equal(match1[0], undefined);
   const match1Ids = [1, 2, 3, 4].map((seat) => match1[seat]!);
@@ -718,17 +740,24 @@ test('Pass & Play assigns distinct AI token styles per seat and rotates styles o
     assert.notEqual(match2[seat], match1[seat], `Seat ${seat} should pick a different style on the next match`);
   }
 
-  // Store-level startLocalMatch assigns fresh AI overrides and clears on exitMatchToMenu
+  // Store-level verification: Default -> Classic AI; Non-Default -> distinct rotating AI; switching back -> Classic AI
+  useGameStore.getState().updatePrefs({ tokenStyle: 'default' });
   useGameStore.getState().startLocalMatch(false);
+  assert.deepEqual(useGameStore.getState().aiTokenOverrides, {});
+
+  useGameStore.getState().updatePrefs({ tokenStyle: 'sprinter_man' });
   const firstAiMap = { ...useGameStore.getState().aiTokenOverrides };
   assert.ok(Object.keys(firstAiMap).length > 0);
+
   useGameStore.getState().startLocalMatch(false);
   const secondAiMap = { ...useGameStore.getState().aiTokenOverrides };
   for (const [seatKey, tokenId] of Object.entries(firstAiMap)) {
     assert.notEqual(secondAiMap[Number(seatKey)], tokenId);
   }
-  useGameStore.getState().exitMatchToMenu();
+
+  useGameStore.getState().updatePrefs({ tokenStyle: 'default' });
   assert.deepEqual(useGameStore.getState().aiTokenOverrides, {});
+  useGameStore.getState().exitMatchToMenu();
 });
 
 test('Animal ground shadow spotlight aura draws larger colored glow, crisp sports ring, and direction chevron', () => {
@@ -764,4 +793,71 @@ test('Animal ground shadow spotlight aura draws larger colored glow, crisp sport
   assert.equal(polys.length, 1, 'Sports ring directional chevron should be drawn');
   assert.ok(fills.length >= 4 && strokes.length >= 4);
 });
+
+test('Double-click combined move (handleLocalCombinedMove) spends both dice on any active on-path pawn across multi-token boards', () => {
+  const st0 = useGameStore.getState();
+  const fiveHumans = st0.players.map((p, i) => ({ ...p, isAI: false, name: `Human ${i + 1}` }));
+  useGameStore.setState({ players: fiveHumans });
+
+  const longCombos: Array<[number, number]> = [
+    [6, 5],
+    [6, 4],
+    [5, 5],
+    [6, 3],
+    [5, 4],
+  ];
+
+  for (const [d1, d2] of longCombos) {
+    useGameStore.getState().startLocalMatch(false);
+    const pawns = createInitialPawns();
+    // Multi-token board: 2 pawns active on-path, 2 in home base
+    pawns[0][0] = { status: 'on-path', pos: 4 };
+    pawns[0][1] = { status: 'on-path', pos: 18 };
+    useGameStore.setState({
+      pawns,
+      currentPlayer: 0,
+      hasRolled: true,
+      isRolling: false,
+      dice: [d1, d2],
+      movesAvailable: [d1, d2],
+      selectedDieIndex: 0,
+    });
+
+    // Double-clicking a 'home' pawn must not combine dice
+    useGameStore.getState().handleLocalCombinedMove(0, 2);
+    assert.equal(useGameStore.getState().pawns[0][2].status, 'home');
+    assert.deepEqual(useGameStore.getState().movesAvailable, [d1, d2]);
+
+    // Double-clicking on-path pawn #1 moves it by full combined steps (9..11) in one sprint
+    useGameStore.getState().handleLocalCombinedMove(0, 1);
+    assert.equal(useGameStore.getState().pawns[0][1].pos, 18 + d1 + d2);
+    assert.equal(useGameStore.getState().movesAvailable.length, 0);
+  }
+
+  useGameStore.getState().exitMatchToMenu();
+});
+
+test('pickBestAIMove selects combined 9+ step sprints on multi-token boards so AI triggers burnout acceleration and smoke', () => {
+  const pawns = createInitialPawns();
+  // Multi-token board for Seat 1: all 4 tokens active on track
+  pawns[1][0] = { status: 'on-path', pos: 14 };
+  pawns[1][1] = { status: 'on-path', pos: 28 };
+  pawns[1][2] = { status: 'on-path', pos: 33 };
+  pawns[1][3] = { status: 'on-path', pos: 41 };
+
+  const sprint65 = pickBestAIMove(pawns, 1, [6, 5], [6, 5], { personality: 'Strategist' });
+  assert.ok(sprint65.move);
+  assert.equal(sprint65.move.dieIdx, 'combined');
+  assert.equal(sprint65.move.steps, 11);
+
+  const pawns2 = createInitialPawns();
+  pawns2[1][0] = { status: 'on-path', pos: 10 };
+  pawns2[1][1] = { status: 'on-path', pos: 20 };
+  const sprint54 = pickBestAIMove(pawns2, 1, [5, 4], [5, 4], { personality: 'Rival' });
+  assert.ok(sprint54.move);
+  assert.equal(sprint54.move.dieIdx, 'combined');
+  assert.equal(sprint54.move.steps, 9);
+});
+
+
 

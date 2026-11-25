@@ -1325,8 +1325,24 @@ export function pickBestAIMove(
   dice: number[],
   options?: AIMoveRivalryOptions,
 ): { move: MoveOption | null; hitsLeader: boolean; hitsGrudge: boolean } {
-  const legalMoves = getLegalMoves(pawns, pIdx, movesAvailable, dice);
-  if (legalMoves.length === 0) return { move: null, hitsLeader: false, hitsGrudge: false };
+  const baseLegalMoves = getLegalMoves(pawns, pIdx, movesAvailable, dice);
+  if (baseLegalMoves.length === 0) return { move: null, hitsLeader: false, hitsGrudge: false };
+
+  // Also allow AI to evaluate full combined-dice sprints on any active on-path pawn (even with 2+ pawns on track)
+  const legalMoves: MoveOption[] = [...baseLegalMoves];
+  if (movesAvailable.length > 1) {
+    const combinedTotal = movesAvailable.reduce((a, b) => a + Number(b), 0);
+    for (let pawnIdx = 0; pawnIdx < 4; pawnIdx++) {
+      const p = pawns[pIdx]?.[pawnIdx];
+      if (
+        p?.status === 'on-path' &&
+        !legalMoves.some((m) => m.pawnIdx === pawnIdx && m.dieIdx === 'combined') &&
+        canMovePawn(pawns, pIdx, pawnIdx, combinedTotal, dice, movesAvailable)
+      ) {
+        legalMoves.push({ pawnIdx, dieIdx: 'combined', steps: combinedTotal });
+      }
+    }
+  }
 
   const overallRivalry = evaluateRivalryState(pawns, -1);
   const targetLeaderIdx =
@@ -1383,7 +1399,11 @@ export function pickBestAIMove(
       selected = candidateList[0];
     }
 
-    const found = legalMoves.find((m) => m.pawnIdx === selected.pawnIdx && m.dieIdx === selected.diceIndices[0]);
+    const found =
+      (selected.diceIndices.length > 1
+        ? legalMoves.find((m) => m.pawnIdx === selected.pawnIdx && m.dieIdx === 'combined')
+        : undefined) ||
+      legalMoves.find((m) => m.pawnIdx === selected.pawnIdx && m.dieIdx === selected.diceIndices[0]);
     if (found) {
       return {
         move: found,
@@ -1533,6 +1553,10 @@ export function pickBestAIMove(
     // Leaving a safe star when no immediate threat/ambush gains slightly lower preference vs staying sheltered
     if (pawn.status === 'on-path' && isTrackSafeNode(myPath[pawn.pos]) && !landingOnSafe && friendlyCountAtNew === 0) {
       score -= isStrategist ? 25 : 10;
+    }
+
+    if (m.dieIdx === 'combined' && m.steps >= 9) {
+      score += 18;
     }
 
     score += Math.max(0, newPos);

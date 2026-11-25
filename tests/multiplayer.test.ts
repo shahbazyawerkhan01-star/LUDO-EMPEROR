@@ -1121,3 +1121,78 @@ test('Binary ludo:voice enforces 80KB limit & server duration, and server syncs 
   }
 });
 
+test('Online multiplayer allows dieIndex combined sprints (e.g. 6+5=11) on multi-token boards without triggering lone-token Gul', async () => {
+  const { server, io, roomManager } = createLudoCoreServer({
+    rootDir: path.resolve(process.cwd()),
+    roomOptions: {
+      rng: createFixedDiceRng([6, 5]),
+      tickIntervalMs: 50,
+      turnPassDelayMs: 60,
+    },
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === 'object');
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  let hostSock: ClientSocket | null = null;
+  let guestSock: ClientSocket | null = null;
+
+  try {
+    hostSock = ioClient(baseUrl, { transports: ['websocket'] });
+    guestSock = ioClient(baseUrl, { transports: ['websocket'] });
+    await Promise.all([
+      new Promise<void>((r) => hostSock!.on('connect', () => r())),
+      new Promise<void>((r) => guestSock!.on('connect', () => r())),
+    ]);
+
+    const createRes = await emitAck(hostSock, 'ludo:create_room', {
+      hostName: 'Anees',
+      wish: [6, 5],
+      timerConfig: { enabled: true, duration: 60 },
+    });
+    await emitAck(guestSock, 'ludo:join_room', {
+      roomCode: createRes.roomCode,
+      playerName: 'Shahbaz',
+      wish: [6, 4],
+    });
+    await emitAck(hostSock, 'ludo:start_match', { token: createRes.playerToken });
+
+    const room = roomManager.getInternalRoomForTest(createRes.roomCode);
+    assert.ok(room && room.match);
+    // Multi-token board: two active on-path tokens for seat 0
+    room.match.pawns[0][0] = { status: 'on-path', pos: 6 };
+    room.match.pawns[0][1] = { status: 'on-path', pos: 20 };
+
+    const rollAck = await emitAck(hostSock, 'ludo:roll_dice', {
+      token: createRes.playerToken,
+      useWish: false,
+      clientActionId: 'combo-roll',
+    });
+    assert.equal(rollAck.success, true);
+    assert.deepEqual(room.match.movesAvailable, [6, 5]);
+    await new Promise((r) => setTimeout(r, 140));
+
+    // Double-click combined sprint on pawn #1 while pawn #0 is also on-path
+    const moveAck = await emitAck(hostSock, 'ludo:move_pawn', {
+      token: createRes.playerToken,
+      pawnIdx: 1,
+      steps: 11,
+      dieIndex: 'combined',
+      clientActionId: 'combo-sprint',
+    });
+    assert.equal(moveAck.success, true);
+    assert.equal(room.match.pawns[0][1].pos, 31);
+    assert.equal(room.match.movesAvailable.length, 0);
+    assert.equal(room.match.pendingGul, null);
+  } finally {
+    hostSock?.disconnect();
+    guestSock?.disconnect();
+    roomManager.dispose();
+    io.close();
+    await new Promise<void>((r) => server.close(() => r()));
+  }
+});
+
+
