@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { LudoScene, type NameplateScreenPos } from '../game/ludoScene';
 import { sfx } from '../game/sfx';
 import { multiplayerClient } from '../network/multiplayerClient';
-import { canMovePawn, isLoneTokenOnTrack } from '../game/rules';
-import { runSdk } from '../sdk/runSdk';
+import { resolvePawnTapMove } from '../game/rules';
+import { normalizeCameraTiltDeg, runSdk } from '../sdk/runSdk';
 import { useGameStore } from '../state/store';
 import { Hud } from './Hud';
 import { MainMenu } from './MainMenu';
@@ -56,6 +56,7 @@ export const App: React.FC = () => {
   const isRolling = useGameStore((s) => s.isRolling);
   const isTournament = useGameStore((s) => s.isTournament);
   const prefs = useGameStore((s) => s.prefs);
+  const aiTokenOverrides = useGameStore((s) => s.aiTokenOverrides);
   const gameStarted = useGameStore((s) => s.gameStarted);
   const mySeat = useGameStore((s) => s.mySeat);
   const isOnline = useGameStore((s) => s.isOnline);
@@ -243,46 +244,19 @@ export const App: React.FC = () => {
         const pawn = st.pawns[pIdx][pawnIdx];
         if (!pawn) return;
 
-        let steps: number | null = null;
-        let dieIdx: number | 'combined' = -1;
+        const chosen = resolvePawnTapMove(
+          st.pawns,
+          pIdx,
+          pawnIdx,
+          st.movesAvailable,
+          st.dice,
+          st.selectedDieIndex,
+          st.userSelectedDie,
+        );
 
-        if (pawn.status === 'home') {
-          const sixIdx = st.movesAvailable.findIndex((v) => v === 6);
-          if (sixIdx >= 0) {
-            dieIdx = sixIdx;
-            steps = 6;
-          }
-        } else {
-          const isLone = isLoneTokenOnTrack(st.pawns, pIdx);
-          const total = st.movesAvailable.reduce((a, b) => a + b, 0);
-          const canCombined =
-            isLone &&
-            st.movesAvailable.length > 1 &&
-            canMovePawn(st.pawns, pIdx, pawnIdx, total, st.dice, st.movesAvailable);
-          const sel = st.selectedDieIndex;
-          const canSel =
-            sel !== null &&
-            st.movesAvailable[sel] !== undefined &&
-            canMovePawn(st.pawns, pIdx, pawnIdx, st.movesAvailable[sel], st.dice, st.movesAvailable);
-          const fbIdx = st.movesAvailable.findIndex((v) =>
-            canMovePawn(st.pawns, pIdx, pawnIdx, v, st.dice, st.movesAvailable),
-          );
-
-          if (canSel && sel !== null) {
-            dieIdx = sel;
-            steps = st.movesAvailable[sel];
-          } else if (fbIdx >= 0) {
-            dieIdx = fbIdx;
-            steps = st.movesAvailable[fbIdx];
-          } else if (canCombined) {
-            dieIdx = 'combined';
-            steps = total;
-          }
-        }
-
-        if (steps !== null && dieIdx !== -1) {
-          if (st.attemptOnlineMoveWithCoachCheck(pawnIdx, steps, dieIdx)) {
-            multiplayerClient.movePawn(pawnIdx, steps, dieIdx);
+        if (chosen) {
+          if (st.attemptOnlineMoveWithCoachCheck(pawnIdx, chosen.steps, chosen.dieIdx)) {
+            multiplayerClient.movePawn(pawnIdx, chosen.steps, chosen.dieIdx);
           }
         }
       },
@@ -337,9 +311,12 @@ export const App: React.FC = () => {
         boardThemeId: st.prefs.boardThemeId,
         tournamentBoardThemeId: st.prefs.tournamentBoardThemeId,
         diceStyle: st.prefs.diceStyle,
+        tokenStyle: st.prefs.tokenStyle,
+        seatTokenOverrides: st.aiTokenOverrides,
+        tokenGenderMode: st.prefs.tokenGenderMode,
         backgroundId: st.prefs.backgroundId,
         rotateBoard: st.prefs.rotateBoard,
-        cameraTilt: st.prefs.cameraTilt ?? 0.75,
+        cameraTilt: normalizeCameraTiltDeg(st.prefs.cameraTilt),
         gameStarted: st.gameStarted,
         mySeat: st.mySeat,
         isOnline: st.isOnline,
@@ -371,9 +348,12 @@ export const App: React.FC = () => {
       boardThemeId: prefs.boardThemeId,
       tournamentBoardThemeId: prefs.tournamentBoardThemeId,
       diceStyle: prefs.diceStyle,
+      tokenStyle: prefs.tokenStyle,
+      seatTokenOverrides: aiTokenOverrides,
+      tokenGenderMode: prefs.tokenGenderMode,
       backgroundId: prefs.backgroundId,
       rotateBoard: prefs.rotateBoard,
-      cameraTilt: prefs.cameraTilt ?? 0.75,
+      cameraTilt: normalizeCameraTiltDeg(prefs.cameraTilt),
       gameStarted,
       mySeat,
       isOnline,
@@ -390,6 +370,7 @@ export const App: React.FC = () => {
     isRolling,
     isTournament,
     prefs,
+    aiTokenOverrides,
     gameStarted,
     mySeat,
     isOnline,

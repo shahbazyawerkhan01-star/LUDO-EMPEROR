@@ -343,7 +343,7 @@ test('Online timeout after rolling auto-plays remaining dice and handles normal 
     );
     // Both 6s were executed (either deploying from base to pos 0 or advancing +6/+6)
     const seat1Progress = room.match.pawns[1].reduce(
-      (sum, p) => sum + (p.status === 'on-path' ? p.pos + 1 : p.status === 'finished' ? 69 : 0),
+      (sum, p) => sum + (p.status === 'on-path' ? p.pos + 1 : p.status === 'finished' ? 70 : 0),
       0,
     );
     assert.ok(seat1Progress > (5 + 1) + (12 + 1));
@@ -356,7 +356,7 @@ test('Online timeout after rolling auto-plays remaining dice and handles normal 
   }
 });
 
-test('Online timeout on pendingGul auto-resolves as Gul (pos 68) without hanging the match', async () => {
+test('Online timeout on pendingGul auto-resolves as Pass (pos 64) without hanging the match', async () => {
   const { server, io, roomManager } = createLudoCoreServer({
     rootDir: path.resolve(process.cwd()),
     roomOptions: {
@@ -399,9 +399,8 @@ test('Online timeout on pendingGul auto-resolves as Gul (pos 68) without hanging
     const room = roomManager.getInternalRoomForTest(createRes.roomCode);
     assert.ok(room && room.match);
 
-    // Seat 0 pawn 0 is 3 steps from Centre Home (65 + 3 = 68), pawn 1 is on open track (pos 10)
-    room.match.pawns[0][0] = { status: 'on-path', pos: 65 };
-    room.match.pawns[0][1] = { status: 'on-path', pos: 10 };
+    // Seat 0 has 1 lone active runner 5 steps from Centre Home (64 + 5 = 69)
+    room.match.pawns[0][0] = { status: 'on-path', pos: 64 };
 
     let gulPromptReceived: any = null;
     hostSocket.on('ludo:gul_prompt', (p) => {
@@ -415,34 +414,32 @@ test('Online timeout on pendingGul auto-resolves as Gul (pos 68) without hanging
     });
     await new Promise((r) => setTimeout(r, 140));
 
-    // Move pawn 0 by 3 -> enters pendingGul prompt for human player
+    // Move lone pawn 0 by full combined sum (3 + 2 = 5) -> enters pendingGul prompt
     await emitAck(hostSocket, 'ludo:move_pawn', {
       token: createRes.playerToken,
       pawnIdx: 0,
-      steps: 3,
-      dieIndex: 0,
+      steps: 5,
+      dieIndex: 'combined',
       clientActionId: 'gul-move',
     });
 
     await waitFor(() => !!gulPromptReceived && !!room.match!.pendingGul, 2000);
     assert.equal(room.match.pendingGul?.pawnIdx, 0);
 
-    // Expire clock while pendingGul is awaiting user decision -> must auto-resolve as Gul + play remaining die + grant bonus turn
+    // Expire clock while pendingGul is awaiting user decision -> must auto-resolve as PASS and advance turn
     room.match.turnExpiresAt = Date.now() - 20;
 
     await waitFor(
       () =>
         room.match!.pendingGul === null &&
-        room.match!.pawns[0][0].status === 'finished' &&
-        room.match!.pawns[0][0].pos === 68 &&
-        room.match!.currentPlayer === 0 &&
+        room.match!.pawns[0][0].status === 'on-path' &&
+        room.match!.pawns[0][0].pos === 64 &&
+        room.match!.currentPlayer === 1 &&
         !room.match!.hasRolled &&
         !room.match!.turnAutoPlay,
       3000,
     );
 
-    // Remaining die (2) also auto-played on pawn 1 (10 -> 12), and fresh bonus clock granted
-    assert.equal(room.match.pawns[0][1].pos, 12);
     assert.ok(room.match.turnExpiresAt && room.match.turnExpiresAt > Date.now());
   } finally {
     hostSocket?.disconnect();
@@ -556,10 +553,9 @@ test('Local Pass & Play timeout auto-resolves gulPass, dismisses coachSkip, and 
 
   useGameStore.getState().startLocalMatch(false);
 
-  // Case 1: Timeout on pendingGulMove ('gulPass' modal open) -> closes modal and auto-enters Centre Home (68)
+  // Case 1: Timeout on pendingGulMove ('gulPass' modal open) -> closes modal and auto-PASSES (keeps pawn on pos 64, advances turn)
   const pawnsGul = useGameStore.getState().pawns.map((row) => row.map((p) => ({ ...p })));
-  pawnsGul[0][0] = { status: 'on-path', pos: 65 };
-  pawnsGul[0][1] = { status: 'on-path', pos: 10 };
+  pawnsGul[0][0] = { status: 'on-path', pos: 64 };
   useGameStore.setState({
     pawns: pawnsGul,
     currentPlayer: 0,
@@ -569,7 +565,7 @@ test('Local Pass & Play timeout auto-resolves gulPass, dismisses coachSkip, and 
     movesAvailable: [3, 2],
     selectedDieIndex: 0,
     activeModal: 'gulPass',
-    pendingGulMove: { pawnIdx: 0, steps: 3, dieIdx: 0 },
+    pendingGulMove: { pawnIdx: 0, steps: 5, dieIdx: 'combined' },
     turnSecondsLeft: 1,
     turnAutoPlay: false,
   });
@@ -577,23 +573,26 @@ test('Local Pass & Play timeout auto-resolves gulPass, dismisses coachSkip, and 
   useGameStore.getState().tickLocalTimer();
   assert.equal(useGameStore.getState().activeModal, null);
   assert.equal(useGameStore.getState().pendingGulMove, null);
-  assert.equal(useGameStore.getState().pawns[0][0].status, 'finished');
-  assert.equal(useGameStore.getState().pawns[0][0].pos, 68);
+  assert.equal(useGameStore.getState().pawns[0][0].status, 'on-path');
+  assert.equal(useGameStore.getState().pawns[0][0].pos, 64);
   assert.equal(useGameStore.getState().turnAutoPlay, true);
 
-  // Wait for remaining die (2) to auto-play and bonus turn to reset clock cleanly
+  // Wait for turn to pass to seat 1 cleanly
   await waitFor(
     () =>
-      useGameStore.getState().currentPlayer === 0 &&
+      useGameStore.getState().currentPlayer === 1 &&
       !useGameStore.getState().hasRolled &&
       !useGameStore.getState().turnAutoPlay &&
       useGameStore.getState().turnSecondsLeft === 60,
     3000,
   );
-  assert.equal(useGameStore.getState().pawns[0][1].pos, 12);
+
+  // Restore currentPlayer to 0 for Case 2
+  useGameStore.setState({ currentPlayer: 0 });
 
   // Case 2: Timeout with coachSkip modal open after rolling -> dismisses coachSkip, auto-plays remaining die, advances turn
   const pawnsCoach = useGameStore.getState().pawns.map((row) => row.map((p) => ({ ...p })));
+  pawnsCoach[0][0] = { status: 'home', pos: -1 };
   pawnsCoach[0][1] = { status: 'on-path', pos: 12 };
   useGameStore.setState({
     pawns: pawnsCoach,
@@ -653,7 +652,7 @@ test('Local Pass & Play timeout auto-resolves gulPass, dismisses coachSkip, and 
   );
   // Total seat 1 progress increased from initial pos 5 (score 6) — either advancing pawn 0 or deploying a new pawn on a 6
   const seat1LocalProgress = useGameStore.getState().pawns[1].reduce(
-    (sum, p) => sum + (p.status === 'on-path' ? p.pos + 1 : p.status === 'finished' ? 69 : 0),
+    (sum, p) => sum + (p.status === 'on-path' ? p.pos + 1 : p.status === 'finished' ? 70 : 0),
     0,
   );
   assert.ok(seat1LocalProgress > 6);

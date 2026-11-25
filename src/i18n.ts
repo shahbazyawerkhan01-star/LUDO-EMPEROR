@@ -536,7 +536,7 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
       'A single 6 deploys a token from base onto your start square (no extra turn).',
       'Double 6 (6+6) grants an extra turn with zero 3-six limit.',
       'Capturing on the open track is compulsory and awards an extra turn.',
-      'First player with all 4 tokens on coloured path (63–67) or centre (68) wins!',
+      'First player with all 4 tokens on coloured path (64–68) or centre (69) wins!',
     ],
   },
   {
@@ -565,7 +565,7 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
       '1. Roll both dice (or activate your one-time Lucky Wish ✨).',
       '2. Check for compulsory captures on the open track (single-die, combined, or 2-token pair).',
       '3. Split your 2 dice across tokens, or move a lone active runner by the combined sum.',
-      '4. Reaching Centre Home (pos 68) opens the "Gul (Enter) or Pass?" prompt.',
+      '4. Reaching Centre Home (pos 69) with your lone runner on a full roll opens "Gul (Enter) or Pass?" (timeout auto-passes).',
       '5. Earn a bonus turn on Double 6 (6+6), Capture, Gul entry, or Lucky 7.',
       '6. Otherwise, play passes clockwise to the next seat around the pentagon.',
     ],
@@ -580,8 +580,8 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
     desc: 'See how key 5-Way Ludo rolls resolve in actual play:',
     bullets: [
       'Capture & Reroll: Roll 4 + 2, capture an enemy token 4 steps away → opponent goes to base & you roll again!',
-      'Lone Token Home Entry: Only 1 runner active at pos 61, roll 3 + 2 → must enter coloured path using combined 5 (pos 66).',
-      'Lucky 7 Rescue: With 0 tokens on open track (0–62) and 1–4 in base, rolling 4 + 3 (7) converts into 6 + 6 + Extra Turn!',
+      'Lone Token Home Entry: Only 1 runner active at pos 61, roll 3 + 2 → enters coloured path using combined 5 (pos 66).',
+      'Lucky 7 Rescue: With 0 tokens on open track (0–63) and 1–4 in base, rolling 4 + 3 (7) converts into 6 + 6 + Extra Turn!',
       'Exit Base + Advance: Roll 6 + 2 → spend 6 to deploy a token from base, then advance 2 with any active token.',
     ],
   },
@@ -607,7 +607,7 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
     icon: '🏆',
     accent: '#f1c40f',
     title: '1. The Goal (Coloured Path Win)',
-    desc: 'Victory triggers immediately the moment all 4 of your tokens reach your coloured home path (positions 63–67) or centre home (position 68). You do not need to finish every token into the centre triangle to win the match.',
+    desc: 'Victory triggers immediately the moment all 4 of your tokens reach your coloured home path (positions 64–68) or centre home (position 69). You do not need to finish every token into the centre triangle to win the match.',
   },
   {
     id: 'guide-2',
@@ -616,7 +616,7 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
     icon: '🎲',
     accent: '#38bdf8',
     title: '2. Two Dice & Lone Token Sum',
-    desc: 'Use your 2 dice separately across different tokens or on the same token. When only 1 active runner is on the path, you may move it by the combined sum—entering your coloured home path (63+) or centre home (68) requires the full combined roll while 2 dice remain.',
+    desc: 'Use your 2 dice separately across different tokens or on the same token. When only 1 active runner is on the path, you may move it by the combined sum—entering your coloured home path (64+) or centre home (69) requires using all remaining dice.',
   },
   {
     id: 'guide-3',
@@ -643,7 +643,7 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
     icon: '⭐',
     accent: '#4ade80',
     title: '5. Safe Places',
-    desc: 'Opponent tokens can never capture you inside Base, on any seat Start square, on pentagon Star squares, on your Coloured Home Path (63–67), or inside Centre Home (68).',
+    desc: 'Opponent tokens can never capture you inside Base, on any seat Start square, on pentagon Star squares, on your Coloured Home Path (64–68), or inside Centre Home (69).',
   },
   {
     id: 'guide-6',
@@ -678,7 +678,13 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
     icon: '👑',
     accent: '#eab308',
     title: '8. Centre Home (Gul or Pass?)',
-    desc: 'Reaching Centre Home (pos 68) on an exact roll (or full Lone Token sum) opens the "Gul (Enter) or Pass?" choice. Pick GUL to lock the token in for a bonus turn, or PASS to keep it on your home path and play any remaining die.',
+    desc: 'Reaching Centre Home (pos 69) can award a bonus turn, or let a lone runner choose to stay safely on its coloured home path:',
+    bullets: [
+      'When Popup Opens: Only when 1 active runner is on the track (outer or coloured path) and reaches pos 69 using the full combined dice sum.',
+      'GUL (Enter): Finishes the token in Centre Home (pos 69) and awards a Bonus Turn.',
+      'PASS: Keeps the token safely on your coloured home path (64–68), spends the roll dice, and passes your turn without a bonus turn.',
+      'Auto-Pass & Multi-Token: Unplayable single-die Gul rolls auto-pass; with 2+ active tokens on track, Gul enters directly without a prompt; if Turn Timer hits 0s on the prompt, it auto-passes instead of entering Gul.',
+    ],
   },
   {
     id: 'guide-9',
@@ -687,7 +693,7 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
     icon: '✨',
     accent: '#a855f7',
     title: '9. Lucky 7 Rescue',
-    desc: 'When you have 0 tokens on the open track (0–62) and 1–4 tokens still in base (any others safely on 63–68), any roll totaling 7 (1+6, 2+5, or 3+4) automatically transforms into Double 6 (6+6) plus a bonus turn.',
+    desc: 'When you have 0 tokens on the open track (0–63) and 1–4 tokens still in base (any others safely on 64–69), any roll totaling 7 (1+6, 2+5, or 3+4) automatically transforms into Double 6 (6+6) plus a bonus turn.',
   },
   {
     id: 'guide-10',
@@ -716,7 +722,7 @@ export const HOW_TO_PLAY_CARDS: TutorialSlide[] = [
     title: '12. How the Match Ends',
     desc: 'Matches conclude the instant one player achieves a Coloured Path Win:',
     bullets: [
-      'Winner claims 1st Place immediately upon placing all 4 tokens on 63–68.',
+      'Winner claims 1st Place immediately upon placing all 4 tokens on 64–69.',
       'Ranks 2nd through 5th are ordered by overall board progress percentage.',
       'Victory leaderboard displays Captures Made, Compulsory Penalties, and Progress %.',
     ],

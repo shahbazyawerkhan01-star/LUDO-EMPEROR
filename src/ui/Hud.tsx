@@ -1,18 +1,181 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { type NameplateScreenPos } from '../game/ludoScene';
 import {
-  canAnyPawnMove,
   canMovePawn,
   evaluateRivalryState,
+  getLegalMoves,
   getPlayerColor,
   getPlayerProgressPercent,
   isLoneTokenOnTrack,
+  resolveSeatDicePalette,
+  shadeRgb,
   stripSeatTag,
 } from '../game/rules';
 import { voiceNoteRecorder } from '../network/audioCapture';
 import { multiplayerClient } from '../network/multiplayerClient';
 import { useGameStore } from '../state/store';
 import { translate } from '../i18n';
+
+function drawDie(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  value: number,
+  faceRgb: [number, number, number],
+  sideRgb: [number, number, number],
+  pipColor: string,
+  borderColor: string,
+  styleId: string,
+  isBonus: boolean,
+): void {
+  const pad = 2;
+  const s = size - pad * 2;
+  const r = size * 0.26;
+  ctx.clearRect(0, 0, size, size);
+
+  // Subtle 3D extruded bevel base underneath face
+  const traceRoundedRect = (x: number, y: number, w: number, h: number, rad: number) => {
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.lineTo(x + w - rad, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+    ctx.lineTo(x + w, y + h - rad);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+    ctx.lineTo(x + rad, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+    ctx.lineTo(x, y + rad);
+    ctx.quadraticCurveTo(x, y, x + rad, y);
+    ctx.closePath();
+  };
+
+  ctx.save();
+  traceRoundedRect(pad, pad, s, s, r);
+  const topLight: [number, number, number] = [
+    Math.min(255, Math.round(faceRgb[0] * 1.1 + 14)),
+    Math.min(255, Math.round(faceRgb[1] * 1.1 + 14)),
+    Math.min(255, Math.round(faceRgb[2] * 1.1 + 14)),
+  ];
+  const grad = ctx.createLinearGradient(pad, pad, pad + s, pad + s);
+  grad.addColorStop(0, `rgb(${topLight[0]}, ${topLight[1]}, ${topLight[2]})`);
+  grad.addColorStop(0.55, `rgb(${faceRgb[0]}, ${faceRgb[1]}, ${faceRgb[2]})`);
+  grad.addColorStop(1, `rgb(${sideRgb[0]}, ${sideRgb[1]}, ${sideRgb[2]})`);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.clip();
+
+  // Subtle bottom-right bevel shade band for crisp 3D depth
+  const bevelDark = shadeRgb(faceRgb, 0.52);
+  ctx.strokeStyle = `rgba(${bevelDark[0]}, ${bevelDark[1]}, ${bevelDark[2]}, 0.42)`;
+  ctx.lineWidth = 4;
+  traceRoundedRect(pad + 1, pad + 1, s - 2, s - 2, Math.max(4, r - 2));
+  ctx.stroke();
+
+  if (styleId === 'marble') {
+    ctx.strokeStyle = 'rgba(120, 125, 135, 0.25)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(pad + s * 0.1, pad + s * 0.72);
+    ctx.bezierCurveTo(pad + s * 0.4, pad + s * 0.48, pad + s * 0.65, pad + s * 0.56, pad + s * 0.92, pad + s * 0.22);
+    ctx.stroke();
+  } else if (styleId === 'galaxy') {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    [
+      [0.24, 0.2],
+      [0.74, 0.3],
+      [0.42, 0.8],
+      [0.82, 0.72],
+    ].forEach(([px, py]) => {
+      ctx.beginPath();
+      ctx.arc(pad + s * px, pad + s * py, 1.3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  } else if (styleId === 'ice' || styleId === 'holographic') {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.beginPath();
+    ctx.moveTo(pad, pad + s * 0.35);
+    ctx.lineTo(pad + s * 0.35, pad);
+    ctx.lineTo(pad + s * 0.6, pad);
+    ctx.lineTo(pad, pad + s * 0.6);
+    ctx.closePath();
+    ctx.fill();
+  } else if (styleId === 'fire') {
+    ctx.strokeStyle = 'rgba(251, 146, 60, 0.55)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(pad + 2, pad + 2, s - 4, s - 4);
+  }
+
+  ctx.restore();
+
+  // Outer rim stroke matching active seat shade / accent
+  traceRoundedRect(pad, pad, s, s, r);
+  ctx.lineWidth = 2.2;
+  ctx.strokeStyle = isBonus ? '#ffd700' : borderColor;
+  ctx.stroke();
+
+  const dotCoords: Record<number, Array<[number, number]>> = {
+    1: [[0.5, 0.5]],
+    2: [[0.28, 0.28], [0.72, 0.72]],
+    3: [[0.28, 0.28], [0.5, 0.5], [0.72, 0.72]],
+    4: [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]],
+    5: [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]],
+    6: [[0.28, 0.24], [0.72, 0.24], [0.28, 0.5], [0.72, 0.5], [0.28, 0.76], [0.72, 0.76]],
+  };
+  const pips = dotCoords[value] || dotCoords[1];
+  const pipR = s * 0.098;
+  pips.forEach(([ux, uy]) => {
+    const px = pad + s * ux;
+    const py = pad + s * uy;
+    ctx.fillStyle = pipColor;
+    ctx.beginPath();
+    ctx.arc(px, py, pipR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = pipColor === '#2a2a2a' ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.26)';
+    ctx.beginPath();
+    ctx.arc(px - pipR * 0.25, py - pipR * 0.25, pipR * 0.34, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+const HudDieFace: React.FC<{
+  value: number;
+  styleId: string;
+  seatIdx: number;
+  isTournament: boolean;
+  isBonus: boolean;
+}> = ({ value, styleId, seatIdx, isTournament, isBonus }) => {
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const cvs = canvasRef.current;
+    if (!cvs) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const logical = 76;
+    cvs.width = logical * dpr;
+    cvs.height = logical * dpr;
+    const ctx = cvs.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const palette = resolveSeatDicePalette(seatIdx, isTournament, styleId);
+    drawDie(
+      ctx,
+      logical,
+      value,
+      palette.faceRgb,
+      palette.sideRgb,
+      palette.pipColor,
+      palette.borderColor,
+      styleId,
+      isBonus,
+    );
+  }, [value, styleId, seatIdx, isTournament, isBonus]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-label={`Die ${value}`}
+      style={{ width: '100%', height: '100%', display: 'block', pointerEvents: 'none' }}
+    />
+  );
+};
 
 interface HudProps {
   onToggleAspectRatio: () => void;
@@ -38,7 +201,6 @@ export const Hud: React.FC<HudProps> = ({
     turnSecondsLeft,
     turnAutoPlay,
     prefs,
-    winStats,
     wishUsedThisMatch,
     roomCode,
     onlineTimerConfig,
@@ -97,29 +259,6 @@ export const Hud: React.FC<HudProps> = ({
 
   const rivalry = useMemo(() => evaluateRivalryState(pawns, -1), [pawns]);
 
-  // Exact original updateWinStatsDisplay: Top 3 ranked players (#1, #2, #3) with Win:X and $bal
-  const top3Rankings = useMemo(() => {
-    return players
-      .map((p, idx) => {
-        const cleanName = stripSeatTag(p.name);
-        const wins = winStats.wins[p.name] ?? winStats.wins[cleanName] ?? 0;
-        const bal = winStats.balances[p.name] ?? winStats.balances[cleanName] ?? 5;
-        return {
-          idx,
-          cleanName,
-          wins,
-          bal,
-          color: getPlayerColor(idx, isTournament),
-        };
-      })
-      .sort((a, b) => {
-        if (isTournament && b.bal !== a.bal) return b.bal - a.bal;
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        return a.idx - b.idx;
-      })
-      .slice(0, 3);
-  }, [players, winStats, isTournament]);
-
   const isMyTurn = isOnline ? mySeat === currentPlayer : !players[currentPlayer]?.isAI;
   const canRoll = isMyTurn && !hasRolled && !isRolling && !turnAutoPlay;
   const wishAvailable = isMyTurn && !hasRolled && !isRolling && !turnAutoPlay && !wishUsedThisMatch[currentPlayer];
@@ -154,6 +293,11 @@ export const Hud: React.FC<HudProps> = ({
     }
   };
 
+  const legalMoves = useMemo(
+    () => (hasRolled && !isRolling ? getLegalMoves(pawns, currentPlayer, movesAvailable, dice) : []),
+    [hasRolled, isRolling, pawns, currentPlayer, movesAvailable, dice],
+  );
+
   const handleCombinedMove = () => {
     if (!canCombinedMove) return;
     const lonePawnIdx = pawns[currentPlayer].findIndex((p) => p.status === 'on-path');
@@ -163,7 +307,7 @@ export const Hud: React.FC<HudProps> = ({
         multiplayerClient.movePawn(lonePawnIdx, combinedTotal, 'combined');
       }
     } else {
-      useGameStore.getState().handleLocalPawnTap(currentPlayer, lonePawnIdx);
+      useGameStore.getState().handleLocalCombinedMove(currentPlayer, lonePawnIdx);
     }
   };
 
@@ -212,14 +356,16 @@ export const Hud: React.FC<HudProps> = ({
               key={entry.idx}
               id={`judge-${entry.idx}`}
               className="judge-segment"
+              onClick={() => openProfileModal(entry.idx)}
               title={
                 isDethroneTarget
                   ? `Dethrone Target (${rivalry.leaderPct}%)`
-                  : undefined
+                  : `View ${entry.fullName}`
               }
               style={{
                 width: `${entry.widthPct}%`,
                 backgroundColor: entry.color,
+                cursor: 'pointer',
                 boxShadow: isAiSpeakingNow
                   ? 'inset 0 0 0 3px #f1c40f'
                   : isDethroneTarget
@@ -234,44 +380,6 @@ export const Hud: React.FC<HudProps> = ({
                 <span>
                   {entry.shortName}: {entry.pct}%
                 </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Portrait Ranking Bar (Exact Original Top 3: #1, #2, #3) */}
-      <div id="ranking-bar" className={isTournament ? 'tournament' : ''}>
-        {top3Rankings.map((entry, rankIdx) => {
-          const isDethroneTarget =
-            rivalry.tier === 'dethrone' && rivalry.leaderIdx === entry.idx;
-          return (
-            <div
-              key={entry.idx}
-              className="rank-segment"
-              onClick={() => openProfileModal(entry.idx)}
-              title={
-                isDethroneTarget
-                  ? `Dethrone Target (${rivalry.leaderPct}%)`
-                  : undefined
-              }
-              style={{
-                backgroundColor: entry.color,
-                cursor: 'pointer',
-                boxShadow: isDethroneTarget
-                  ? 'inset 0 0 0 2px #ff4757'
-                  : currentPlayer === entry.idx
-                    ? 'inset 0 0 0 2px #fff'
-                    : undefined,
-              }}
-            >
-              <div className="rank-header-row">
-                <span className="rank-badge">{isDethroneTarget ? '🎯' : `#${rankIdx + 1}`}</span>
-                <span className="rank-name">{entry.cleanName}</span>
-              </div>
-              <div className="rank-stats-row">
-                <span className="rank-wins">Win:{entry.wins}</span>
-                {isTournament && <span className="rank-balance">${entry.bal}</span>}
               </div>
             </div>
           );
@@ -456,83 +564,151 @@ export const Hud: React.FC<HudProps> = ({
       </div>
 
       {/* Classic Roll Hint & Dice Results HUD */}
-      {hasRolled && !isRolling && movesAvailable.length > 0 ? (
-        <div id="dice-hud">
-          {movesAvailable.map((val, idx) => {
-            const playable = canAnyPawnMove(pawns, currentPlayer, [val], dice);
-            const selected = movesAvailable.length > 1 && selectedDieIndex === idx;
-            return (
-              <button
-                key={`${idx}-${val}`}
-                type="button"
-                disabled={!isMyTurn || !playable || turnAutoPlay}
-                onClick={() => selectDieIndex(idx)}
-                className={`dice-val ${selected ? 'selected' : ''} ${isDoubleOrLucky ? 'bonus' : ''}`}
-                style={{
-                  opacity: playable && !turnAutoPlay ? 1 : 0.4,
-                  borderColor: selected ? '#ffffff' : getPlayerColor(currentPlayer, isTournament),
-                }}
-              >
-                {val}
-              </button>
-            );
-          })}
-          {canCombinedMove && (
-            <button
-              type="button"
-              disabled={turnAutoPlay}
-              onClick={handleCombinedMove}
-              className="dice-val selected"
-              style={{
-                width: 'auto',
-                padding: '0 16px',
-                background: '#2ecc71',
-                color: '#000',
-                fontSize: '20px',
-              }}
-            >
-              USE {combinedTotal}
-            </button>
-          )}
-        </div>
-      ) : (
-        <button
-          id="roll-hint"
-          type="button"
-          disabled={!canRoll}
-          onClick={() => handleRoll(false)}
-          style={{
-            cursor: canRoll ? 'pointer' : 'default',
-            opacity: canRoll ? 1 : 0.85,
-            pointerEvents: canRoll ? 'auto' : 'none',
-          }}
-        >
-          {turnAutoPlay
-            ? "⏱️ Time's up! Auto-playing..."
-            : isRolling
-              ? 'Rolling...'
-              : canRoll
-                ? translate(prefs.language, 'roll_hint')
-                : `${stripSeatTag(players[currentPlayer]?.name || 'Player')}'s turn!`}
-        </button>
-      )}
+      {(() => {
+        const activeSeatColor = getPlayerColor(currentPlayer, isTournament);
+        if (hasRolled && !isRolling && movesAvailable.length > 0) {
+          return (
+            <div id="dice-hud">
+              {movesAvailable.map((val, idx) => {
+                const singlePlayable = legalMoves.some((m) => m.dieIdx === idx);
+                const playable =
+                  singlePlayable || (canCombinedMove && legalMoves.some((m) => m.dieIdx === 'combined'));
+                const selected = movesAvailable.length > 1 && selectedDieIndex === idx;
+                return (
+                  <button
+                    key={`${idx}-${val}`}
+                    type="button"
+                    disabled={!isMyTurn || !singlePlayable || turnAutoPlay}
+                    onClick={() => selectDieIndex(idx)}
+                    className={`dice-val ${selected ? 'selected' : ''} ${isDoubleOrLucky ? 'bonus' : ''}`}
+                    style={{
+                      opacity: playable && !turnAutoPlay ? 1 : 0.43,
+                      borderColor: selected ? '#ffffff' : activeSeatColor,
+                      boxShadow: selected
+                        ? `0 0 0 2px ${activeSeatColor}, 0 0 24px ${activeSeatColor}cc`
+                        : playable
+                          ? `0 6px 18px rgba(0, 0, 0, 0.5), 0 0 12px ${activeSeatColor}66`
+                          : '0 4px 12px rgba(0, 0, 0, 0.35)',
+                      padding: '4px',
+                    }}
+                  >
+                    <HudDieFace
+                      value={val}
+                      styleId={prefs.diceStyle}
+                      seatIdx={currentPlayer}
+                      isTournament={isTournament}
+                      isBonus={isDoubleOrLucky}
+                    />
+                  </button>
+                );
+              })}
+              {canCombinedMove && (
+                <button
+                  type="button"
+                  disabled={turnAutoPlay}
+                  onClick={handleCombinedMove}
+                  className="dice-val selected"
+                  style={{
+                    width: 'auto',
+                    padding: '0 16px',
+                    background: activeSeatColor,
+                    borderColor: '#ffffff',
+                    boxShadow: `0 0 22px ${activeSeatColor}cc`,
+                    color: resolveSeatDicePalette(currentPlayer, isTournament, 'classic').pipColor,
+                    fontSize: '20px',
+                  }}
+                >
+                  USE {combinedTotal}
+                </button>
+              )}
+            </div>
+          );
+        }
 
-      {/* Bottom-Right Compact Audio, AI Voice Mute & Settings Buttons */}
+        const waitingIdle = canRoll;
+        return (
+          <button
+            id="roll-hint"
+            type="button"
+            disabled={!canRoll}
+            onClick={() => handleRoll(false)}
+            className={waitingIdle ? 'waiting-idle' : ''}
+            style={{
+              cursor: canRoll ? 'pointer' : 'default',
+              opacity: canRoll ? 1 : 0.88,
+              pointerEvents: canRoll ? 'auto' : 'none',
+              borderColor: waitingIdle ? activeSeatColor : `${activeSeatColor}77`,
+              boxShadow: waitingIdle
+                ? `0 0 20px ${activeSeatColor}88, inset 0 0 12px ${activeSeatColor}33`
+                : `0 4px 14px rgba(0, 0, 0, 0.35)`,
+            }}
+          >
+            <span
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: activeSeatColor,
+                boxShadow: `0 0 8px ${activeSeatColor}`,
+                flexShrink: 0,
+              }}
+            />
+            <span>
+              {turnAutoPlay
+                ? "⏱️ Time's up! Auto-playing..."
+                : isRolling
+                  ? 'Rolling...'
+                  : canRoll
+                    ? translate(prefs.language, 'roll_hint')
+                    : `${stripSeatTag(players[currentPlayer]?.name || 'Player')}'s turn!`}
+            </span>
+          </button>
+        );
+      })()}
+
+      {/* Bottom-Right Compact Audio, Music, AI Voice Mute & Settings Buttons */}
       <div id="music-controls-overlay">
         <button
           type="button"
-          onClick={toggleAiVoiceMute}
+          onClick={() => setActiveModal('music')}
           className="music-btn"
           style={
+            prefs.musicId !== 'none' && (prefs.musicVolume ?? 0.45) > 0.005
+              ? { borderColor: '#f1c40f', boxShadow: '0 0 12px rgba(241, 196, 15, 0.5)' }
+              : { opacity: 0.72 }
+          }
+          title="Background Music"
+        >
+          🎵
+        </button>
+        <button
+          id="board-ai-mute-btn"
+          type="button"
+          onClick={toggleAiVoiceMute}
+          className="music-btn ai-mute-btn"
+          style={
             prefs.aiVoiceMuted
-              ? { background: 'rgba(231, 76, 60, 0.72)', borderColor: '#ffb3ad' }
+              ? {
+                  background: 'rgba(231, 76, 60, 0.85)',
+                  borderColor: '#ffb3ad',
+                  color: '#ffffff',
+                }
               : speakingSeat !== null
-                ? { borderColor: '#f1c40f', boxShadow: '0 0 14px rgba(241, 196, 15, 0.75)' }
-                : undefined
+                ? {
+                    background: 'rgba(39, 174, 96, 0.45)',
+                    borderColor: '#f1c40f',
+                    boxShadow: '0 0 14px rgba(241, 196, 15, 0.75)',
+                  }
+                : {
+                    background: 'rgba(22, 101, 52, 0.72)',
+                    borderColor: 'rgba(74, 222, 128, 0.75)',
+                  }
           }
           title={prefs.aiVoiceMuted ? 'Unmute AI Voices' : 'Mute AI Voices'}
+          aria-label={prefs.aiVoiceMuted ? 'Unmute AI Voices' : 'Mute AI Voices'}
         >
-          {prefs.aiVoiceMuted ? '🔇' : '🗣️'}
+          <span>{prefs.aiVoiceMuted ? '🔇' : '🗣️'}</span>
+          <span>{prefs.aiVoiceMuted ? 'AI OFF' : 'AI ON'}</span>
         </button>
         {isOnline && (
           <button
@@ -549,14 +725,6 @@ export const Hud: React.FC<HudProps> = ({
             🎤
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => setActiveModal('music')}
-          className="music-btn"
-          title="Toggle Music"
-        >
-          🎵
-        </button>
         <button
           type="button"
           onClick={() => setActiveModal('settings')}

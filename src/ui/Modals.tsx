@@ -1,13 +1,21 @@
 import React, { useEffect, useState } from 'react';
+import {
+  isAnimalCharacter,
+  resolveCharacterGender,
+  resolveCharacterId,
+  TOKEN_STYLE_OPTIONS,
+} from '../game/characterTokens';
 import { BACKGROUNDS, BOARD_THEMES, DICE_STYLES, getPlayerColor, stripSeatTag } from '../game/rules';
 import { MUSIC_TRACKS, sfx } from '../game/sfx';
 import { LANGUAGE_OPTIONS, translate } from '../i18n';
 import { voiceNoteRecorder } from '../network/audioCapture';
 import { multiplayerClient } from '../network/multiplayerClient';
+import { normalizeCameraTiltDeg, type TokenGenderMode, type TokenStyleId } from '../sdk/runSdk';
 import { useGameStore } from '../state/store';
 import { ChatDrawerModal } from './ChatDrawerModal';
 import { MultiplayerLobbyModal } from './MultiplayerLobbyModal';
 import { TutorialModal } from './TutorialModal';
+import { VictoryCelebrationModal } from './VictoryCelebrationModal';
 import { WhisperComposerModal } from './WhisperComposerModal';
 
 const QUICK_CHAT_PRESETS = [
@@ -27,8 +35,6 @@ export const Modals: React.FC = () => {
     prefs,
     players,
     winStats,
-    rankings,
-    winner,
     isTournament,
     isOnline,
     mySeat,
@@ -53,7 +59,6 @@ export const Modals: React.FC = () => {
     playVoiceNote,
     triggerAiLine,
     triggerReaction,
-    startLocalMatch,
     exitMatchToMenu,
     showToast,
   } = useGameStore();
@@ -61,6 +66,7 @@ export const Modals: React.FC = () => {
   const [profileMsg, setProfileMsg] = useState('');
   const [wishSeat, setWishSeat] = useState(0);
   const [recordingVoice, setRecordingVoice] = useState(() => voiceNoteRecorder.isRecording());
+  const customMusicInputRef = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setWishSeat(wishSeatIdx);
@@ -93,6 +99,14 @@ export const Modals: React.FC = () => {
   if (!activeModal && whisperModalOpen) {
     return <WhisperComposerModal />;
   }
+  if (activeModal === 'victory') {
+    return (
+      <>
+        <VictoryCelebrationModal />
+        <WhisperComposerModal />
+      </>
+    );
+  }
 
   const close = () => {
     setActiveModal(null);
@@ -112,7 +126,7 @@ export const Modals: React.FC = () => {
       onClick={(e) => {
         if (
           e.target === e.currentTarget &&
-          (activeModal === 'profile' || activeModal === 'coachSkip' || activeModal === 'howto')
+          (activeModal === 'profile' || activeModal === 'coachSkip' || activeModal === 'howto' || activeModal === 'music')
         ) {
           close();
         }
@@ -129,6 +143,26 @@ export const Modals: React.FC = () => {
         padding: '16px',
       }}
     >
+      <input
+        ref={customMusicInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (!file) return;
+          sfx.unlockAudio();
+          const ok = await sfx.setCustomMusicFile(file);
+          if (ok) {
+            updatePrefs({ musicId: 'custom' });
+            showToast('🎵 Custom music loaded!');
+          } else {
+            showToast('⚠️ Could not decode audio file.');
+          }
+        }}
+      />
+
       {/* 1. Settings Modal */}
       {activeModal === 'settings' && (
         <div className="royal-modal-card modal-scroll w-full max-w-[460px] max-h-[90vh] space-y-4 overflow-y-auto">
@@ -180,7 +214,111 @@ export const Modals: React.FC = () => {
 
             <div>
               <label className="mb-1 block font-display text-xs font-bold text-[#f1c40f] uppercase">
-                Background Texture
+                Token Style (3D Character, Animals &amp; SFX)
+              </label>
+              <select
+                value={prefs.tokenStyle ?? 'default'}
+                onChange={(e) => {
+                  const nextStyle = e.target.value as TokenStyleId;
+                  updatePrefs({ tokenStyle: nextStyle });
+                  const previewChar = resolveCharacterId(nextStyle, 0);
+                  if (previewChar) {
+                    const g = resolveCharacterGender(prefs.tokenGenderMode, players[0]?.gender);
+                    sfx.playCharacterAction(previewChar, g, 'preview');
+                  } else {
+                    sfx.play('move', 0.8);
+                  }
+                }}
+                className="w-full rounded-xl border border-white/20 bg-black/80 px-3 py-2.5 text-sm font-semibold text-white"
+              >
+                <optgroup label="Classic">
+                  {TOKEN_STYLE_OPTIONS.filter((o) => o.group === 'classic').map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="3D Action Characters">
+                  {TOKEN_STYLE_OPTIONS.filter((o) => o.group === 'humans').map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Wild Animals (3D & Original Voice)">
+                  {TOKEN_STYLE_OPTIONS.filter((o) => o.group === 'animals').map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+              <p className="mt-1 text-[11px] leading-snug text-white/70">
+                {(TOKEN_STYLE_OPTIONS.find((o) => o.value === (prefs.tokenStyle ?? 'default')) || TOKEN_STYLE_OPTIONS[0]).desc}
+              </p>
+
+              {(prefs.tokenStyle ?? 'default') !== 'default' && (
+                <div className="mt-2 flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 p-2">
+                  {prefs.tokenStyle !== 'animal_mix' && !isAnimalCharacter(prefs.tokenStyle) ? (
+                    <>
+                      <span className="mr-1 font-display text-[11px] font-bold text-white/80 uppercase">
+                        Mode:
+                      </span>
+                      {([
+                        { id: 'auto', label: 'Auto' },
+                        { id: 'girl', label: 'Girl' },
+                        { id: 'boy', label: 'Boy' },
+                      ] as const).map((gm) => {
+                        const active = (prefs.tokenGenderMode ?? 'auto') === gm.id;
+                        return (
+                          <button
+                            key={gm.id}
+                            type="button"
+                            onClick={() => {
+                              updatePrefs({ tokenGenderMode: gm.id as TokenGenderMode });
+                              const ch = resolveCharacterId(prefs.tokenStyle, 0);
+                              if (ch) {
+                                const g = resolveCharacterGender(gm.id, players[0]?.gender);
+                                sfx.playCharacterAction(ch, g, 'preview');
+                              }
+                            }}
+                            className="cursor-pointer rounded-lg border px-2.5 py-1 font-display text-[11px] font-bold transition-colors"
+                            style={{
+                              borderColor: active ? '#f1c40f' : 'rgba(255,255,255,0.2)',
+                              background: active ? 'rgba(241,196,15,0.24)' : 'rgba(255,255,255,0.06)',
+                              color: active ? '#f1c40f' : '#ffffff',
+                            }}
+                          >
+                            {gm.label}
+                          </button>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <span className="font-display text-[11px] font-bold text-[#fbbf24]">
+                      🐾 Wild Voice &amp; Gait Active
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ch = resolveCharacterId(prefs.tokenStyle, 0);
+                      if (ch) {
+                        const g = resolveCharacterGender(prefs.tokenGenderMode, players[0]?.gender);
+                        sfx.playCharacterAction(ch, g, 'preview');
+                      }
+                    }}
+                    className="ml-auto cursor-pointer rounded-lg border border-[#2ecc71]/60 bg-[#2ecc71]/20 px-2.5 py-1 font-display text-[11px] font-bold text-[#7bed9f] hover:bg-[#2ecc71]/30"
+                  >
+                    🔊 Preview
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="mb-1 block font-display text-xs font-bold text-[#f1c40f] uppercase">
+                Tabletop Background
               </label>
               <select
                 value={prefs.backgroundId}
@@ -251,18 +389,42 @@ export const Modals: React.FC = () => {
 
             <div>
               <div className="mb-1 flex justify-between font-display text-xs font-bold text-[#f1c40f]">
-                <span>PENTAGON PERSPECTIVE TILT</span>
-                <span className="tabular-nums">{Math.round((prefs.cameraTilt ?? 0.75) * 100)}%</span>
+                <span>3D CAMERA TILT ANGLE</span>
+                <span className="tabular-nums">{normalizeCameraTiltDeg(prefs.cameraTilt)}°</span>
               </div>
               <input
                 type="range"
-                min={0.55}
-                max={1.0}
-                step={0.01}
-                value={prefs.cameraTilt ?? 0.75}
+                min={0}
+                max={55}
+                step={1}
+                value={normalizeCameraTiltDeg(prefs.cameraTilt)}
                 onChange={(e) => updatePrefs({ cameraTilt: Number(e.target.value) })}
                 className="w-full accent-[#f1c40f]"
               />
+              <div className="mt-1.5 flex gap-1.5">
+                {[
+                  { label: '0° Flat', deg: 0 },
+                  { label: '30° Balanced', deg: 30 },
+                  { label: '50° Deep 3D', deg: 50 },
+                ].map((preset) => {
+                  const active = Math.abs(normalizeCameraTiltDeg(prefs.cameraTilt) - preset.deg) <= 1;
+                  return (
+                    <button
+                      key={preset.deg}
+                      type="button"
+                      onClick={() => updatePrefs({ cameraTilt: preset.deg })}
+                      className="flex-1 cursor-pointer rounded-lg border py-1 font-display text-[11px] font-bold transition-colors"
+                      style={{
+                        borderColor: active ? '#f1c40f' : 'rgba(255,255,255,0.18)',
+                        background: active ? 'rgba(241,196,15,0.22)' : 'rgba(255,255,255,0.06)',
+                        color: active ? '#f1c40f' : 'rgba(255,255,255,0.8)',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>
@@ -282,18 +444,57 @@ export const Modals: React.FC = () => {
             </div>
 
             <div>
-              <div className="mb-1 flex justify-between font-display text-xs font-bold text-[#f1c40f]">
+              <div className="mb-1 flex items-center justify-between">
+                <label className="font-display text-xs font-bold text-[#f1c40f] uppercase">
+                  Background Music
+                </label>
+                {prefs.musicId === 'custom' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sfx.unlockAudio();
+                      customMusicInputRef.current?.click();
+                    }}
+                    className="cursor-pointer rounded-md border border-[#f1c40f]/45 bg-[#f1c40f]/15 px-2 py-0.5 font-display text-[10px] font-bold text-[#f1c40f] hover:bg-[#f1c40f]/25"
+                  >
+                    📁 Change File
+                  </button>
+                )}
+              </div>
+              <select
+                value={prefs.musicId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  sfx.unlockAudio();
+                  if (val === 'custom') {
+                    customMusicInputRef.current?.click();
+                    return;
+                  }
+                  updatePrefs({ musicId: val });
+                }}
+                className="w-full rounded-xl border border-white/20 bg-black/80 px-3 py-2.5 text-sm font-semibold text-white"
+              >
+                {MUSIC_TRACKS.map((track) => (
+                  <option key={track.id} value={track.id}>
+                    {track.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <div className="mb-1 flex items-center justify-between font-display text-xs font-bold text-[#f1c40f]">
                 <span>MUSIC VOLUME</span>
-                <span className="tabular-nums">{Math.round(prefs.musicVolume * 100)}%</span>
+                <span className="tabular-nums">{Math.round((prefs.musicVolume ?? 0.45) * 100)}%</span>
               </div>
               <input
                 type="range"
                 min={0}
                 max={1}
                 step={0.05}
-                value={prefs.musicVolume}
+                value={prefs.musicVolume ?? 0.45}
                 onChange={(e) => updatePrefs({ musicVolume: Number(e.target.value) })}
-                className="w-full accent-[#2ecc71]"
+                className="w-full accent-[#f1c40f]"
               />
             </div>
 
@@ -415,53 +616,72 @@ export const Modals: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Music Modal */}
+      {/* 2. Background Music Modal */}
       {activeModal === 'music' && (
-        <div className="royal-modal-card modal-scroll w-full max-w-[440px] max-h-[90vh] space-y-4 overflow-y-auto">
+        <div className="royal-modal-card w-full max-w-[400px] space-y-4">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <h2 className="royal-modal-title text-2xl">🎵 BACKGROUND MUSIC</h2>
             <button
               type="button"
               onClick={close}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-white/10 font-bold text-white"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-white/10 font-bold text-white hover:bg-white/20"
             >
               ✕
             </button>
           </div>
 
           <div className="space-y-2">
-            {MUSIC_TRACKS.filter((t) => t.id !== 'custom').map((track) => (
-              <button
-                key={track.id}
-                type="button"
-                onClick={() => updatePrefs({ musicId: track.id })}
-                className={`music-option ${prefs.musicId === track.id ? 'active' : ''}`}
-              >
-                <span className="font-display font-bold">{track.label}</span>
-                {prefs.musicId === track.id && <span>🔊</span>}
-              </button>
-            ))}
-
-            <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#f1c40f]/55 bg-[#f1c40f]/10 py-3 font-display text-sm font-bold text-[#f1c40f] hover:bg-[#f1c40f]/20">
-              <span>📁 UPLOAD CUSTOM AUDIO</span>
-              <input
-                type="file"
-                accept="audio/*"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const ok = await sfx.setCustomMusicFile(file);
-                  if (ok) {
-                    updatePrefs({ musicId: 'custom' });
-                    showToast('Custom music playing!');
-                  } else {
-                    showToast('Could not decode audio file.');
-                  }
-                }}
-              />
-            </label>
+            {MUSIC_TRACKS.map((track) => {
+              const active = prefs.musicId === track.id;
+              return (
+                <button
+                  key={track.id}
+                  type="button"
+                  onClick={() => {
+                    sfx.unlockAudio();
+                    if (track.id === 'custom') {
+                      customMusicInputRef.current?.click();
+                      return;
+                    }
+                    updatePrefs({ musicId: track.id });
+                  }}
+                  className="flex w-full cursor-pointer items-center justify-between rounded-xl border px-3.5 py-2.5 text-left font-display text-sm font-bold transition-colors"
+                  style={{
+                    borderColor: active ? '#f1c40f' : 'rgba(255, 255, 255, 0.16)',
+                    background: active ? 'rgba(241, 196, 15, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                    color: active ? '#f1c40f' : '#ffffff',
+                  }}
+                >
+                  <span>{track.label}</span>
+                  <span>{active ? '🔊 Active' : track.id === 'custom' ? '📁 Upload' : '▶'}</span>
+                </button>
+              );
+            })}
           </div>
+
+          <div>
+            <div className="mb-1 flex justify-between font-display text-xs font-bold text-[#f1c40f]">
+              <span>MUSIC VOLUME</span>
+              <span className="tabular-nums">{Math.round((prefs.musicVolume ?? 0.45) * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={prefs.musicVolume ?? 0.45}
+              onChange={(e) => updatePrefs({ musicVolume: Number(e.target.value) })}
+              className="w-full accent-[#f1c40f]"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={close}
+            className="w-full cursor-pointer rounded-xl bg-[#27ae60] py-2.5 font-display text-sm font-bold text-white"
+          >
+            DONE
+          </button>
         </div>
       )}
 
@@ -819,7 +1039,7 @@ export const Modals: React.FC = () => {
           <div className="text-4xl">👑</div>
           <h2 className="royal-modal-title text-2xl">GUL OR PASS?</h2>
           <p className="text-xs font-semibold leading-relaxed text-white">
-            Your token reached Centre Home (69)! Choose <strong>GUL (ENTER)</strong> for a bonus turn, or <strong>PASS</strong> to keep it on your home path.
+            Your lone token reached Centre Home (Gul)! Choose <strong>GUL (ENTER)</strong> for a bonus turn, or <strong>PASS</strong> to keep it on your home path.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -910,75 +1130,6 @@ export const Modals: React.FC = () => {
         </div>
       )}
 
-      {/* 9. Victory / Match Leaderboard Modal */}
-      {activeModal === 'victory' && (
-        <div className="royal-modal-card w-full max-w-[460px] space-y-4">
-          <div className="text-center">
-            <div className="text-5xl">🏆</div>
-            <h2 className="royal-modal-title mt-1 text-2xl">
-              {winner !== null ? `${stripSeatTag(players[winner]?.name || 'Player')} WINS!` : 'MATCH FINISHED!'}
-            </h2>
-            <p className="text-xs text-white/70">
-              All 4 tokens reached their coloured home stretch.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            {rankings.map((r) => (
-              <div
-                key={r.seat}
-                className="flex items-center justify-between rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-6 text-center font-bold">{r.badge || `#${r.rank}`}</span>
-                  <span
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: getPlayerColor(r.seat, isTournament) }}
-                  />
-                  <span className="font-display text-sm font-bold text-white">
-                    {stripSeatTag(r.name)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-white/85 tabular-nums">
-                  <span>⚔️ {r.captures_made}</span>
-                  <span>⚠️ {r.penalties}</span>
-                  <span className="font-extrabold text-[#f1c40f]">{r.percentage}%</span>
-                  {isTournament && (
-                    <span className="font-bold text-[#2ecc71]">
-                      ${winStats.balances[r.name] ?? winStats.balances[stripSeatTag(r.name)] ?? 5}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                if (isOnline) {
-                  multiplayerClient.disconnectAndReset();
-                } else {
-                  exitMatchToMenu();
-                }
-              }}
-              className="cursor-pointer rounded-xl border border-white/25 bg-white/10 py-3 font-display text-sm font-bold text-white"
-            >
-              MAIN MENU
-            </button>
-            {!isOnline && (
-              <button
-                type="button"
-                onClick={() => startLocalMatch(isTournament)}
-                className="cursor-pointer rounded-xl bg-[#27ae60] py-3 font-display text-sm font-bold text-white"
-              >
-                PLAY AGAIN
-              </button>
-            )}
-          </div>
-        </div>
-      )}
       <WhisperComposerModal />
     </div>
   );

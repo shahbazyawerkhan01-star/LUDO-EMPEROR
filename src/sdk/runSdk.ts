@@ -1,4 +1,11 @@
-import { AI_PERSONALITIES, cloneDefaultPlayers, type PlayerConfig } from '../game/rules';
+import {
+  AI_PERSONALITIES,
+  cloneDefaultPlayers,
+  DEFAULT_ENVIRONMENT_ID,
+  VALID_BOARD_THEME_IDS,
+  VALID_ENVIRONMENT_IDS,
+  type PlayerConfig,
+} from '../game/rules';
 
 export interface AiBondHistory {
   matches: number;
@@ -17,6 +24,59 @@ export interface WinStats {
 
 export type CaptureWarningMode = 'first3' | 'always' | 'off';
 
+export type TokenStyleId =
+  | 'default'
+  | 'squad_mix'
+  | 'animal_mix'
+  | 'belly_dancer'
+  | 'sprinter_man'
+  | 'model_runway'
+  | 'gymnast'
+  | 'wrestler'
+  | 'climber_3d'
+  | 'ninja_fighter'
+  | 'skater_3d'
+  | 'breakdancer'
+  | 'strongman'
+  | 'animal_lion'
+  | 'animal_elephant'
+  | 'animal_eagle'
+  | 'animal_horse'
+  | 'animal_wolf'
+  | 'animal_frog'
+  | 'animal_cobra'
+  | 'animal_gorilla'
+  | 'animal_kangaroo'
+  | 'animal_rooster';
+
+export type TokenGenderMode = 'auto' | 'girl' | 'boy';
+
+const VALID_TOKEN_STYLES = new Set<string>([
+  'default',
+  'squad_mix',
+  'animal_mix',
+  'belly_dancer',
+  'sprinter_man',
+  'model_runway',
+  'gymnast',
+  'wrestler',
+  'climber_3d',
+  'ninja_fighter',
+  'skater_3d',
+  'breakdancer',
+  'strongman',
+  'animal_lion',
+  'animal_elephant',
+  'animal_eagle',
+  'animal_horse',
+  'animal_wolf',
+  'animal_frog',
+  'animal_cobra',
+  'animal_gorilla',
+  'animal_kangaroo',
+  'animal_rooster',
+]);
+
 export interface SavedPreferences {
   language: string;
   volume: number;
@@ -25,6 +85,8 @@ export interface SavedPreferences {
   boardThemeId: string;
   tournamentBoardThemeId: string;
   diceStyle: string;
+  tokenStyle: TokenStyleId;
+  tokenGenderMode: TokenGenderMode;
   backgroundId: string;
   rotateBoard: boolean;
   cameraTilt: number;
@@ -56,6 +118,16 @@ export function getDefaultWinStats(): WinStats {
   return { wins, balances, bonds, history: {}, matchesPlayed: 0, playerMatches: {} };
 }
 
+export function normalizeCameraTiltDeg(val?: number | null): number {
+  if (typeof val !== 'number' || Number.isNaN(val)) return 30;
+  // Migrate legacy 0.55..1.0 squash ratio into intuitive camera tilt degrees (0..55)
+  if (val >= 0 && val <= 1.2) {
+    const clamped = Math.max(0.57, Math.min(1.0, val));
+    return Math.max(0, Math.min(55, Math.round((Math.acos(clamped) * 180) / Math.PI)));
+  }
+  return Math.max(0, Math.min(55, Math.round(val)));
+}
+
 export function getDefaultPreferences(): SavedPreferences {
   return {
     language: 'en',
@@ -65,9 +137,11 @@ export function getDefaultPreferences(): SavedPreferences {
     boardThemeId: 'classic',
     tournamentBoardThemeId: 'classic',
     diceStyle: 'classic',
-    backgroundId: 'bg_led_display',
+    tokenStyle: 'default',
+    tokenGenderMode: 'auto',
+    backgroundId: DEFAULT_ENVIRONMENT_ID,
     rotateBoard: false,
-    cameraTilt: 0.75,
+    cameraTilt: 30,
     turnTimerEnabled: true,
     turnTimerDuration: 90,
     hasSeenGuide: false,
@@ -119,10 +193,53 @@ export const runSdk = {
         parsed.captureWarningMode === 'always' || parsed.captureWarningMode === 'off'
           ? parsed.captureWarningMode
           : 'first3';
+      const tokenStyle: TokenStyleId =
+        typeof parsed.tokenStyle === 'string' && VALID_TOKEN_STYLES.has(parsed.tokenStyle)
+          ? (parsed.tokenStyle as TokenStyleId)
+          : def.tokenStyle;
+      const tokenGenderMode: TokenGenderMode =
+        parsed.tokenGenderMode === 'girl' || parsed.tokenGenderMode === 'boy'
+          ? parsed.tokenGenderMode
+          : 'auto';
+      const legacyBoardThemeMap: Record<string, string> = {
+        mirror: 'museum',
+        neon: 'dance',
+        wood: 'jungle',
+        led: 'city',
+        gold: 'desert',
+      };
+      const rawBoardTheme = typeof parsed.boardThemeId === 'string' ? parsed.boardThemeId : def.boardThemeId;
+      const mappedBoardTheme = legacyBoardThemeMap[rawBoardTheme] ?? rawBoardTheme;
+      const boardThemeId = VALID_BOARD_THEME_IDS.has(mappedBoardTheme) ? mappedBoardTheme : def.boardThemeId;
+
+      const rawTournTheme =
+        typeof parsed.tournamentBoardThemeId === 'string' ? parsed.tournamentBoardThemeId : def.tournamentBoardThemeId;
+      const mappedTournTheme = legacyBoardThemeMap[rawTournTheme] ?? rawTournTheme;
+      const tournamentBoardThemeId = VALID_BOARD_THEME_IDS.has(mappedTournTheme)
+        ? mappedTournTheme
+        : def.tournamentBoardThemeId;
+
+      const backgroundId =
+        typeof parsed.backgroundId === 'string' && VALID_ENVIRONMENT_IDS.has(parsed.backgroundId)
+          ? parsed.backgroundId
+          : def.backgroundId;
+      const validMusicIds = new Set(['none', 'bgm_classic_ludo', 'bgm_royal_ambience', 'bgm_modern_beats', 'custom']);
+      const musicId =
+        typeof parsed.musicId === 'string' && validMusicIds.has(parsed.musicId) && parsed.musicId !== 'custom'
+          ? parsed.musicId
+          : def.musicId;
       return {
         ...def,
         ...parsed,
+        musicId,
+        musicVolume: typeof parsed.musicVolume === 'number' ? Math.max(0, Math.min(1, parsed.musicVolume)) : def.musicVolume,
+        boardThemeId,
+        tournamentBoardThemeId,
+        backgroundId,
+        tokenStyle,
+        tokenGenderMode,
         aiVoiceMuted: typeof parsed.aiVoiceMuted === 'boolean' ? parsed.aiVoiceMuted : def.aiVoiceMuted,
+        cameraTilt: normalizeCameraTiltDeg(parsed.cameraTilt),
         mutedSeats: Array.isArray(parsed.mutedSeats)
           ? parsed.mutedSeats.filter((n: unknown) => typeof n === 'number' && n >= 0 && n <= 4)
           : def.mutedSeats,

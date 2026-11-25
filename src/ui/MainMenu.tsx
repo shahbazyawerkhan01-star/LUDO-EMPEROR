@@ -6,12 +6,12 @@ export const MainMenu: React.FC = () => {
   const { prefs, updatePrefs, setScreen, setActiveModal } = useGameStore();
   const lang = prefs.language;
 
-  const isMuted = prefs.volume <= 0.01 && prefs.musicVolume <= 0.01;
+  const isMuted = prefs.volume <= 0.01;
   const toggleMute = () => {
     if (isMuted) {
-      updatePrefs({ volume: 0.7, musicVolume: 0.45 });
+      updatePrefs({ volume: 0.7 });
     } else {
-      updatePrefs({ volume: 0, musicVolume: 0 });
+      updatePrefs({ volume: 0 });
     }
   };
 
@@ -136,8 +136,19 @@ export const MainMenu: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom-right Quick Audio & Music Buttons matching original menu overlay */}
+      {/* Bottom-right Quick Audio, Music & Settings Buttons */}
       <div id="music-controls-overlay">
+        <button
+          type="button"
+          className="music-btn"
+          title="Background Music"
+          onClick={() => setActiveModal('music')}
+          style={{
+            opacity: prefs.musicId !== 'none' && prefs.musicVolume > 0.005 ? 1 : 0.72,
+          }}
+        >
+          🎵
+        </button>
         <button
           type="button"
           className="music-btn"
@@ -145,14 +156,6 @@ export const MainMenu: React.FC = () => {
           onClick={toggleMute}
         >
           {isMuted ? '🔇' : '🔊'}
-        </button>
-        <button
-          type="button"
-          className="music-btn"
-          title="Music Soundtrack"
-          onClick={() => setActiveModal('music')}
-        >
-          🎵
         </button>
         <button
           type="button"

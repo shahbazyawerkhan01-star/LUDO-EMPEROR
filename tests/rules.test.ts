@@ -2,11 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applyLucky7IfEligible,
+  BACKGROUNDS,
+  BOARD_THEMES,
+  canAnyPawnMove,
   canMovePawn,
+  CENTER_HOME_POS,
+  DEFAULT_ENVIRONMENT_ID,
   checkCompulsoryCapturePenalties,
   checkCompulsoryCapturePenalty,
   checkSevenRollConditions,
   cloneDefaultPlayers,
+  COLORED_PATH_START_POS,
   createInitialPawns,
   createInitialPlayerStats,
   createSeededRng,
@@ -15,16 +21,39 @@ import {
   executePawnMove,
   extractPlayerEmoji,
   extractPlayerInitial,
+  getContrastPipColor,
   getLegalMoves,
   getPawnPath,
+  getPlayerColor,
   getPlayerRankings,
   getPossibleCaptures,
   getPossiblePairCaptures,
+  hexToRgb,
   isMovePartOfCaptureSequence,
   pickBestAIMove,
+  resolvePawnTapMove,
+  resolveSeatDicePalette,
   rollDicePair,
+  shadeRgb,
+  shouldPromptGulChoice,
+  VALID_ENVIRONMENT_IDS,
 } from '../src/game/rules';
 import { validateMatchResultsInput } from '../server/supabaseRecords';
+import { MUSIC_TRACKS } from '../src/game/sfx';
+import {
+  ANIMAL_TOKENS,
+  CHARACTER_TOKENS,
+  drawAnimalGroundAura,
+  getTokenLocomotionMode,
+  HUMAN_CHARACTER_TOKENS,
+  isAnimalCharacter,
+  pickRandomAiSeatTokenOverrides,
+  resolveCharacterGender,
+  resolveCharacterId,
+  TOKEN_STYLE_OPTIONS,
+} from '../src/game/characterTokens';
+import { getDefaultPreferences } from '../src/sdk/runSdk';
+import { useGameStore } from '../src/state/store';
 
 test('Seeded RNG produces identical deterministic dice streams', () => {
   const rngA = createSeededRng(123456);
@@ -136,7 +165,7 @@ test('Stack Protection: myCount >= otherCount captures, while myCount < otherCou
   assert.equal(pawnsB[1][0].status, 'home');
 });
 
-test('Lone Token Rule requires combined die sum when entering coloured stretch (63..68)', () => {
+test('Lone Token Rule requires combined die sum when entering coloured stretch (64..69)', () => {
   const pawns = createInitialPawns();
   // 1 active runner on track, rest in base
   pawns[0][0] = { status: 'on-path', pos: 61 };
@@ -232,7 +261,7 @@ test('5-Player Rankings, Rank 4-5 Initial/Emoji Helpers, and Supabase Validation
   const stats = createInitialPlayerStats();
 
   // Seat 2 finishes all 4 pawns to claim rank 1
-  for (let i = 0; i < 4; i++) pawns[2][i] = { status: 'finished', pos: 68 };
+  for (let i = 0; i < 4; i++) pawns[2][i] = { status: 'finished', pos: CENTER_HOME_POS };
   pawns[0][0] = { status: 'on-path', pos: 40 };
   pawns[1][0] = { status: 'on-path', pos: 25 };
   pawns[3][0] = { status: 'on-path', pos: 10 };
@@ -270,22 +299,23 @@ test('5-Player Rankings, Rank 4-5 Initial/Emoji Helpers, and Supabase Validation
   assert.equal(extractPlayerInitial('🔥 Zoi #12ab'), 'Z');
 });
 
-test('Centre Home (Gul) completion marks token finished when reaching pos 68', () => {
+test('Centre Home (Gul) completion marks token finished when reaching pos 69', () => {
   const pawns = createInitialPawns();
   const stats = createInitialPlayerStats();
-  pawns[0][0] = { status: 'finished', pos: 68 };
-  pawns[0][1] = { status: 'finished', pos: 68 };
-  pawns[0][2] = { status: 'finished', pos: 68 };
-  pawns[0][3] = { status: 'on-path', pos: 65 };
+  pawns[0][0] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawns[0][1] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawns[0][2] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawns[0][3] = { status: 'on-path', pos: 66 };
 
   // Single die 3 out of [3, 2] is blocked by Lone Token full-total entry rule
   assert.equal(canMovePawn(pawns, 0, 3, 3, [3, 2], [3, 2]), false);
 
-  // Full combined roll of 3 ([1, 2]) finishes cleanly at pos 68 (Centre Home)
+  // Full combined roll of 3 ([1, 2]) finishes cleanly at pos 69 (Centre Home)
   const out = executePawnMove(pawns, stats, 0, 3, 3, [1, 2], [1, 2]);
   assert.equal(out.moved, true);
   assert.equal(out.reachedCenterHome, true);
   assert.equal(pawns[0][3].status, 'finished');
+  assert.equal(pawns[0][3].pos, CENTER_HOME_POS);
   assert.equal(out.wonMatch, true);
 });
 
@@ -399,15 +429,15 @@ test('evaluateRivalryState escalates across normal, heat, and dethrone tiers', (
   assert.equal(normal.tier, 'normal');
 
   // Heat tier: leader >= 30% with >= 12% margin (2 finished + 1 far runner ~= 65%)
-  pawns[1][1] = { status: 'finished', pos: 68 };
+  pawns[1][1] = { status: 'finished', pos: CENTER_HOME_POS };
   pawns[1][2] = { status: 'on-path', pos: 45 };
   const heat = evaluateRivalryState(pawns, -1);
   assert.equal(heat.leaderIdx, 1);
   assert.ok(heat.tier === 'heat' || heat.tier === 'dethrone');
 
   // Dethrone tier: leader >= 75% (3 finished pawns + 1 on path)
-  pawns[1][0] = { status: 'finished', pos: 68 };
-  pawns[1][2] = { status: 'finished', pos: 68 };
+  pawns[1][0] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawns[1][2] = { status: 'finished', pos: CENTER_HOME_POS };
   pawns[1][3] = { status: 'on-path', pos: 30 };
   const dethrone = evaluateRivalryState(pawns, -1);
   assert.equal(dethrone.leaderIdx, 1);
@@ -447,8 +477,8 @@ test('pickBestAIMove prioritizes Leader capture over neutral and Grudge over neu
   pawns[0][0] = { status: 'on-path', pos: capA0 - 3 }; // can capture Seat 1 (Leader) with die 3
   pawns[0][1] = { status: 'on-path', pos: capB0 - 5 }; // can capture Seat 2 (non-leader, higher pos) with die 5
   pawns[1][0] = { status: 'on-path', pos: capA1 };
-  pawns[1][1] = { status: 'finished', pos: 68 };
-  pawns[1][2] = { status: 'finished', pos: 68 };
+  pawns[1][1] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawns[1][2] = { status: 'finished', pos: CENTER_HOME_POS };
   pawns[2][0] = { status: 'on-path', pos: capB2 };
 
   const leaderPick = pickBestAIMove(pawns, 0, [3, 5], [3, 5], {
@@ -466,8 +496,8 @@ test('pickBestAIMove prioritizes Leader capture over neutral and Grudge over neu
   pawnsGrudge[0][1] = { status: 'on-path', pos: capB0 - 5 }; // can capture Seat 2 (grudge target)
   pawnsGrudge[1][0] = { status: 'on-path', pos: capA1 };
   pawnsGrudge[2][0] = { status: 'on-path', pos: capB2 };
-  pawnsGrudge[3][0] = { status: 'finished', pos: 68 };
-  pawnsGrudge[3][1] = { status: 'finished', pos: 68 };
+  pawnsGrudge[3][0] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawnsGrudge[3][1] = { status: 'finished', pos: CENTER_HOME_POS };
   const grudgePick = pickBestAIMove(pawnsGrudge, 0, [3, 5], [3, 5], {
     personality: 'Strategist',
     grudgeTargetIdx: 2,
@@ -478,5 +508,260 @@ test('pickBestAIMove prioritizes Leader capture over neutral and Grudge over neu
   assert.equal(grudgePick.move.pawnIdx, 1);
 });
 
+test('3D Character & Animal Tokens preserve Default by default and resolve all 10 human + 10 animal archetypes', () => {
+  const defPrefs = getDefaultPreferences();
+  assert.equal(defPrefs.tokenStyle, 'default');
+  assert.equal(defPrefs.tokenGenderMode, 'auto');
 
+  assert.equal(HUMAN_CHARACTER_TOKENS.length, 10);
+  assert.equal(ANIMAL_TOKENS.length, 10);
+  assert.equal(CHARACTER_TOKENS.length, 20);
+  assert.equal(TOKEN_STYLE_OPTIONS[0].value, 'default');
+  assert.equal(resolveCharacterId('default', 0), null);
+  assert.equal(resolveCharacterId('belly_dancer', 2), 'belly_dancer');
+  assert.equal(resolveCharacterId('animal_lion', 1), 'animal_lion');
+
+  const mix = [0, 1, 2, 3, 4].map((seat) => resolveCharacterId('squad_mix', seat));
+  assert.equal(new Set(mix).size, 5);
+  assert.equal(mix.every((id) => !isAnimalCharacter(id)), true);
+
+  const animalMix = [0, 1, 2, 3, 4].map((seat) => resolveCharacterId('animal_mix', seat));
+  assert.equal(new Set(animalMix).size, 5);
+  assert.equal(animalMix.every((id) => isAnimalCharacter(id)), true);
+
+  const strongmanMeta = HUMAN_CHARACTER_TOKENS.find((c) => c.id === 'strongman');
+  assert.ok(strongmanMeta && /twin-dumbbell/i.test(strongmanMeta.poseSummary));
+
+  assert.equal(resolveCharacterGender('auto', 'female'), 'girl');
+  assert.equal(resolveCharacterGender('auto', 'male'), 'boy');
+  assert.equal(resolveCharacterGender('girl', 'male'), 'girl');
+  assert.equal(resolveCharacterGender('boy', 'female'), 'boy');
+});
+
+test('Own arm includes corner turn square (c=1,r=5) before coloured path and aligns 70-step indices', () => {
+  for (let seat = 0; seat < 5; seat++) {
+    const path = getPawnPath(seat);
+    assert.equal(path.length, 70);
+    assert.deepEqual(path[60], { arm: seat, c: 0, r: 3 }); // safe star before coloured path
+    assert.deepEqual(path[62], { arm: seat, c: 0, r: 5 });
+    assert.deepEqual(path[63], { arm: seat, c: 1, r: 5 }); // outer middle turn square
+    assert.deepEqual(path[COLORED_PATH_START_POS], { arm: seat, c: 1, r: 4 }); // 1st coloured square
+    assert.deepEqual(path[68], { arm: seat, c: 1, r: 0 }); // 5th coloured square
+    assert.equal(path[CENTER_HOME_POS].isHome, true);
+  }
+});
+
+test('Lone token on safe square [5, 2] combines 7 cleanly and never blocks second die after split', () => {
+  const pawns = createInitialPawns();
+  const stats = createInitialPlayerStats();
+  pawns[0][0] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawns[0][1] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawns[0][2] = { status: 'on-path', pos: 60 }; // safe star before coloured path
+  // pawn 3 stays in base so match is ongoing
+
+  // Tapping lone token at pos 60 with [5, 2] prioritizes combined 7 (60 -> 67)
+  const tapChoice = resolvePawnTapMove(pawns, 0, 2, [5, 2], [5, 2], 0, false);
+  assert.deepEqual(tapChoice, { dieIdx: 'combined', steps: 7 });
+
+  // Even if user explicitly plays 2 first (60 -> 62), remaining 5 is NOT blocked by fullTurnRoll (62 -> 67)
+  const out2 = executePawnMove(pawns, stats, 0, 2, 2, [5, 2], [5, 2]);
+  assert.equal(out2.moved, true);
+  assert.equal(pawns[0][2].pos, 62);
+  assert.equal(canMovePawn(pawns, 0, 2, 5, [5, 2], [5]), true);
+  const out5 = executePawnMove(pawns, stats, 0, 2, 5, [5, 2], [5]);
+  assert.equal(out5.moved, true);
+  assert.equal(pawns[0][2].pos, 67);
+});
+
+test('Gul or Pass prompts ONLY for lone token on full total roll, auto-passes unplayable split, and skips prompt for multi-token', () => {
+  // 1) Lone token inside coloured path (pos 64) with [3, 2] -> combined 5 reaches Gul (69) & asks Gul/Pass
+  const pawnsLoneCol = createInitialPawns();
+  pawnsLoneCol[0][0] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawnsLoneCol[0][1] = { status: 'on-path', pos: 64 };
+  const tapGul = resolvePawnTapMove(pawnsLoneCol, 0, 1, [3, 2], [3, 2], 0, false);
+  assert.deepEqual(tapGul, { dieIdx: 'combined', steps: 5 });
+  assert.equal(shouldPromptGulChoice(pawnsLoneCol, 0, 5, 'combined', [3, 2]), true);
+
+  // 2) Lone token 3 away from Gul (pos 66) with [3, 5] -> 3 alone cannot Gul when 5 cannot move -> Auto Pass (no moves)
+  const pawnsAutoPass = createInitialPawns();
+  pawnsAutoPass[0][0] = { status: 'finished', pos: CENTER_HOME_POS };
+  pawnsAutoPass[0][1] = { status: 'on-path', pos: 66 };
+  assert.equal(canAnyPawnMove(pawnsAutoPass, 0, [3, 5], [3, 5]), false);
+
+  // 3) 2 tokens on track (pos 66 + pos 10) with [3, 2] -> single die 3 enters Gul directly WITHOUT Gul/Pass modal
+  const pawnsMulti = createInitialPawns();
+  pawnsMulti[0][0] = { status: 'on-path', pos: 66 };
+  pawnsMulti[0][1] = { status: 'on-path', pos: 10 };
+  assert.equal(canMovePawn(pawnsMulti, 0, 0, 3, [3, 2], [3, 2]), true);
+  assert.equal(shouldPromptGulChoice(pawnsMulti, 0, 3, 0, [3, 2]), false);
+});
+
+test('Classic backgrounds restored, 10 Board Worlds active, and original non-duplicate BGM tracks restored', () => {
+  assert.equal(BACKGROUNDS.length, 7);
+  assert.deepEqual(
+    BACKGROUNDS.map((b) => b.id),
+    [
+      'none',
+      'bg_led_display',
+      'bg_wood_table',
+      'bg_royal_velvet',
+      'bg_marble_hall',
+      'bg_neon_cyber',
+      'bg_golden_palace',
+    ],
+  );
+
+  const expectedBoardIds = [
+    'classic',
+    'jungle',
+    'pool',
+    'dance',
+    'museum',
+    'cliff',
+    'galaxy',
+    'desert',
+    'city',
+    'volcano',
+    'arctic',
+  ];
+  assert.deepEqual(Object.keys(BOARD_THEMES), expectedBoardIds);
+  assert.equal(VALID_ENVIRONMENT_IDS.has('studio_dark'), false);
+  assert.equal(VALID_ENVIRONMENT_IDS.has('env_jungle'), false);
+  assert.equal(VALID_ENVIRONMENT_IDS.has('bg_led_display'), true);
+  assert.equal(VALID_ENVIRONMENT_IDS.has('none'), true);
+  assert.equal(DEFAULT_ENVIRONMENT_ID, 'none');
+  assert.equal(getDefaultPreferences().backgroundId, DEFAULT_ENVIRONMENT_ID);
+
+  // Only original clean BGM tracks + none + custom (no extra overlapping/double-added tracks)
+  assert.deepEqual(
+    MUSIC_TRACKS.map((t) => t.id),
+    ['none', 'bgm_classic_ludo', 'bgm_royal_ambience', 'bgm_modern_beats', 'custom'],
+  );
+  Object.values(BOARD_THEMES).forEach((theme) => {
+    assert.equal(VALID_ENVIRONMENT_IDS.has(theme.bgId), true);
+  });
+});
+
+test('Per-seat dice styling computes seat face color, 0.72/0.52 shades, and luminance-aware pips', () => {
+  // Classic Bright Yellow seat (4) -> dark charcoal pips; Darker seats (Blue 0, Green 2, Red 3) -> crisp white pips
+  const yellowPalette = resolveSeatDicePalette(4, false, 'classic');
+  assert.equal(yellowPalette.seatHex, getPlayerColor(4, false));
+  assert.deepEqual(yellowPalette.faceRgb, hexToRgb('#f1c40f'));
+  assert.equal(yellowPalette.pipColor, '#2a2a2a');
+  assert.deepEqual(yellowPalette.sideRgb, shadeRgb(yellowPalette.faceRgb, 0.72));
+  assert.deepEqual(yellowPalette.bevelRgb, shadeRgb(yellowPalette.faceRgb, 0.52));
+
+  for (const darkSeat of [0, 1, 2, 3]) {
+    const pal = resolveSeatDicePalette(darkSeat, false, 'classic');
+    assert.equal(pal.pipColor, '#ffffff');
+    assert.deepEqual(pal.faceRgb, hexToRgb(getPlayerColor(darkSeat, false)));
+  }
+
+  // Tournament Cyan seat (0) & Neon Yellow seat (4) -> dark charcoal pips
+  assert.equal(getContrastPipColor(hexToRgb('#00d4ff')), '#2a2a2a');
+  assert.equal(getContrastPipColor(hexToRgb('#ccff00')), '#2a2a2a');
+
+  // Themed styles keep signature material dot contrast while tinting border/glow to active seat color
+  const neonSeat2 = resolveSeatDicePalette(2, false, 'neon');
+  assert.equal(neonSeat2.borderColor, getPlayerColor(2, false));
+  assert.equal(neonSeat2.glowColor, getPlayerColor(2, false));
+});
+
+test('Natural token locomotion classifies Cobra=slither, Eagle=fly, Jumpers=jump, and Walkers=walk', () => {
+  assert.equal(getTokenLocomotionMode('animal_cobra'), 'slither');
+  assert.equal(getTokenLocomotionMode('animal_eagle'), 'fly');
+
+  for (const jumper of [null, 'animal_frog', 'animal_kangaroo', 'gymnast', 'climber_3d'] as const) {
+    assert.equal(getTokenLocomotionMode(jumper), 'jump');
+  }
+
+  for (const walker of [
+    'animal_lion',
+    'animal_elephant',
+    'animal_horse',
+    'animal_wolf',
+    'animal_gorilla',
+    'animal_rooster',
+    'belly_dancer',
+    'sprinter_man',
+    'model_runway',
+    'wrestler',
+    'ninja_fighter',
+    'skater_3d',
+    'breakdancer',
+    'strongman',
+  ] as const) {
+    assert.equal(getTokenLocomotionMode(walker), 'walk');
+  }
+});
+
+test('Pass & Play assigns distinct AI token styles per seat and rotates styles on every match', () => {
+  const players = [
+    { isAI: false },
+    { isAI: true },
+    { isAI: true },
+    { isAI: true },
+    { isAI: true },
+  ];
+
+  const match1 = pickRandomAiSeatTokenOverrides(players, 'animal_lion', undefined, createSeededRng(101));
+  assert.equal(match1[0], undefined);
+  const match1Ids = [1, 2, 3, 4].map((seat) => match1[seat]!);
+  assert.equal(new Set(match1Ids).size, 4);
+  assert.ok(!match1Ids.includes('animal_lion'), 'AI bots must not duplicate the human player style');
+
+  assert.equal(resolveCharacterId('animal_lion', 0, match1), 'animal_lion');
+  assert.equal(resolveCharacterId('animal_lion', 1, match1), match1[1]);
+
+  const match2 = pickRandomAiSeatTokenOverrides(players, 'animal_lion', match1, createSeededRng(202));
+  for (const seat of [1, 2, 3, 4]) {
+    assert.notEqual(match2[seat], match1[seat], `Seat ${seat} should pick a different style on the next match`);
+  }
+
+  // Store-level startLocalMatch assigns fresh AI overrides and clears on exitMatchToMenu
+  useGameStore.getState().startLocalMatch(false);
+  const firstAiMap = { ...useGameStore.getState().aiTokenOverrides };
+  assert.ok(Object.keys(firstAiMap).length > 0);
+  useGameStore.getState().startLocalMatch(false);
+  const secondAiMap = { ...useGameStore.getState().aiTokenOverrides };
+  for (const [seatKey, tokenId] of Object.entries(firstAiMap)) {
+    assert.notEqual(secondAiMap[Number(seatKey)], tokenId);
+  }
+  useGameStore.getState().exitMatchToMenu();
+  assert.deepEqual(useGameStore.getState().aiTokenOverrides, {});
+});
+
+test('Animal ground shadow spotlight aura draws larger colored glow, crisp sports ring, and direction chevron', () => {
+  const ellipses: Array<{ x: number; y: number; rx: number; ry: number }> = [];
+  const polys: number[][] = [];
+  const fills: unknown[] = [];
+  const strokes: unknown[] = [];
+  const chain = {
+    fill: (arg: unknown) => {
+      fills.push(arg);
+      return chain;
+    },
+    stroke: (arg: unknown) => {
+      strokes.push(arg);
+      return chain;
+    },
+  };
+  const mockGfx = {
+    ellipse: (x: number, y: number, rx: number, ry: number) => {
+      ellipses.push({ x, y, rx, ry });
+      return chain;
+    },
+    poly: (pts: number[]) => {
+      polys.push(pts);
+      return chain;
+    },
+  } as unknown as Parameters<typeof drawAnimalGroundAura>[0];
+
+  drawAnimalGroundAura(mockGfx, 0xe74c3c, 0.72, 0.65, 1, 0, true, 1200, 0, 0);
+  // Larger spotlight aura ellipses (>13.8 old disc) + dynamic dark shadow + 3 crisp sports ring strokes
+  assert.ok(ellipses.some((e) => e.rx > 18), 'Ground spotlight aura should be larger than old small disc');
+  assert.ok(ellipses.some((e) => e.rx >= 16.5 && e.rx <= 19.0), 'Crisp sports player ring should wrap cleanly around animal');
+  assert.equal(polys.length, 1, 'Sports ring directional chevron should be drawn');
+  assert.ok(fills.length >= 4 && strokes.length >= 4);
+});
 

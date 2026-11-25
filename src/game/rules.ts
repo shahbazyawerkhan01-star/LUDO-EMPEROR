@@ -108,13 +108,19 @@ export const AI_PERSONALITIES = [
 ];
 
 export const BACKGROUNDS = [
-  { id: 'none', label: 'Default Gradient' },
-  { id: 'bg_mirror_reflective', label: 'Mirror Reflective' },
-  { id: 'bg_neon_grid', label: 'Neon Grid' },
-  { id: 'bg_wood_grain_lux', label: 'Wood Grain' },
-  { id: 'bg_led_display', label: 'LED Display' },
-  { id: 'bg_royal_gold_lux', label: 'Royal Gold' },
+  { id: 'none', label: 'None (Classic Dark)' },
+  { id: 'bg_led_display', label: 'LED Display Arena' },
+  { id: 'bg_wood_table', label: 'Luxury Wood Table' },
+  { id: 'bg_royal_velvet', label: 'Royal Velvet' },
+  { id: 'bg_marble_hall', label: 'Marble Hall' },
+  { id: 'bg_neon_cyber', label: 'Neon Cyber Grid' },
+  { id: 'bg_golden_palace', label: 'Golden Palace' },
 ] as const;
+
+export type EnvironmentId = (typeof BACKGROUNDS)[number]['id'];
+
+export const DEFAULT_ENVIRONMENT_ID: EnvironmentId = 'none';
+export const VALID_ENVIRONMENT_IDS = new Set<string>(BACKGROUNDS.map((b) => b.id));
 
 export const PAWN_ASSET_URLS: string[] = [
   'https://d2oir5eh8rty2e.cloudfront.net/assets/images/pawn_blue_new_034e5f7e-6288-4623-ab27-bfea929ce511.webp',
@@ -124,18 +130,18 @@ export const PAWN_ASSET_URLS: string[] = [
   'https://d2oir5eh8rty2e.cloudfront.net/assets/images/pawn_yellow_new_b842d639-1ad7-4099-aadd-55acb56d3d9f.webp',
 ];
 
-export const BG_ASSET_URLS: Record<string, string> = {
-  bg_mirror_reflective:
-    'https://d2oir5eh8rty2e.cloudfront.net/assets/images/bg_mirror_reflective_a5795731-38f9-49ec-9abd-9c75985cf874.webp',
-  bg_neon_grid:
-    'https://d2oir5eh8rty2e.cloudfront.net/assets/images/bg_neon_grid_8f23159c-a028-4f2d-a500-6ed21247a192.webp',
-  bg_led_display:
-    'https://d2oir5eh8rty2e.cloudfront.net/assets/images/bg_led_display_2313e8e5-dfa2-4578-bf1f-9da18d81744a.webp',
-  bg_royal_gold_lux:
-    'https://d2oir5eh8rty2e.cloudfront.net/assets/images/bg_royal_gold_lux_5ec09cd6-5b8c-4a97-b89a-38eadcb06f3e.webp',
-  bg_wood_grain_lux:
-    'https://d2oir5eh8rty2e.cloudfront.net/assets/images/bg_wood_grain_lux_c6947d92-36f6-4cc3-8a51-f250ebe857ef.webp',
-};
+export type BoardThemeId =
+  | 'classic'
+  | 'jungle'
+  | 'pool'
+  | 'dance'
+  | 'museum'
+  | 'cliff'
+  | 'galaxy'
+  | 'desert'
+  | 'city'
+  | 'volcano'
+  | 'arctic';
 
 export interface BoardTheme {
   name: string;
@@ -144,12 +150,12 @@ export interface BoardTheme {
   safe: string;
   text: string;
   homeText: string;
-  bgId: string;
+  bgId: EnvironmentId;
 }
 
 export const BOARD_THEMES: Record<string, BoardTheme> = {
   classic: {
-    name: 'Classic Board',
+    name: '♟️ Classic Board',
     track: '#ffffff',
     border: '#000000',
     safe: '#f0f0f0',
@@ -157,52 +163,99 @@ export const BOARD_THEMES: Record<string, BoardTheme> = {
     homeText: '#ffffff',
     bgId: 'none',
   },
-  mirror: {
-    name: 'Mirror Board',
-    track: '#bdc3c7',
-    border: '#2c3e50',
-    safe: '#ecf0f1',
-    text: '#2c3e50',
-    homeText: '#ffffff',
-    bgId: 'bg_mirror_reflective',
+  jungle: {
+    name: '🌴 Jungle Board',
+    track: '#cfe6be',
+    border: '#1b4332',
+    safe: '#a7d18c',
+    text: '#143625',
+    homeText: '#fef9c3',
+    bgId: 'none',
   },
-  neon: {
-    name: 'Neon Board',
-    track: '#1a1a1a',
-    border: '#39ff14',
-    safe: '#222222',
+  pool: {
+    name: '🏊 Swimming Pool Board',
+    track: '#e0f7ff',
+    border: '#0369a1',
+    safe: '#7dd3fc',
+    text: '#0c4a6e',
+    homeText: '#ffffff',
+    bgId: 'none',
+  },
+  dance: {
+    name: '🪩 Neon Dance Floor Board',
+    track: '#150d2b',
+    border: '#e879f9',
+    safe: '#231447',
     text: '#ffffff',
     homeText: '#ffffff',
-    bgId: 'bg_neon_grid',
+    bgId: 'none',
   },
-  wood: {
-    name: 'Wood Board',
-    track: '#deb887',
-    border: '#5d4037',
-    safe: '#d2b48c',
-    text: '#3e2723',
-    homeText: '#ffffff',
-    bgId: 'bg_wood_grain_lux',
+  museum: {
+    name: '🏛️ Royal Museum Board',
+    track: '#f3ead8',
+    border: '#b48a28',
+    safe: '#e4d4b4',
+    text: '#3f2e17',
+    homeText: '#fffbeb',
+    bgId: 'none',
   },
-  led: {
-    name: 'LED Lights Board',
-    track: '#000000',
-    border: '#00d4ff',
-    safe: '#111111',
-    text: '#ffffff',
-    homeText: '#ffffff',
-    bgId: 'bg_led_display',
+  cliff: {
+    name: '⛰️ Mountain Cliff Board',
+    track: '#cbd5e1',
+    border: '#334155',
+    safe: '#94a3b8',
+    text: '#0f172a',
+    homeText: '#f8fafc',
+    bgId: 'none',
   },
-  gold: {
-    name: 'Royal Gold Board',
-    track: '#fff9e6',
-    border: '#d4af37',
-    safe: '#fcf3cf',
-    text: '#7d6608',
+  galaxy: {
+    name: '🌌 Deep Galaxy Board',
+    track: '#12183a',
+    border: '#38bdf8',
+    safe: '#1f2354',
+    text: '#e0f2fe',
     homeText: '#ffffff',
-    bgId: 'bg_royal_gold_lux',
+    bgId: 'none',
+  },
+  desert: {
+    name: '🏜️ Golden Desert Board',
+    track: '#f6dc9c',
+    border: '#92400e',
+    safe: '#eab308',
+    text: '#451a03',
+    homeText: '#fffbeb',
+    bgId: 'none',
+  },
+  city: {
+    name: '🏙️ Modern High-Rise City Board',
+    track: '#d8e2ee',
+    border: '#0284c7',
+    safe: '#94a3b8',
+    text: '#0f172a',
+    homeText: '#ffffff',
+    bgId: 'none',
+  },
+  volcano: {
+    name: '🌋 Volcanic Lava Board',
+    track: '#2b211f',
+    border: '#f97316',
+    safe: '#451a03',
+    text: '#fed7aa',
+    homeText: '#fef08a',
+    bgId: 'none',
+  },
+  arctic: {
+    name: '❄️ Arctic Ice Board',
+    track: '#e0f2fe',
+    border: '#0284c7',
+    safe: '#bae6fd',
+    text: '#0c4a6e',
+    homeText: '#ffffff',
+    bgId: 'none',
   },
 };
+
+export const VALID_BOARD_THEME_IDS = new Set<string>(Object.keys(BOARD_THEMES));
 
 export interface DiceStyle {
   name: string;
@@ -224,6 +277,93 @@ export const DICE_STYLES: Record<string, DiceStyle> = {
   dark: { name: 'Minimalist Dark', face: [26, 26, 26], dot: '#ffffff', border: '#52525b', glow: null },
   holographic: { name: 'Holographic Gem', face: [240, 248, 255], dot: '#da70d6', border: '#87ceeb', glow: '#f0abfc' },
 };
+
+export function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace('#', '').trim();
+  const full =
+    clean.length === 3
+      ? `${clean[0]}${clean[0]}${clean[1]}${clean[1]}${clean[2]}${clean[2]}`
+      : clean;
+  const num = parseInt(full, 16);
+  if (Number.isNaN(num)) return [245, 242, 245];
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+export function rgbToHexString(rgb: [number, number, number]): string {
+  const r = Math.max(0, Math.min(255, Math.round(rgb[0])));
+  const g = Math.max(0, Math.min(255, Math.round(rgb[1])));
+  const b = Math.max(0, Math.min(255, Math.round(rgb[2])));
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+export function shadeRgb(rgb: [number, number, number], factor: number): [number, number, number] {
+  return [
+    Math.max(0, Math.min(255, Math.round(rgb[0] * factor))),
+    Math.max(0, Math.min(255, Math.round(rgb[1] * factor))),
+    Math.max(0, Math.min(255, Math.round(rgb[2] * factor))),
+  ];
+}
+
+export function getRelativeLuminance(rgb: [number, number, number]): number {
+  return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+}
+
+export function getContrastPipColor(rgb: [number, number, number]): '#2a2a2a' | '#ffffff' {
+  return getRelativeLuminance(rgb) >= 0.59 ? '#2a2a2a' : '#ffffff';
+}
+
+export interface SeatDicePalette {
+  seatHex: string;
+  seatRgb: [number, number, number];
+  faceRgb: [number, number, number];
+  sideRgb: [number, number, number];
+  bevelRgb: [number, number, number];
+  pipColor: string;
+  borderColor: string;
+  glowColor: string;
+}
+
+export function resolveSeatDicePalette(
+  seatIdx: number,
+  isTournament: boolean,
+  styleId: string,
+): SeatDicePalette {
+  const seatHex = getPlayerColor(seatIdx, isTournament);
+  const seatRgb = hexToRgb(seatHex);
+  const isClassic = !styleId || styleId === 'classic' || !(styleId in DICE_STYLES);
+
+  if (isClassic) {
+    const sideRgb = shadeRgb(seatRgb, 0.72);
+    const bevelRgb = shadeRgb(seatRgb, 0.52);
+    return {
+      seatHex,
+      seatRgb,
+      faceRgb: seatRgb,
+      sideRgb,
+      bevelRgb,
+      pipColor: getContrastPipColor(seatRgb),
+      borderColor: rgbToHexString(bevelRgb),
+      glowColor: seatHex,
+    };
+  }
+
+  const style = DICE_STYLES[styleId];
+  const tintedFace: [number, number, number] = [
+    Math.round(style.face[0] * 0.9 + seatRgb[0] * 0.1),
+    Math.round(style.face[1] * 0.9 + seatRgb[1] * 0.1),
+    Math.round(style.face[2] * 0.9 + seatRgb[2] * 0.1),
+  ];
+  return {
+    seatHex,
+    seatRgb,
+    faceRgb: tintedFace,
+    sideRgb: shadeRgb(tintedFace, 0.72),
+    bevelRgb: shadeRgb(seatRgb, 0.52),
+    pipColor: style.dot || getContrastPipColor(tintedFace),
+    borderColor: seatHex,
+    glowColor: style.glow ? seatHex : seatHex,
+  };
+}
 
 const SPACE_SIZE = 40;
 const PENTAGON_HALF_ANGLE = Math.PI / 5; // 36°
@@ -333,7 +473,10 @@ export function createInitialPlayerStats(): PlayerStats[] {
   return Array.from({ length: 5 }, () => ({ captures_made: 0, times_captured: 0, penalties: 0 }));
 }
 
-// Memoized 69-step paths for arms 0..4
+export const COLORED_PATH_START_POS = 64;
+export const CENTER_HOME_POS = 69;
+
+// Memoized 70-step paths for arms 0..4
 const PATH_CACHE: PathNode[][] = [];
 
 export function getPawnPath(playerIndex: number): PathNode[] {
@@ -352,13 +495,16 @@ export function getPawnPath(playerIndex: number): PathNode[] {
     for (let r = 5; r >= 0; r--) path.push({ arm, c: 2, r });
   }
 
-  // 57..62: own arm outer left column c=0, r=0..5 (pos 62 is still open track!)
+  // 57..62: own arm outer left column c=0, r=0..5
   for (let r = 0; r < 6; r++) path.push({ arm: p, c: 0, r });
 
-  // 63..67: coloured home path (safe)
+  // 63: own arm outer middle turn square c=1, r=5 (open track before turning into coloured path!)
+  path.push({ arm: p, c: 1, r: 5 });
+
+  // 64..68: coloured home path (safe)
   for (let r = 4; r >= 0; r--) path.push({ arm: p, c: 1, r });
 
-  // 68: centre home (Gul)
+  // 69: centre home (Gul)
   path.push({ arm: p, c: 1, r: -1, isHome: true });
 
   PATH_CACHE[p] = path;
@@ -391,10 +537,10 @@ export function checkSevenRollConditions(pawns: PawnState[][], pIdx: number): bo
       baseHomeCount++;
     } else if (p.status === 'finished') {
       safeOrFinished++;
-    } else if (p.status === 'on-path' && p.pos >= 63) {
+    } else if (p.status === 'on-path' && p.pos >= COLORED_PATH_START_POS) {
       safeOrFinished++;
     } else {
-      // Token is on open running track (0..62)
+      // Token is on open running track (0..63)
       return false;
     }
   }
@@ -431,25 +577,92 @@ export function canMovePawn(
   if (pawn.status === 'finished') return false;
   if (pawn.pos + numSteps >= path.length) return false;
 
-  // Lone Token Rule: a single active runner can only enter coloured home path (>=63)
-  // or reach centre home (68) using the full combined roll.
+  // Lone Token Rule: a single active runner can only enter coloured home path (>=64)
+  // or reach centre home (69) using the full remaining/combined moves (no single-die shortcut while another die remains unspent).
   if (isLoneTokenOnTrack(pawns, pIdx)) {
     const targetPos = pawn.pos + numSteps;
-    const entersColoredPath = pawn.pos <= 62 && targetPos >= 63;
+    const entersColoredPath = pawn.pos < COLORED_PATH_START_POS && targetPos >= COLORED_PATH_START_POS;
     const entersHome = targetPos === path.length - 1;
     if (entersColoredPath || entersHome) {
-      const fullTurnRoll = dice.length > 0
-        ? dice.reduce((a, b) => a + Number(b), 0)
-        : movesAvailable.reduce((a, b) => a + Number(b), 0);
       const availableTotal = movesAvailable.length > 0
         ? movesAvailable.reduce((a, b) => a + Number(b), 0)
-        : numSteps;
-      if (fullTurnRoll > numSteps || availableTotal > numSteps) {
+        : (dice.length > 0 ? dice.reduce((a, b) => a + Number(b), 0) : numSteps);
+      if (availableTotal > numSteps) {
         return false;
       }
     }
   }
   return true;
+}
+
+export function shouldPromptGulChoice(
+  pawns: PawnState[][],
+  pIdx: number,
+  steps: number,
+  dieIdx: number | 'combined',
+  dice: number[],
+): boolean {
+  // Only ask Gul/Pass when there is a single active runner on track (outer or coloured path)
+  // AND it reaches Centre Home using the full combined dice roll.
+  if (!isLoneTokenOnTrack(pawns, pIdx)) return false;
+  if (dieIdx === 'combined') return true;
+  const fullRollTotal = dice.reduce((a, b) => a + Number(b), 0);
+  return fullRollTotal > 0 && Number(steps) === fullRollTotal;
+}
+
+export function resolvePawnTapMove(
+  pawns: PawnState[][],
+  pIdx: number,
+  pawnIdx: number,
+  movesAvailable: number[],
+  dice: number[],
+  selectedDieIndex: number | null,
+  userSelectedDie = false,
+): { dieIdx: number | 'combined'; steps: number } | null {
+  const pawn = pawns[pIdx]?.[pawnIdx];
+  if (!pawn) return null;
+
+  if (pawn.status === 'home') {
+    const sixIdx = movesAvailable.findIndex((s) => s === 6);
+    if (sixIdx >= 0) {
+      return { dieIdx: sixIdx, steps: 6 };
+    }
+    return null;
+  }
+
+  const isLone = isLoneTokenOnTrack(pawns, pIdx);
+  const total = movesAvailable.reduce((a, b) => a + Number(b), 0);
+  const canCombined =
+    isLone &&
+    movesAvailable.length > 1 &&
+    canMovePawn(pawns, pIdx, pawnIdx, total, dice, movesAvailable);
+
+  const canSelected =
+    selectedDieIndex !== null &&
+    movesAvailable[selectedDieIndex] !== undefined &&
+    canMovePawn(pawns, pIdx, pawnIdx, movesAvailable[selectedDieIndex], dice, movesAvailable);
+
+  const fallbackIdx = movesAvailable.findIndex((s) =>
+    canMovePawn(pawns, pIdx, pawnIdx, s, dice, movesAvailable),
+  );
+
+  const hasHomeDeploySix =
+    movesAvailable.includes(6) && (pawns[pIdx] || []).some((p) => p.status === 'home');
+  const combinedReachesGoal = pawn.pos + total >= COLORED_PATH_START_POS;
+
+  if (canCombined && !userSelectedDie && (combinedReachesGoal || !hasHomeDeploySix)) {
+    return { dieIdx: 'combined', steps: total };
+  }
+  if (canSelected && selectedDieIndex !== null) {
+    return { dieIdx: selectedDieIndex, steps: movesAvailable[selectedDieIndex] };
+  }
+  if (canCombined) {
+    return { dieIdx: 'combined', steps: total };
+  }
+  if (fallbackIdx >= 0) {
+    return { dieIdx: fallbackIdx, steps: movesAvailable[fallbackIdx] };
+  }
+  return null;
 }
 
 export function canAnyPawnMove(
@@ -1204,10 +1417,12 @@ export function pickBestAIMove(
     let score = 0;
     const newPos = pawn.status === 'home' ? 0 : pawn.pos + m.steps;
 
-    // Immediate winning move: final token reaches coloured stretch (pos >= 63)
-    if (pawn.pos < 63 && newPos >= 63) {
+    // Immediate winning move: final token reaches coloured stretch (pos >= 64)
+    if (pawn.pos < COLORED_PATH_START_POS && newPos >= COLORED_PATH_START_POS) {
       const allNowWin = pawns[pIdx].every((op, idx) =>
-        idx === m.pawnIdx ? newPos >= 63 : op.status === 'finished' || (op.status === 'on-path' && op.pos >= 63),
+        idx === m.pawnIdx
+          ? newPos >= COLORED_PATH_START_POS
+          : op.status === 'finished' || (op.status === 'on-path' && op.pos >= COLORED_PATH_START_POS),
       );
       if (allNowWin) score += 2000;
       else score += 120;

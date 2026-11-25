@@ -8,6 +8,7 @@ import {
   canMovePawn,
   checkCompulsoryCapturePenalties,
   cloneDefaultPlayers,
+  COLORED_PATH_START_POS,
   createInitialPawns,
   createInitialPlayerStats,
   evaluateCaptureObligation,
@@ -19,6 +20,7 @@ import {
   isLoneTokenOnTrack,
   pickBestAIMove,
   rollDicePair,
+  shouldPromptGulChoice,
   type CaptureCandidate,
   type ExtraTurnReason,
   type PawnState,
@@ -559,20 +561,9 @@ export class RoomManager {
     m.turnExpiresAt = null;
     this.clearRoomTimers(room);
 
-    // Case 1: Pending Gul prompt timed out -> auto-resolve as Gul (enter pos 68)
+    // Case 1: Pending Gul prompt timed out -> auto-resolve as PASS (never auto-Gul)
     if (m.pendingGul) {
-      const pending = m.pendingGul;
-      m.pendingGul = null;
-      m.lastEventText = `⏱️ ${seatName} timed out — auto-entering Centre Home (Gul)!`;
-      this.broadcastRoom(room);
-      this.performAuthoritativeMove(
-        room,
-        pending.seatIdx,
-        pending.pawnIdx,
-        pending.steps,
-        pending.dieIndex,
-        true,
-      );
+      this.performAuthoritativePassGul(room, true);
       return;
     }
 
@@ -720,13 +711,25 @@ export class RoomManager {
     const isEnteringGul = destPos === path.length - 1;
     const seat = room.seats[seatIdx];
 
-    if (isEnteringGul && !autoConfirmGul && !m.turnAutoPlay && seat && !seat.isAI && !seat.tempBotTakeover) {
-      m.pendingGul = { seatIdx, pawnIdx, steps: actualSteps, dieIndex: actualDieIndex };
-      if (seat.socketId) {
-        this.io.to(seat.socketId).emit('ludo:gul_prompt', m.pendingGul);
+    if (
+      isEnteringGul &&
+      seat &&
+      !seat.isAI &&
+      shouldPromptGulChoice(m.pawns, seatIdx, actualSteps, actualDieIndex, m.dice)
+    ) {
+      if (m.turnAutoPlay || seat.tempBotTakeover) {
+        m.pendingGul = { seatIdx, pawnIdx, steps: actualSteps, dieIndex: actualDieIndex };
+        this.performAuthoritativePassGul(room, true);
+        return;
       }
-      this.broadcastRoom(room);
-      return;
+      if (!autoConfirmGul) {
+        m.pendingGul = { seatIdx, pawnIdx, steps: actualSteps, dieIndex: actualDieIndex };
+        if (seat.socketId) {
+          this.io.to(seat.socketId).emit('ludo:gul_prompt', m.pendingGul);
+        }
+        this.broadcastRoom(room);
+        return;
+      }
     }
 
     const startPos = currPawn.pos;
@@ -755,7 +758,7 @@ export class RoomManager {
       if (seat?.isAI || seat?.tempBotTakeover) {
         this.emitAiDialogue(room, seatIdx, 'pawn_home');
       }
-    } else if (startPos >= 0 && startPos < 63 && m.pawns[seatIdx][pawnIdx].pos >= 63) {
+    } else if (startPos >= 0 && startPos < COLORED_PATH_START_POS && m.pawns[seatIdx][pawnIdx].pos >= COLORED_PATH_START_POS) {
       if (seat?.isAI || seat?.tempBotTakeover) {
         this.emitAiDialogue(room, seatIdx, 'home_stretch');
       }
@@ -911,7 +914,7 @@ export class RoomManager {
     }
   }
 
-  private performAuthoritativePassGul(room: LudoRoom): void {
+  private performAuthoritativePassGul(room: LudoRoom, isAuto = false): void {
     const m = room.match;
     if (!m || !m.pendingGul) return;
     const { seatIdx, dieIndex } = m.pendingGul;
@@ -924,7 +927,10 @@ export class RoomManager {
     }
 
     const seat = room.seats[seatIdx];
-    m.lastEventText = `${seat?.name || 'Player'} passed the Gul entry.`;
+    const seatName = seat?.name || 'Player';
+    m.lastEventText = isAuto
+      ? `⏱️ ${seatName} timed out — auto-passed Gul entry!`
+      : `${seatName} passed the Gul entry.`;
     const canMoveRemaining = m.movesAvailable.length > 0 && canAnyPawnMove(m.pawns, seatIdx, m.movesAvailable, m.dice);
 
     if (!canMoveRemaining) {
@@ -941,8 +947,8 @@ export class RoomManager {
       if (penalizedPawns.length > 0) {
         m.lastEventText =
           penalizedPawns.length > 1
-            ? `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — ${penalizedPawns.length} tokens sent back to base!`
-            : `⚠️ ${seat?.name || 'Player'} missed a compulsory capture — token sent back to base!`;
+            ? `⚠️ ${seatName} missed a compulsory capture — ${penalizedPawns.length} tokens sent back to base!`
+            : `⚠️ ${seatName} missed a compulsory capture — token sent back to base!`;
         if (seat?.isAI || seat?.tempBotTakeover) {
           this.emitAiDialogue(room, seatIdx, 'penalty');
         }
@@ -958,6 +964,11 @@ export class RoomManager {
       }, this.turnPassDelayMs);
     } else {
       this.broadcastRoom(room);
+      if (m.turnAutoPlay) {
+        this.scheduleAutoPlayMove(room, seatIdx, Math.min(250, this.autoPlayMoveDelayMs));
+      } else if (seat?.isAI || seat?.tempBotTakeover) {
+        this.scheduleNextAIAction(room);
+      }
     }
   }
 
@@ -1124,16 +1135,7 @@ export class RoomManager {
       if (room.match) {
         room.match.lastEventText = `🤖 ${seat.name} disconnected — Bot covering until they reconnect.`;
         if (room.match.pendingGul && room.match.pendingGul.seatIdx === seatIdx) {
-          const pending = room.match.pendingGul;
-          room.match.pendingGul = null;
-          this.performAuthoritativeMove(
-            room,
-            pending.seatIdx,
-            pending.pawnIdx,
-            pending.steps,
-            pending.dieIndex,
-            true,
-          );
+          this.performAuthoritativePassGul(room, true);
           return;
         } else if (room.match.currentPlayer === seatIdx && !room.match.turnAutoPlay) {
           this.scheduleNextAIAction(room);

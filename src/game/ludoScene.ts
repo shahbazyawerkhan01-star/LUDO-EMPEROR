@@ -3,21 +3,52 @@ import {
   Assets,
   Container,
   Graphics,
+  PerspectiveMesh,
+  RenderTexture,
   Sprite,
   Text,
   Texture,
 } from 'pixi.js';
 import {
-  BG_ASSET_URLS,
+  drawAnimalGroundAura,
+  drawCharacterToken,
+  getTokenLocomotionMode,
+  isAnimalCharacter,
+  resolveCharacterGender,
+  resolveCharacterId,
+  type CharacterArchetypeId,
+  type CharacterCelebrationKind,
+} from './characterTokens';
+import {
+  createEnvironmentFloorTexture,
+  createEnvironmentSkyTexture,
+} from './environments';
+import {
+  drawBoardLiveSurfaceEffects,
+  drawThemedCenterHubOverlay,
+  drawThemedTrackTile,
+  drawThemedYardBase,
+  getThemeSafeStarStyle,
+  resolveBoardThemeId,
+  type BoardYardMeta,
+} from './boardWorlds';
+import { sfx } from './sfx';
+import type { TokenGenderMode, TokenStyleId } from '../sdk/runSdk';
+import {
   BOARD_CONFIG,
   BOARD_THEMES,
   canMovePawn,
-  DICE_STYLES,
+  DEFAULT_ENVIRONMENT_ID,
+  getLegalMoves,
   getPawnPath,
   getPlayerColor,
   isLoneTokenOnTrack,
   PAWN_ASSET_URLS,
+  resolveSeatDicePalette,
+  shadeRgb,
   stripSeatTag,
+  VALID_ENVIRONMENT_IDS,
+  type EnvironmentId,
   type PawnState,
   type PlayerConfig,
 } from './rules';
@@ -51,6 +82,9 @@ export interface SceneSnapshot {
   boardThemeId: string;
   tournamentBoardThemeId: string;
   diceStyle: string;
+  tokenStyle: TokenStyleId;
+  seatTokenOverrides?: Partial<Record<number, CharacterArchetypeId | null>>;
+  tokenGenderMode: TokenGenderMode;
   backgroundId: string;
   rotateBoard: boolean;
   cameraTilt: number;
@@ -61,36 +95,52 @@ export interface SceneSnapshot {
 
 interface AnimPawn {
   displayPos: number;
+  flightFromPos: number;
+  flightFromX: number;
+  flightFromY: number;
   renderX: number;
   renderY: number;
   initializedPos: boolean;
+  lastSteppedTile: number;
+  stepCounter: number;
+  travelPhase: number;
+  facing: 1 | -1;
+  dirX: number;
+  dirY: number;
+  celebrateUntil: number;
+  celebrateDuration: number;
+  celebrateKind: CharacterCelebrationKind | null;
   container: Container;
   shadow: Graphics;
   ring: Graphics;
   sprite: Sprite | null;
   fallbackGfx: Graphics;
+  characterGfx: Graphics;
 }
 
 interface Dice3DAnim {
-  active: boolean;
+  startX: number;
+  startY: number;
+  startZ: number;
   x: number;
   y: number;
   z: number;
-  vx: number;
-  vy: number;
-  vz: number;
+  targetX: number;
+  targetY: number;
   rx: number;
   ry: number;
   rz: number;
   vrx: number;
   vry: number;
   vrz: number;
+  lockedAtU78: boolean;
+  lockStartRX: number;
+  lockStartRY: number;
+  lockStartRZ: number;
   targetRX: number;
   targetRY: number;
-  targetX: number;
-  targetY: number;
+  targetRZ: number;
   hoverOffset: number;
-  hoverScale: number;
   value: number;
 }
 
@@ -147,47 +197,263 @@ function rotate3D(p: { x: number; y: number; z: number }, rx: number, ry: number
   return p;
 }
 
-// Smoothly tessellated rounded polygon path for visibly curved 3D dice faces in WebGL
-function drawRoundedPolygonPath(
+// Quadratic-Bezier rounded quad using fractional edge corner bevel (0.25) so perspective faces curve cleanly
+function traceRoundedQuadBezier(
   gfx: Graphics,
-  points: Array<{ x: number; y: number }>,
-  radius: number,
+  pts: Array<{ x: number; y: number }>,
+  cornerFraction = 0.25,
 ): void {
-  if (points.length < 3) return;
-  const steps = 6;
-  for (let i = 0; i < points.length; i++) {
-    const p1 = points[(i + points.length - 1) % points.length];
-    const p2 = points[i];
-    const p3 = points[(i + 1) % points.length];
-
-    const dx1 = p2.x - p1.x;
-    const dy1 = p2.y - p1.y;
-    const len1 = Math.hypot(dx1, dy1) || 1;
-
-    const dx2 = p2.x - p3.x;
-    const dy2 = p2.y - p3.y;
-    const len2 = Math.hypot(dx2, dy2) || 1;
-
-    const r = Math.min(radius, len1 * 0.4, len2 * 0.4);
-
-    const x1 = p2.x - (dx1 / len1) * r;
-    const y1 = p2.y - (dy1 / len1) * r;
-    const x2 = p2.x - (dx2 / len2) * r;
-    const y2 = p2.y - (dy2 / len2) * r;
-
+  if (pts.length < 4) return;
+  const f = Math.max(0.05, Math.min(0.45, cornerFraction));
+  for (let i = 0; i < 4; i++) {
+    const prev = pts[(i + 3) % 4];
+    const curr = pts[i];
+    const next = pts[(i + 1) % 4];
+    const x1 = curr.x + (prev.x - curr.x) * f;
+    const y1 = curr.y + (prev.y - curr.y) * f;
+    const x2 = curr.x + (next.x - curr.x) * f;
+    const y2 = curr.y + (next.y - curr.y) * f;
     if (i === 0) gfx.moveTo(x1, y1);
     else gfx.lineTo(x1, y1);
-
-    // Explicit quadratic Bezier sampling guarantees silky curved corners at every WebGL scale
-    for (let s = 1; s <= steps; s++) {
-      const t = s / steps;
-      const omt = 1 - t;
-      const qx = omt * omt * x1 + 2 * omt * t * p2.x + t * t * x2;
-      const qy = omt * omt * y1 + 2 * omt * t * p2.y + t * t * y2;
-      gfx.lineTo(qx, qy);
-    }
+    gfx.quadraticCurveTo(curr.x, curr.y, x2, y2);
   }
   gfx.closePath();
+}
+
+interface BoardDieRenderOpts {
+  rotX: number;
+  rotY: number;
+  rotZ: number;
+  borderHex: number;
+  glowHex: number | null;
+  seatGlowHex?: number;
+  styleId: string;
+  used?: boolean;
+  selected?: boolean;
+  hoverPulse?: number;
+}
+
+function bilerpQuad(
+  pts: Array<{ x: number; y: number }>,
+  u: number,
+  v: number,
+): { x: number; y: number } {
+  const [p0, p1, p2, p3] = pts;
+  const a00 = (1 - u) * (1 - v);
+  const a10 = u * (1 - v);
+  const a11 = u * v;
+  const a01 = (1 - u) * v;
+  return {
+    x: p0.x * a00 + p1.x * a10 + p2.x * a11 + p3.x * a01,
+    y: p0.y * a00 + p1.y * a10 + p2.y * a11 + p3.y * a01,
+  };
+}
+
+function drawBoardDie3D(
+  g: Graphics,
+  sh: Graphics,
+  proj: (bx: number, by: number, bz: number) => { x: number; y: number; persp: number },
+  cx: number,
+  cy: number,
+  cz: number,
+  halfSize: number,
+  _value: number,
+  color: [number, number, number],
+  pip: number,
+  opts: BoardDieRenderOpts,
+): void {
+  g.clear();
+  sh.clear();
+
+  const { rotX, rotY, rotZ, borderHex, glowHex, seatGlowHex, styleId, used = false, selected = false, hoverPulse = 0 } = opts;
+
+  // Dynamic board-plane contact shadow scaled & faded by height cz
+  const shCenter = proj(cx, cy, 0);
+  const shEdgeX = proj(cx + halfSize, cy, 0);
+  const shEdgeY = proj(cx, cy + halfSize, 0);
+  const radX = Math.max(8, Math.hypot(shEdgeX.x - shCenter.x, shEdgeX.y - shCenter.y));
+  const radY = Math.max(5, Math.hypot(shEdgeY.x - shCenter.x, shEdgeY.y - shCenter.y));
+  const heightScale = Math.max(0.56, 1.12 - cz * 0.13);
+  const shadowAlpha = Math.max(0.06, (used ? 0.14 : 0.36) - cz * 0.075);
+  sh.ellipse(shCenter.x + 1.5, shCenter.y + 2, radX * heightScale * 1.18, radY * heightScale * 1.12)
+    .fill({ color: 0x000000, alpha: shadowAlpha });
+
+  // Selection halo or waiting-to-roll pulse directly on the board plane synced to active seat color
+  if (selected || hoverPulse > 0) {
+    const haloColor = seatGlowHex ?? glowHex ?? 0xf1c40f;
+    const haloAlpha = selected ? 0.6 + hoverPulse * 0.25 : 0.16 + hoverPulse * 0.38;
+    const haloSpread = selected ? 1.44 + hoverPulse * 0.12 : 1.32 + hoverPulse * 0.08;
+    sh.ellipse(shCenter.x, shCenter.y, radX * haloSpread, radY * haloSpread)
+      .fill({ color: haloColor, alpha: haloAlpha * 0.28 })
+      .stroke({ width: selected ? 3.2 : 2.2, color: haloColor, alpha: haloAlpha });
+  }
+
+  const centerZ = cz + halfSize;
+  const rotVerts = CUBE_VERTICES.map((v) =>
+    rotate3D({ x: v.x * halfSize, y: v.y * halfSize, z: v.z * halfSize }, rotX, rotY, rotZ),
+  );
+  const projVerts = rotVerts.map((rv) => proj(cx + rv.x, cy + rv.y, centerZ + rv.z));
+
+  // Darker shaded inner bevel core (0.81 * halfSize, shade 0.52) so 3-face curved intersections look seamlessly molded
+  const coreScale = 0.81;
+  const coreProj = rotVerts.map((rv) =>
+    proj(cx + rv.x * coreScale, cy + rv.y * coreScale, centerZ + rv.z * coreScale),
+  );
+  const coreRgb = shadeRgb(color, 0.52);
+  const coreFillHex = rgbToHexNumber(coreRgb[0], coreRgb[1], coreRgb[2]);
+  const alpha = used ? 0.43 : 1;
+
+  const coreFaces = CUBE_FACES.map((f) => {
+    const avgPersp = f.indices.reduce((sum, idx) => sum + coreProj[idx].persp, 0) / 4;
+    const p0 = coreProj[f.indices[0]];
+    const p1 = coreProj[f.indices[1]];
+    const p2 = coreProj[f.indices[2]];
+    const cross = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+    return { pts: f.indices.map((i) => coreProj[i]), avgPersp, cross };
+  })
+    .filter((f) => f.cross > -2)
+    .sort((a, b) => a.avgPersp - b.avgPersp);
+
+  coreFaces.forEach((cf) => {
+    traceRoundedQuadBezier(g, cf.pts, 0.25);
+    g.fill({ color: coreFillHex, alpha });
+  });
+
+  // Front faces sorted back-to-front by camera depth (ascending persp = farthest first)
+  const visibleFaces = CUBE_FACES.map((f) => {
+    const pts = f.indices.map((idx) => projVerts[idx]);
+    const cross = (pts[1].x - pts[0].x) * (pts[2].y - pts[0].y) - (pts[1].y - pts[0].y) * (pts[2].x - pts[0].x);
+    const avgPersp = pts.reduce((s, p) => s + p.persp, 0) / 4;
+    // Compute rotated unit normal for directional lighting
+    const rv0 = rotVerts[f.indices[0]];
+    const rv1 = rotVerts[f.indices[1]];
+    const rv2 = rotVerts[f.indices[2]];
+    const ax = rv1.x - rv0.x;
+    const ay = rv1.y - rv0.y;
+    const az = rv1.z - rv0.z;
+    const bx = rv2.x - rv0.x;
+    const by = rv2.y - rv0.y;
+    const bz = rv2.z - rv0.z;
+    const nx = ay * bz - az * by;
+    const ny = az * bx - ax * bz;
+    const nz = ax * by - ay * bx;
+    const nLen = Math.hypot(nx, ny, nz) || 1;
+    return {
+      value: f.value,
+      pts,
+      cross,
+      avgPersp,
+      ux: nx / nLen,
+      uy: ny / nLen,
+      uz: nz / nLen,
+    };
+  })
+    .filter((f) => f.cross > 0.2)
+    .sort((a, b) => a.avgPersp - b.avgPersp);
+
+  const pipCoords: Record<number, Array<[number, number]>> = {
+    1: [[0.5, 0.5]],
+    2: [[0.28, 0.28], [0.72, 0.72]],
+    3: [[0.28, 0.28], [0.5, 0.5], [0.72, 0.72]],
+    4: [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]],
+    5: [[0.28, 0.28], [0.72, 0.28], [0.5, 0.5], [0.28, 0.72], [0.72, 0.72]],
+    6: [[0.28, 0.24], [0.72, 0.24], [0.28, 0.5], [0.72, 0.5], [0.28, 0.76], [0.72, 0.76]],
+  };
+
+  visibleFaces.forEach((f) => {
+    // Directional light: upper top face stays crisp (0.94..1.02), side faces shade cleanly (0.58..0.78)
+    const ndotl = -0.28 * f.ux - 0.36 * f.uy + 0.89 * f.uz;
+    const shade =
+      ndotl >= 0.45
+        ? Math.min(1.04, 0.92 + (ndotl - 0.45) * 0.2)
+        : Math.max(0.52, 0.72 + ndotl * 0.24);
+    const shaded = shadeRgb(color, shade);
+    const faceHex = rgbToHexNumber(shaded[0], shaded[1], shaded[2]);
+
+    if (glowHex !== null && !used) {
+      traceRoundedQuadBezier(g, f.pts, 0.25);
+      g.stroke({ width: 3.4, color: glowHex, alpha: 0.36 });
+    }
+
+    traceRoundedQuadBezier(g, f.pts, 0.25);
+    g.fill({ color: faceHex, alpha }).stroke({ width: 1.45, color: borderHex, alpha });
+
+    // Dice theme surface finishes inside projected quad
+    if (styleId === 'marble') {
+      const m1 = bilerpQuad(f.pts, 0.16, 0.78);
+      const m2 = bilerpQuad(f.pts, 0.52, 0.48);
+      const m3 = bilerpQuad(f.pts, 0.84, 0.22);
+      g.moveTo(m1.x, m1.y).lineTo(m2.x, m2.y).lineTo(m3.x, m3.y)
+        .stroke({ width: 1.1, color: 0x64748b, alpha: 0.32 * alpha });
+    } else if (styleId === 'galaxy') {
+      [
+        [0.2, 0.55],
+        [0.52, 0.22],
+        [0.78, 0.58],
+      ].forEach(([su, sv]) => {
+        const sp = bilerpQuad(f.pts, su, sv);
+        g.circle(sp.x, sp.y, 1.05 * f.avgPersp).fill({ color: 0xe0e7ff, alpha: 0.65 * alpha });
+      });
+    } else if (styleId === 'fire') {
+      const e1 = bilerpQuad(f.pts, 0.18, 0.18);
+      const e2 = bilerpQuad(f.pts, 0.82, 0.18);
+      const e3 = bilerpQuad(f.pts, 0.82, 0.82);
+      const e4 = bilerpQuad(f.pts, 0.18, 0.82);
+      g.poly([e1.x, e1.y, e2.x, e2.y, e3.x, e3.y, e4.x, e4.y])
+        .stroke({ width: 1.4, color: 0xfb923c, alpha: 0.45 * alpha });
+    } else if (styleId === 'ice' || styleId === 'holographic' || styleId === 'gold') {
+      const s1 = bilerpQuad(f.pts, 0.16, 0.42);
+      const s2 = bilerpQuad(f.pts, 0.42, 0.16);
+      const s3 = bilerpQuad(f.pts, 0.62, 0.16);
+      const s4 = bilerpQuad(f.pts, 0.16, 0.62);
+      g.poly([s1.x, s1.y, s2.x, s2.y, s3.x, s3.y, s4.x, s4.y])
+        .fill({ color: 0xffffff, alpha: (styleId === 'gold' ? 0.22 : 0.3) * alpha });
+    } else if (styleId === 'wood') {
+      const w1 = bilerpQuad(f.pts, 0.18, 0.36);
+      const w2 = bilerpQuad(f.pts, 0.82, 0.42);
+      g.moveTo(w1.x, w1.y).lineTo(w2.x, w2.y).stroke({ width: 1.0, color: 0x3e2723, alpha: 0.35 * alpha });
+    }
+
+    // Perspective-mapped opposite-face-sum-7 circular pips aligned directly to each 3D face's plane
+    const pips = pipCoords[f.value] || pipCoords[1];
+    const pipUvR = 0.098;
+    const pipSegments = 12;
+
+    pips.forEach(([u, v]) => {
+      const pipPoly: number[] = [];
+      for (let s = 0; s < pipSegments; s++) {
+        const ang = (s / pipSegments) * Math.PI * 2;
+        const pt = bilerpQuad(
+          f.pts,
+          u + Math.cos(ang) * pipUvR,
+          v + Math.sin(ang) * pipUvR,
+        );
+        pipPoly.push(pt.x, pt.y);
+      }
+      g.poly(pipPoly).fill({ color: pip, alpha });
+
+      const edgeSpanMin = Math.min(
+        Math.hypot(f.pts[1].x - f.pts[0].x, f.pts[1].y - f.pts[0].y),
+        Math.hypot(f.pts[3].x - f.pts[0].x, f.pts[3].y - f.pts[0].y),
+      );
+      if (edgeSpanMin > 16) {
+        const hiPoly: number[] = [];
+        const hiR = pipUvR * 0.34;
+        const hiU = u - pipUvR * 0.25;
+        const hiV = v - pipUvR * 0.25;
+        for (let s = 0; s < 8; s++) {
+          const ang = (s / 8) * Math.PI * 2;
+          const pt = bilerpQuad(
+            f.pts,
+            hiU + Math.cos(ang) * hiR,
+            hiV + Math.sin(ang) * hiR,
+          );
+          hiPoly.push(pt.x, pt.y);
+        }
+        g.poly(hiPoly).fill({ color: 0xffffff, alpha: 0.2 * alpha });
+      }
+    });
+  });
 }
 
 function hexToNumber(hex: string): number {
@@ -203,21 +469,6 @@ function rgbToHexNumber(r: number, g: number, b: number): number {
   return (cr << 16) | (cg << 8) | cb;
 }
 
-function createFloorGradientTexture(w: number, h: number, cx: number, cy: number): Texture {
-  const cvs = document.createElement('canvas');
-  cvs.width = Math.max(2, Math.round(w));
-  cvs.height = Math.max(2, Math.round(h));
-  const ctx = cvs.getContext('2d');
-  if (ctx) {
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h));
-    grad.addColorStop(0, '#2c3e50');
-    grad.addColorStop(1, '#000000');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, cvs.width, cvs.height);
-  }
-  return Texture.from(cvs);
-}
-
 export class LudoScene {
   private app: Application;
   private containerEl: HTMLElement;
@@ -225,23 +476,47 @@ export class LudoScene {
   private destroyed = false;
   private initialized = false;
 
-  // Un-tilted base gradient + full-bleed theme backdrop behind everything
+  private static readonly BOARD_TEX_HALF = 460;
+  private static readonly BOARD_TEX_SIZE = 920;
+  private static readonly BG_TEX_SIZE = 1024;
+  private static readonly BG_TEX_HALF = 512;
+  private static readonly BG_WORLD_HALF = 1320;
+  private static readonly CAMERA_FOCAL = 5800;
+
+  // Clean neutral studio backdrop + 3D perspective studio tabletop locked to board
   private bgLayer = new Container();
   private floorSprite: Sprite | null = null;
   private floorTexture: Texture | null = null;
-  private bgSprite: Sprite | null = null;
-  private bgVeil: Graphics | null = null;
+  private bgOffscreenStage = new Container();
+  private bgSpinLayer = new Container();
+  private bgStaticLayer = new Container();
+  private bgRenderTexture: RenderTexture | null = null;
+  private bgPerspectiveMesh: PerspectiveMesh | null = null;
+  private bgDirty = true;
+  private lastRenderedBgRotDeg = Number.NaN;
+  private lastBgMeshKey = '';
 
-  // Tilted 3D Tabletop World (matches original ctx.scale(1, layout.tilt))
+  // True 3D Perspective Tabletop World
   private boardRoot = new Container();
+  private boardOffscreenStage = new Container();
   private boardSpinLayer = new Container();
   private boardStaticLayer = new Container();
+  private boardRenderTexture: RenderTexture | null = null;
+  private boardShadowMesh: PerspectiveMesh | null = null;
+  private boardPerspectiveMesh: PerspectiveMesh | null = null;
+  private boardSurfaceAnimGfx = new Graphics();
+  private boardHitLayer = new Container();
+  private baseHitPolys: Graphics[] = [];
+  private baseTriWorlds: Array<Array<{ x: number; y: number }>> = [];
+  private yardMetas: BoardYardMeta[] = [];
   private homeLabelNode: Text | null = null;
+  private shadowLayer = new Container();
   private pawnLayer = new Container();
 
-  // Screen-space 3D Dice & Effects
-  private diceLayer = new Container();
-  private diceGfx = new Graphics();
+  // Non-interactive 3D Physical Dice directly ON the board + Screen-space FX
+  private boardDiceLayer = new Container();
+  private boardDieShadows: [Graphics, Graphics] = [new Graphics(), new Graphics()];
+  private boardDieNodes: [Graphics, Graphics] = [new Graphics(), new Graphics()];
   private fxLayer = new Container();
 
   private animPawns: AnimPawn[][] = [];
@@ -251,20 +526,31 @@ export class LudoScene {
   private snapshot: SceneSnapshot | null = null;
   private lastBoardKey = '';
   private lastBgKey = '';
+  private boardDirty = true;
+  private lastRenderedRotDeg = Number.NaN;
+  private lastMeshKey = '';
   private rotationOffsetDeg = 0;
   private targetRotationDeg = 0;
+  private currentTiltDeg = 30;
+  private targetTiltDeg = 30;
+  private tiltInitialized = false;
 
   private logicalW = 1280;
   private logicalH = 720;
-  private diceScale = 0.78;
-  private diceAnchor = { x: 830, y: 608 };
   private boardAnchor = { x: 455, y: 366, scale: 1.09, tilt: 0.75 };
 
+  private static readonly DIE_HALF_SIZE = 0.42 * 1.2; // 0.504 board-tile units (1.2x scaled)
+  private static readonly FLY_DURATION_MS = 800;
+  private flyActive = false;
+  private flyHoldingResult = false;
+  private flySeat = 0;
+  private flyFinal: [number, number] = [1, 6];
+  private flyStartMs = 0;
+  private flyStage: 0 | 1 | 2 | 3 = 0;
   private diceAnims: [Dice3DAnim, Dice3DAnim] = [
-    this.makeDiceAnim(1, -43),
-    this.makeDiceAnim(6, 43),
+    this.makeDiceAnim(1, -1.62, 0.28),
+    this.makeDiceAnim(6, 1.62, -0.28),
   ];
-  private rollFramesLeft = 0;
 
   private reactions: FloatingReaction[] = [];
   private speechBubbles = new Map<number, SpeechBubble>();
@@ -284,27 +570,31 @@ export class LudoScene {
     this.app = new Application();
   }
 
-  private makeDiceAnim(val: number, offsetX: number): Dice3DAnim {
+  private makeDiceAnim(val: number, restX: number, restY: number): Dice3DAnim {
+    const targets = this.getDiceTargetAngles(val);
     return {
-      active: false,
-      x: offsetX,
-      y: 0,
+      startX: restX,
+      startY: restY,
+      startZ: 0,
+      x: restX,
+      y: restY,
       z: 0,
-      vx: 0,
-      vy: 0,
-      vz: 0,
-      rx: 0,
-      ry: 0,
+      targetX: restX,
+      targetY: restY,
+      rx: targets.rx,
+      ry: targets.ry,
       rz: 0,
       vrx: 0,
       vry: 0,
       vrz: 0,
-      targetRX: 0,
-      targetRY: 0,
-      targetX: offsetX,
-      targetY: 0,
+      lockedAtU78: false,
+      lockStartRX: targets.rx,
+      lockStartRY: targets.ry,
+      lockStartRZ: 0,
+      targetRX: targets.rx,
+      targetRY: targets.ry,
+      targetRZ: 0,
       hoverOffset: 0,
-      hoverScale: 1,
       value: val,
     };
   }
@@ -331,18 +621,85 @@ export class LudoScene {
     canvas.style.height = '100%';
     this.containerEl.appendChild(canvas);
 
+    this.bgLayer.eventMode = 'none';
+    this.bgLayer.interactiveChildren = false;
     this.app.stage.addChild(this.bgLayer);
     this.app.stage.addChild(this.boardRoot);
-    this.boardRoot.addChild(this.boardSpinLayer);
+
+    // Offscreen 3D tabletop studio stage (spins & tilts identically with board)
+    this.bgSpinLayer.x = LudoScene.BG_TEX_HALF;
+    this.bgSpinLayer.y = LudoScene.BG_TEX_HALF;
+    this.bgOffscreenStage.addChild(this.bgSpinLayer);
+    this.bgSpinLayer.addChild(this.bgStaticLayer);
+
+    this.bgRenderTexture = RenderTexture.create({
+      width: LudoScene.BG_TEX_SIZE,
+      height: LudoScene.BG_TEX_SIZE,
+      resolution: 1,
+      antialias: true,
+    });
+
+    this.bgPerspectiveMesh = new PerspectiveMesh({
+      texture: this.bgRenderTexture,
+      verticesX: 28,
+      verticesY: 28,
+    });
+    this.boardRoot.addChild(this.bgPerspectiveMesh);
+
+    this.boardSpinLayer.x = LudoScene.BOARD_TEX_HALF;
+    this.boardSpinLayer.y = LudoScene.BOARD_TEX_HALF;
+    this.boardOffscreenStage.addChild(this.boardSpinLayer);
     this.boardSpinLayer.addChild(this.boardStaticLayer);
+
+    this.boardRenderTexture = RenderTexture.create({
+      width: LudoScene.BOARD_TEX_SIZE,
+      height: LudoScene.BOARD_TEX_SIZE,
+      resolution: 2,
+      antialias: true,
+    });
+
+    this.boardShadowMesh = new PerspectiveMesh({
+      texture: this.boardRenderTexture,
+      verticesX: 20,
+      verticesY: 20,
+    });
+    this.boardShadowMesh.tint = 0x000000;
+    this.boardShadowMesh.alpha = 0.3;
+    this.boardRoot.addChild(this.boardShadowMesh);
+
+    this.boardPerspectiveMesh = new PerspectiveMesh({
+      texture: this.boardRenderTexture,
+      verticesX: 24,
+      verticesY: 24,
+    });
+    this.boardRoot.addChild(this.boardPerspectiveMesh);
+
+    this.boardSurfaceAnimGfx.eventMode = 'none';
+    this.boardRoot.addChild(this.boardSurfaceAnimGfx);
+
+    this.boardRoot.addChild(this.boardHitLayer);
+    for (let i = 0; i < 5; i++) {
+      const hitPoly = new Graphics();
+      hitPoly.eventMode = 'static';
+      hitPoly.cursor = 'pointer';
+      hitPoly.on('pointertap', () => this.callbacks.onBaseTap(i));
+      this.boardHitLayer.addChild(hitPoly);
+      this.baseHitPolys.push(hitPoly);
+    }
+
+    this.shadowLayer.eventMode = 'none';
+    this.shadowLayer.interactiveChildren = false;
+    this.boardRoot.addChild(this.shadowLayer);
     this.boardRoot.addChild(this.pawnLayer);
 
-    // Dice & FX live in screen space above the tilted board
-    this.app.stage.addChild(this.diceLayer);
-    this.diceLayer.addChild(this.diceGfx);
-    this.diceLayer.eventMode = 'static';
-    this.diceLayer.cursor = 'pointer';
-    this.diceLayer.on('pointertap', () => this.callbacks.onDiceTap());
+    // Pre-allocated non-interactive 3D dice layer ON the board (never blocks pawn taps)
+    this.boardDiceLayer.eventMode = 'none';
+    this.boardDiceLayer.interactiveChildren = false;
+    this.boardDiceLayer.addChild(this.boardDieShadows[0]);
+    this.boardDiceLayer.addChild(this.boardDieShadows[1]);
+    this.boardDiceLayer.addChild(this.boardDieNodes[0]);
+    this.boardDiceLayer.addChild(this.boardDieNodes[1]);
+    this.boardRoot.addChild(this.boardDiceLayer);
 
     this.app.stage.addChild(this.fxLayer);
 
@@ -367,7 +724,7 @@ export class LudoScene {
           if (ap) {
             if (!ap.sprite) {
               ap.sprite = new Sprite(tex);
-              ap.sprite.anchor.set(0.5, 0.85);
+              ap.sprite.anchor.set(0.5, 0.82);
               ap.container.addChild(ap.sprite);
             } else {
               ap.sprite.texture = tex;
@@ -379,19 +736,10 @@ export class LudoScene {
         // Keep vector pawn fallback seamlessly
       }
     });
-
-    Object.entries(BG_ASSET_URLS).forEach(async ([id, url]) => {
-      try {
-        const tex = await Assets.load<Texture>(url);
-        if (!this.destroyed) {
-          this.bgTextures.set(id, tex);
-          this.lastBgKey = '';
-        }
-      } catch {}
-    });
   }
 
   private createPawnNodes(): void {
+    this.shadowLayer.removeChildren();
     this.pawnLayer.removeChildren();
     this.animPawns = Array.from({ length: 5 }, (_, pIdx) =>
       Array.from({ length: 4 }, (_, iIdx) => {
@@ -405,65 +753,136 @@ export class LudoScene {
 
         const ring = new Graphics();
         const shadow = new Graphics();
-        shadow.ellipse(0, 4, 12, 6.4).fill({ color: 0x000000, alpha: 0.3 });
+        shadow.ellipse(0, 0, 11.5, 6).fill({ color: 0x000000, alpha: 0.3 });
         const fallbackGfx = new Graphics();
+        const characterGfx = new Graphics();
+        characterGfx.visible = false;
         container.hitArea = {
-          contains: (x: number, y: number) => x >= -20 && x <= 20 && y >= -36 && y <= 14,
+          contains: (x: number, y: number) => x >= -24 && x <= 24 && y >= -40 && y <= 18,
         };
 
-        container.addChild(ring);
-        container.addChild(shadow);
+        this.shadowLayer.addChild(shadow);
+        this.shadowLayer.addChild(ring);
         container.addChild(fallbackGfx);
+        container.addChild(characterGfx);
 
         this.pawnLayer.addChild(container);
         return {
           displayPos: -1,
+          flightFromPos: -1,
+          flightFromX: 0,
+          flightFromY: 0,
           renderX: 0,
           renderY: 0,
           initializedPos: false,
+          lastSteppedTile: -1,
+          stepCounter: 0,
+          travelPhase: 0,
+          facing: 1,
+          dirX: 1,
+          dirY: 0,
+          celebrateUntil: 0,
+          celebrateDuration: 1000,
+          celebrateKind: null,
           container,
           shadow,
           ring,
           sprite: null,
           fallbackGfx,
+          characterGfx,
         };
       }),
     );
   }
 
   public syncState(next: SceneSnapshot): void {
-    const prevRolling = this.snapshot?.isRolling ?? false;
+    const prevSnap = this.snapshot;
+    const prevRolling = prevSnap?.isRolling ?? false;
+
+    if (prevSnap && prevSnap.gameStarted && next.gameStarted) {
+      const nowMs = Date.now();
+      let anyCaptured = false;
+      for (let vp = 0; vp < 5; vp++) {
+        for (let vi = 0; vi < 4; vi++) {
+          const oldV = prevSnap.pawns[vp]?.[vi];
+          const newV = next.pawns[vp]?.[vi];
+          if (oldV && newV && oldV.status === 'on-path' && newV.status === 'home') {
+            anyCaptured = true;
+          }
+        }
+      }
+
+      for (let pIdx = 0; pIdx < 5; pIdx++) {
+        for (let iIdx = 0; iIdx < 4; iIdx++) {
+          const oldP = prevSnap.pawns[pIdx]?.[iIdx];
+          const newP = next.pawns[pIdx]?.[iIdx];
+          const ap = this.animPawns[pIdx]?.[iIdx];
+          if (!oldP || !newP || !ap) continue;
+
+          if (newP.pos > oldP.pos || (oldP.status === 'home' && newP.status !== 'home')) {
+            ap.stepCounter = 0;
+            ap.lastSteppedTile = Math.floor(ap.displayPos);
+            ap.flightFromPos = ap.displayPos;
+            ap.flightFromX = ap.renderX;
+            ap.flightFromY = ap.renderY;
+            if (anyCaptured && pIdx === prevSnap.currentPlayer) {
+              ap.celebrateKind = 'capture';
+              ap.celebrateDuration = 1050;
+              ap.celebrateUntil = nowMs + 1050;
+            } else if (oldP.pos < 68 && newP.pos === 68) {
+              ap.celebrateKind = 'center_home';
+              ap.celebrateDuration = 1200;
+              ap.celebrateUntil = nowMs + 1200;
+            } else if (oldP.pos < 63 && newP.pos >= 63) {
+              ap.celebrateKind = 'home_stretch';
+              ap.celebrateDuration = 900;
+              ap.celebrateUntil = nowMs + 900;
+            }
+          }
+        }
+      }
+    }
+
     this.snapshot = next;
 
+    const turnChanged = !!prevSnap && prevSnap.currentPlayer !== next.currentPlayer;
+    const matchReset = !next.gameStarted || (!!prevSnap && prevSnap.gameStarted && !next.gameStarted);
+    const serverResyncCleared =
+      !!prevSnap && !next.isRolling && !next.hasRolled && (prevSnap.hasRolled || prevSnap.isRolling);
+
+    if (matchReset || turnChanged || serverResyncCleared) {
+      this.flyActive = false;
+      this.flyHoldingResult = false;
+      this.flyStage = 0;
+      this.flySeat = next.currentPlayer;
+    }
+
     if (next.isRolling && !prevRolling) {
-      this.startDiceRollAnim(next.dice);
-    } else if (!next.isRolling) {
-      const boardSpacing = 46 * this.diceScale;
+      this.startFly(next.dice, next.currentPlayer);
+    } else if (!next.isRolling && !this.flyActive) {
+      if (!this.flyHoldingResult) {
+        this.flySeat = next.currentPlayer;
+      }
+      const restSpots = this.getBoardDiceRestSpots();
+      if (next.hasRolled) {
+        this.flyHoldingResult = false;
+      }
       this.diceAnims.forEach((d, idx) => {
-        const val = next.dice[idx] || 1;
+        const val = this.flyHoldingResult ? this.flyFinal[idx] : next.dice[idx] || 1;
         d.value = val;
         const targets = this.getDiceTargetAngles(val);
         d.targetRX = targets.rx;
         d.targetRY = targets.ry;
-        d.targetX = this.boardAnchor.x + (idx === 0 ? -boardSpacing : boardSpacing);
-        d.targetY = this.boardAnchor.y + (idx === 0 ? -boardSpacing / 2 : boardSpacing / 2);
-
-        if (next.hasRolled) {
-          // Keep rolled dice on the board until the turn passes (hasRolled becomes false)
-          if (!d.active && this.rollFramesLeft <= 0) {
-            d.x = d.targetX;
-            d.y = d.targetY;
-            d.z = 0;
-          }
-          d.active = true;
-          if (this.rollFramesLeft <= 0) {
-            d.rx = targets.rx;
-            d.ry = targets.ry;
-            d.rz = 0;
-          }
-        } else if (this.rollFramesLeft <= 0) {
-          // Turn passed (or ready for bonus roll): return dice to resting anchor
-          d.active = false;
+        d.targetX = restSpots[idx].x;
+        d.targetY = restSpots[idx].y;
+        d.x = d.targetX;
+        d.y = d.targetY;
+        d.z = 0;
+        d.rx = targets.rx;
+        d.ry = targets.ry;
+        if (!next.hasRolled && !this.flyHoldingResult) {
+          d.rz = 0;
+          d.targetRZ = 0;
         }
       });
     }
@@ -475,13 +894,45 @@ export class LudoScene {
       this.targetRotationDeg = 0;
     }
 
+    const rawTilt = next.cameraTilt;
+    const deg =
+      typeof rawTilt !== 'number' || Number.isNaN(rawTilt)
+        ? 30
+        : rawTilt >= 0 && rawTilt <= 1.2
+          ? Math.max(0, Math.min(55, Math.round((Math.acos(Math.max(0.57, Math.min(1, rawTilt))) * 180) / Math.PI)))
+          : Math.max(0, Math.min(55, rawTilt));
+    this.targetTiltDeg = deg;
+    if (!this.tiltInitialized) {
+      this.currentTiltDeg = deg;
+      this.tiltInitialized = true;
+    }
+
     this.applyBoardTransform();
   }
 
-  private worldToScreen(wx: number, wy: number): { x: number; y: number } {
+  private getPitchRad(): number {
+    return (Math.max(0, Math.min(55, this.currentTiltDeg)) * Math.PI) / 180;
+  }
+
+  private projectLocal(wx: number, wy: number, wz = 0): { x: number; y: number; persp: number } {
+    const pitchRad = this.getPitchRad();
+    const sinP = Math.sin(pitchRad);
+    const cosP = Math.cos(pitchRad);
+    const zCam = LudoScene.CAMERA_FOCAL - wy * sinP - wz * cosP;
+    const persp = LudoScene.CAMERA_FOCAL / Math.max(450, zCam);
     return {
-      x: this.boardAnchor.x + wx * this.boardAnchor.scale,
-      y: this.boardAnchor.y + wy * this.boardAnchor.scale * this.boardAnchor.tilt,
+      x: wx * persp,
+      y: (wy * cosP - wz * sinP) * persp,
+      persp,
+    };
+  }
+
+  private worldToScreen(wx: number, wy: number, wz = 0): { x: number; y: number; persp: number } {
+    const p = this.projectLocal(wx, wy, wz);
+    return {
+      x: this.boardAnchor.x + p.x * this.boardAnchor.scale,
+      y: this.boardAnchor.y + p.y * this.boardAnchor.scale,
+      persp: p.persp,
     };
   }
 
@@ -593,35 +1044,146 @@ export class LudoScene {
     return { rx: 0, ry: 0 };
   }
 
-  private startDiceRollAnim(dice: [number, number]): void {
-    // Launch from sides/bottom cleanly across the center of the board in both orientations (~0.2x slower)
-    this.rollFramesLeft = 56;
-    const isLandscape = this.logicalW > this.logicalH;
-    const spacing = 46 * this.diceScale;
-    const spreadX = isLandscape ? 200 : 140;
-    const launchY = isLandscape ? 310 : 290;
+  private getBoardDiceRestSpots(): [{ x: number; y: number }, { x: number; y: number }] {
+    return [
+      { x: -1.62, y: 0.28 },
+      { x: 1.62, y: -0.28 },
+    ];
+  }
+
+  private startFly(dice: [number, number], seatIdx: number): void {
+    const ss = BOARD_CONFIG.spaceSize;
+    const baseWorld = this.getCenterOfBase(seatIdx);
+    const baseBX = baseWorld.x / ss;
+    const baseBY = baseWorld.y / ss;
+    const restSpots = this.getBoardDiceRestSpots();
+
+    this.flyFinal = [dice[0] || 1, dice[1] || 1];
+    this.flySeat = seatIdx;
+    this.flyActive = true;
+    this.flyHoldingResult = false;
+    this.flyStartMs = Date.now();
+    this.flyStage = 0;
+
     this.diceAnims.forEach((d, idx) => {
-      const val = dice[idx] || 1;
+      const val = this.flyFinal[idx];
       const targets = this.getDiceTargetAngles(val);
-      d.active = true;
+      const sx = baseBX + (idx === 0 ? -0.55 : 0.55);
+      const sy = baseBY + (idx === 0 ? 0.25 : -0.25);
+
       d.value = val;
-      d.x = this.boardAnchor.x + (idx === 0 ? -spreadX : spreadX);
-      d.y = this.boardAnchor.y + launchY;
-      d.z = 100;
-      d.targetX = this.boardAnchor.x + (idx === 0 ? -spacing : spacing);
-      d.targetY = this.boardAnchor.y + (idx === 0 ? -spacing / 2 : spacing / 2);
-      d.vx = (d.targetX - d.x) / 56;
-      d.vy = (d.targetY - d.y) / 56;
-      d.vz = 4.2;
+      d.startX = sx;
+      d.startY = sy;
+      d.startZ = 0.9;
+      d.x = sx;
+      d.y = sy;
+      d.z = d.startZ;
+      d.targetX = restSpots[idx].x;
+      d.targetY = restSpots[idx].y;
       d.rx = Math.random() * Math.PI * 2;
       d.ry = Math.random() * Math.PI * 2;
       d.rz = Math.random() * Math.PI * 2;
-      d.vrx = (Math.random() - 0.5) * 0.4;
-      d.vry = (Math.random() - 0.5) * 0.4;
-      d.vrz = (Math.random() - 0.5) * 0.4;
+      d.vrx = (idx === 0 ? 1 : -1) * (0.28 + Math.random() * 0.14);
+      d.vry = (idx === 0 ? -1 : 1) * (0.24 + Math.random() * 0.14);
+      d.vrz = (Math.random() - 0.5) * 0.22;
+      d.lockedAtU78 = false;
+      d.lockStartRX = d.rx;
+      d.lockStartRY = d.ry;
+      d.lockStartRZ = d.rz;
       d.targetRX = targets.rx;
       d.targetRY = targets.ry;
+      d.targetRZ = (idx === 0 ? -0.16 : 0.14) + (Math.random() - 0.5) * 0.18;
+      d.hoverOffset = 0;
     });
+  }
+
+  private updateFly(nowMs: number, delta: number): void {
+    if (!this.flyActive) return;
+
+    const u = Math.max(0, Math.min(1, (nowMs - this.flyStartMs) / LudoScene.FLY_DURATION_MS));
+    const prevStage = this.flyStage;
+    const stage: 0 | 1 | 2 | 3 = u >= 1.0 ? 3 : u >= 0.84 ? 2 : u >= 0.62 ? 1 : 0;
+
+    // Fire wooden impact & rattle strictly at physical board-touch frames
+    if (prevStage < 1 && stage >= 1) {
+      sfx.diceHit(1.0);
+      sfx.diceRoll((1 - 0.62) * LudoScene.FLY_DURATION_MS + 150);
+    }
+    if (prevStage < 2 && stage >= 2) {
+      sfx.diceHit(0.55);
+    }
+    if (prevStage < 3 && stage >= 3) {
+      sfx.diceHit(0.32);
+    }
+    this.flyStage = stage;
+
+    // Horizontal travel profile: 76% at bounce 1 (0.62), 94% at bounce 2 (0.84), 100% at settle (1.0)
+    const horizProgress =
+      u < 0.62
+        ? (u / 0.62) * 0.76
+        : u < 0.84
+          ? 0.76 + ((u - 0.62) / 0.22) * 0.18
+          : 0.94 + ((u - 0.84) / 0.16) * 0.06;
+
+    // Height profile: ballistic throw arc (peak 3.4) -> bounce 1 (peak 1.1) -> settle bounce (peak 0.35)
+    let cz = 0;
+    if (u < 0.62) {
+      const t = u / 0.62;
+      cz = this.diceAnims[0].startZ * (1 - t) + 3.4 * 4 * t * (1 - t);
+    } else if (u < 0.84) {
+      const t = (u - 0.62) / 0.22;
+      cz = 1.1 * 4 * t * (1 - t);
+    } else if (u < 1.0) {
+      const t = (u - 0.84) / 0.16;
+      cz = 0.35 * 4 * t * (1 - t);
+    }
+
+    const wrapNearest = (from: number, to: number): number => {
+      const tau = Math.PI * 2;
+      const diff = ((((to - from) % tau) + tau * 1.5) % tau) - Math.PI;
+      return from + diff;
+    };
+
+    this.diceAnims.forEach((d) => {
+      d.x = d.startX + (d.targetX - d.startX) * horizProgress;
+      d.y = d.startY + (d.targetY - d.startY) * horizProgress;
+      d.z = cz;
+
+      if (u < 0.78) {
+        const tumbleScale = u < 0.62 ? 1.0 : 0.6;
+        d.rx += d.vrx * tumbleScale * delta;
+        d.ry += d.vry * tumbleScale * delta;
+        d.rz += d.vrz * tumbleScale * delta;
+      } else {
+        if (!d.lockedAtU78) {
+          d.lockedAtU78 = true;
+          d.lockStartRX = d.rx;
+          d.lockStartRY = d.ry;
+          d.lockStartRZ = d.rz;
+          d.targetRX = wrapNearest(d.rx, d.targetRX);
+          d.targetRY = wrapNearest(d.ry, d.targetRY);
+          d.targetRZ = wrapNearest(d.rz, d.targetRZ);
+        }
+        const k = Math.max(0, Math.min(1, (u - 0.78) / 0.22));
+        const ease = k * k * (3 - 2 * k);
+        d.rx = d.lockStartRX + (d.targetRX - d.lockStartRX) * ease;
+        d.ry = d.lockStartRY + (d.targetRY - d.lockStartRY) * ease;
+        d.rz = d.lockStartRZ + (d.targetRZ - d.lockStartRZ) * ease;
+      }
+    });
+
+    if (u >= 1.0) {
+      this.flyActive = false;
+      this.flyHoldingResult = true;
+      this.diceAnims.forEach((d) => {
+        d.x = d.targetX;
+        d.y = d.targetY;
+        d.z = 0;
+        d.rx = d.targetRX;
+        d.ry = d.targetRY;
+        d.rz = d.targetRZ;
+      });
+    }
   }
 
   private getPlayerColorString(i: number): string {
@@ -762,7 +1324,7 @@ export class LudoScene {
     const w = this.logicalW;
     const h = this.logicalH;
     const isLandscape = w > h;
-    const tilt = Math.max(0.35, Math.min(1.2, this.snapshot?.cameraTilt ?? 0.75));
+    const tilt = Math.cos(this.getPitchRad());
 
     if (isLandscape) {
       // Exact non-clipping landscape layout (1280x720): board x=41..868, y=66..658
@@ -772,62 +1334,58 @@ export class LudoScene {
         scale: Math.min(w / 1280, h / 720) * 1.09,
         tilt,
       };
-      this.diceAnchor = {
-        x: w * (830 / 1280),
-        y: h * (608 / 720),
-      };
-      this.diceScale = 0.78;
     } else {
-      // Portrait layout (720x1280) scaled 1.15x larger (0.91 * 1.15 = 1.0465) centered cleanly between title & ad-banner
+      // Portrait layout (720x1280) balanced cleanly between title and ad-banner
       this.boardAnchor = {
         x: w * 0.5,
-        y: h * (636 / 1280),
-        scale: Math.min(w / 720, h / 1280) * 1.0465,
+        y: h * (596 / 1280),
+        scale: Math.min(w / 720, h / 1280) * 1.03,
         tilt,
       };
-      this.diceAnchor = {
-        x: w * 0.5,
-        y: h * (1212 / 1280),
-      };
-      this.diceScale = 0.78;
     }
 
     this.boardRoot.x = this.boardAnchor.x;
     this.boardRoot.y = this.boardAnchor.y;
-    this.boardRoot.scale.set(this.boardAnchor.scale, this.boardAnchor.scale * this.boardAnchor.tilt);
+    // Uniform scale here because true 3D foreshortening is applied via PerspectiveMesh & projectLocal
+    this.boardRoot.scale.set(this.boardAnchor.scale);
   }
 
   private handleResize(): void {
     if (!this.initialized || this.destroyed) return;
     this.applyBoardTransform();
-    const spacing = 46 * this.diceScale;
-    this.diceAnims.forEach((d, idx) => {
-      if (d.active) {
-        d.targetX = this.boardAnchor.x + (idx === 0 ? -spacing : spacing);
-        d.targetY = this.boardAnchor.y + (idx === 0 ? -spacing / 2 : spacing / 2);
-      }
-    });
     this.lastBgKey = '';
+    this.lastBgMeshKey = '';
     this.lastEmittedPlates = [];
     this.renderBackground(this.logicalW, this.logicalH);
   }
 
-  private renderBackground(w: number, h: number): void {
-    if (!this.snapshot) return;
+  private resolveActiveEnvironmentId(): EnvironmentId {
+    if (!this.snapshot) return DEFAULT_ENVIRONMENT_ID;
     const themeId = this.snapshot.isTournament
       ? this.snapshot.tournamentBoardThemeId
       : this.snapshot.boardThemeId;
     const theme = BOARD_THEMES[themeId] || BOARD_THEMES.classic;
-    const bgId = this.snapshot.backgroundId !== 'none' ? this.snapshot.backgroundId : theme.bgId;
-    const bgKey = `${bgId}:${w}:${h}:${this.snapshot.isTournament}:${Math.round(this.boardAnchor.x)}`;
+    const candidate = this.snapshot.backgroundId;
+    if (candidate && VALID_ENVIRONMENT_IDS.has(candidate)) {
+      return candidate as EnvironmentId;
+    }
+    return theme.bgId || DEFAULT_ENVIRONMENT_ID;
+  }
+
+  private renderBackground(w: number, h: number): void {
+    if (!this.snapshot) return;
+    const envId = this.resolveActiveEnvironmentId();
+    const bgKey = `${envId}:${w}:${h}:${this.snapshot.isTournament}:${Math.round(this.boardAnchor.x)}`;
 
     if (bgKey !== this.lastBgKey) {
       this.lastBgKey = bgKey;
+      this.bgDirty = true;
+      this.lastBgMeshKey = '';
 
       if (this.floorTexture) {
         this.floorTexture.destroy(true);
       }
-      this.floorTexture = createFloorGradientTexture(w, h, this.boardAnchor.x, this.boardAnchor.y);
+      this.floorTexture = createEnvironmentSkyTexture(envId, w, h, this.boardAnchor.x, this.boardAnchor.y);
       if (!this.floorSprite) {
         this.floorSprite = new Sprite(this.floorTexture);
         this.bgLayer.addChildAt(this.floorSprite, 0);
@@ -837,41 +1395,30 @@ export class LudoScene {
       this.floorSprite.width = w;
       this.floorSprite.height = h;
 
-      const tex = bgId && bgId !== 'none' ? this.bgTextures.get(bgId) : null;
-      if (tex) {
-        if (!this.bgSprite) {
-          this.bgSprite = new Sprite(tex);
-          this.bgSprite.anchor.set(0.5);
-          this.bgLayer.addChild(this.bgSprite);
-        } else {
-          this.bgSprite.texture = tex;
-        }
-        const scale = Math.max(w / tex.width, h / tex.height);
-        this.bgSprite.scale.set(scale);
-        this.bgSprite.x = w / 2;
-        this.bgSprite.y = h / 2;
-        this.bgSprite.alpha = 1.0;
-        this.bgSprite.visible = true;
+      this.bgStaticLayer.removeChildren().forEach((c) => {
+        if (c instanceof Graphics) c.destroy();
+        else (c as Sprite).destroy({ texture: false });
+      });
 
-        if (!this.bgVeil) {
-          this.bgVeil = new Graphics();
-          this.bgLayer.addChild(this.bgVeil);
-        }
-        this.bgVeil.clear();
-        this.bgVeil.rect(0, 0, w, h).fill({ color: 0x000000, alpha: 0.2 });
-        this.bgVeil.visible = true;
-      } else {
-        if (this.bgSprite) this.bgSprite.visible = false;
-        if (this.bgVeil) this.bgVeil.visible = false;
+      let envTex = this.bgTextures.get(envId);
+      if (!envTex) {
+        envTex = createEnvironmentFloorTexture(envId, LudoScene.BG_TEX_SIZE);
+        this.bgTextures.set(envId, envTex);
       }
+      const floorTile = new Sprite(envTex);
+      floorTile.anchor.set(0.5);
+      // Scale 1.45 ensures 360-degree spin never exposes edges on tilted plane
+      floorTile.scale.set(1.45);
+      this.bgStaticLayer.addChild(floorTile);
     }
   }
 
   private rebuildBoardGeometryIfNeeded(): void {
     if (!this.snapshot) return;
-    const themeId = this.snapshot.isTournament
+    const rawThemeId = this.snapshot.isTournament
       ? this.snapshot.tournamentBoardThemeId || 'classic'
       : this.snapshot.boardThemeId || 'classic';
+    const themeId = resolveBoardThemeId(rawThemeId);
     const key = [
       themeId,
       this.snapshot.isTournament,
@@ -882,9 +1429,13 @@ export class LudoScene {
 
     if (key === this.lastBoardKey) return;
     this.lastBoardKey = key;
+    this.boardDirty = true;
+    this.lastMeshKey = '';
 
     this.homeLabelNode = null;
     this.plateMetas = [];
+    this.baseTriWorlds = [];
+    this.yardMetas = [];
     this.lastEmittedPlates = [];
     this.boardStaticLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
 
@@ -893,6 +1444,7 @@ export class LudoScene {
     const safeColor = hexToNumber(theme.safe);
     const isNeonTournament = this.snapshot.isTournament && themeId !== 'classic';
     const borderColor = isNeonTournament ? 0xffffff : hexToNumber(theme.border);
+    const safeStarStyle = getThemeSafeStarStyle(themeId);
     const ss = BOARD_CONFIG.spaceSize;
     const wr = BOARD_CONFIG.wingRadius;
 
@@ -915,18 +1467,20 @@ export class LudoScene {
           else if (isSafe) fillHex = this.snapshot.isTournament ? playerColorHex : safeColor;
 
           const tile = new Graphics();
-          if (isNeonTournament) {
-            tile.rect(-sw / 2 - 2, -sh / 2 - 2, sw + 4, sh + 4).stroke({
-              width: 5,
-              color: playerColorHex,
-              alpha: 0.45,
-              join: 'round',
-            });
-          }
-          tile
-            .rect(-sw / 2, -sh / 2, sw, sh)
-            .fill(fillHex)
-            .stroke({ width: 3, color: borderColor, join: 'round' });
+          drawThemedTrackTile(
+            tile,
+            themeId,
+            sw,
+            sh,
+            fillHex,
+            borderColor,
+            playerColorHex,
+            c,
+            r,
+            isColored,
+            isSafe,
+            isNeonTournament,
+          );
           tile.x = pos.x;
           tile.y = pos.y;
           tile.rotation = armAngle;
@@ -937,10 +1491,10 @@ export class LudoScene {
               text: '★',
               style: {
                 fontFamily: 'Inter, sans-serif',
-                fontSize: 36,
+                fontSize: 34,
                 fontWeight: '700',
-                fill: '#000000',
-                stroke: { color: '#ffffff', width: 4 },
+                fill: safeStarStyle.fill,
+                stroke: { color: safeStarStyle.stroke, width: 4 },
               },
             });
             star.anchor.set(0.5);
@@ -962,14 +1516,30 @@ export class LudoScene {
       const baseWidth = 6 * ss * (p?.baseWidthScale || 1);
       const baseHeight = 5 * ss * (p?.baseHeightScale || 1);
       const totalRot = armAngle + ((p?.baseRotation || 0) * Math.PI) / 180;
+      const cosT = Math.cos(totalRot);
+      const sinT = Math.sin(totalRot);
+
+      const localCorners = [
+        { x: baseHeight / 2, y: 0 },
+        { x: -baseHeight / 2, y: -baseWidth / 2 },
+        { x: -baseHeight / 2, y: baseWidth / 2 },
+      ];
+      this.baseTriWorlds.push(
+        localCorners.map((pt) => ({
+          x: baseCenter.x + pt.x * cosT - pt.y * sinT,
+          y: baseCenter.y + pt.x * sinT + pt.y * cosT,
+        })),
+      );
+      this.yardMetas.push({
+        baseCenter,
+        totalRot,
+        playerColorHex,
+      });
 
       const baseCont = new Container();
       baseCont.x = baseCenter.x;
       baseCont.y = baseCenter.y;
       baseCont.rotation = totalRot;
-      baseCont.eventMode = 'static';
-      baseCont.cursor = 'pointer';
-      baseCont.on('pointertap', () => this.callbacks.onBaseTap(i));
 
       const outerTri = new Graphics();
       if (this.snapshot.isTournament) {
@@ -983,19 +1553,18 @@ export class LudoScene {
         .stroke({ width: isNeonTournament ? 3 : 4, color: borderColor, join: 'round' });
       baseCont.addChild(outerTri);
 
-      const inset = 0.7;
       const innerTri = new Graphics();
-      innerTri
-        .poly([
-          (baseHeight / 2) * inset,
-          0,
-          (-baseHeight / 2) * inset,
-          (-baseWidth / 2) * inset,
-          (-baseHeight / 2) * inset,
-          (baseWidth / 2) * inset,
-        ])
-        .fill(this.snapshot.isTournament ? 0xffffff : trackColor)
-        .stroke({ width: 3, color: borderColor, join: 'round' });
+      drawThemedYardBase(
+        innerTri,
+        themeId,
+        baseWidth,
+        baseHeight,
+        playerColorHex,
+        trackColor,
+        borderColor,
+        ss,
+        this.snapshot.isTournament,
+      );
       baseCont.addChild(innerTri);
 
       const plateWidth = baseWidth * 0.95;
@@ -1006,10 +1575,6 @@ export class LudoScene {
       plateWrap.x = plateX;
       plateWrap.y = 0;
       plateWrap.rotation = Math.PI / 2;
-      plateWrap.eventMode = 'static';
-      plateWrap.cursor = 'pointer';
-      plateWrap.on('pointerdown', (e) => e.stopPropagation());
-      plateWrap.on('pointertap', (e) => e.stopPropagation());
 
       const plateBg = new Graphics();
       plateBg
@@ -1090,9 +1655,13 @@ export class LudoScene {
           Math.sin(aEnd) * rPent + wy,
         ])
         .fill(playerColorHex)
-        .stroke({ width: 3, color: themeId === 'classic' ? 0x000000 : 0xffffff, join: 'round' });
+        .stroke({ width: 3, color: themeId === 'classic' ? 0x000000 : borderColor, join: 'round' });
       this.boardStaticLayer.addChild(wedge);
     }
+
+    const centerHubOverlay = new Graphics();
+    drawThemedCenterHubOverlay(centerHubOverlay, themeId, wr);
+    this.boardStaticLayer.addChild(centerHubOverlay);
 
     const homeLabel = new Text({
       text: 'HOME',
@@ -1100,7 +1669,7 @@ export class LudoScene {
         fontFamily: 'Fredoka, sans-serif',
         fontSize: 28,
         fontWeight: '700',
-        fill: themeId === 'neon' ? '#ffffff' : theme.homeText,
+        fill: theme.homeText,
         dropShadow: { color: '#000000', alpha: 0.75, blur: 5, distance: 1 },
       },
     });
@@ -1110,178 +1679,215 @@ export class LudoScene {
     this.boardStaticLayer.addChild(homeLabel);
   }
 
-  private drawDice3D(): void {
+  private drawBoardDice3D(
+    nowMs: number,
+    remainDiceFlags: [boolean, boolean],
+    activeIdx: number,
+  ): void {
     if (!this.snapshot) return;
-    this.diceGfx.clear();
+    if (!this.snapshot.gameStarted) {
+      this.boardDiceLayer.visible = false;
+      return;
+    }
+    this.boardDiceLayer.visible = true;
 
-    const style = DICE_STYLES[this.snapshot.diceStyle] || DICE_STYLES.classic;
-    const dotHex = hexToNumber(style.dot);
-    const borderHex = hexToNumber(style.border);
-    const glowHex = style.glow ? hexToNumber(style.glow) : null;
-    const ds = this.diceScale;
+    const activeSeatIdx = this.flyActive || this.flyHoldingResult ? this.flySeat : this.snapshot.currentPlayer;
+    const palette = resolveSeatDicePalette(
+      activeSeatIdx,
+      Boolean(this.snapshot.isTournament),
+      this.snapshot.diceStyle,
+    );
+    const dotHex = hexToNumber(palette.pipColor);
+    const borderHex = hexToNumber(palette.borderColor);
+    const seatGlowHex = hexToNumber(palette.seatHex);
+    const isClassic = !this.snapshot.diceStyle || this.snapshot.diceStyle === 'classic';
+    const ss = BOARD_CONFIG.spaceSize;
 
-    this.diceAnims.forEach((d, idx) => {
-      const spacing = 60 * ds;
-      const restX = this.diceAnchor.x + (idx === 0 ? -spacing : spacing);
-      const restY = this.diceAnchor.y;
+    const isLocalTurn =
+      !this.snapshot.players[this.snapshot.currentPlayer]?.isAI &&
+      (!this.snapshot.isOnline || this.snapshot.mySeat === this.snapshot.currentPlayer);
+    const waitingToRoll =
+      !this.snapshot.hasRolled &&
+      !this.snapshot.isRolling &&
+      !this.flyActive &&
+      !this.flyHoldingResult &&
+      isLocalTurn;
 
-      const drawX = d.active ? d.x : restX;
-      const drawY = d.active ? d.y : restY;
-      const drawZ = d.active ? d.z : 0;
-      const rx = d.active ? d.rx : this.snapshot!.hasRolled ? d.targetRX : 0;
-      const ry = d.active ? d.ry : this.snapshot!.hasRolled ? d.targetRY : 0;
-      const rz = d.active ? d.rz : 0;
+    const postLandAll =
+      !this.flyActive && !this.flyHoldingResult && this.snapshot.hasRolled && !this.snapshot.isRolling;
+    const legalMoves = postLandAll
+      ? getLegalMoves(
+          this.snapshot.pawns,
+          this.snapshot.currentPlayer,
+          this.snapshot.movesAvailable,
+          this.snapshot.dice,
+        )
+      : [];
 
-      const hoverScale = d.hoverScale || 1;
-      const hoverZ = d.hoverOffset || 0;
+    const projBoardUnits = (bx: number, by: number, bz: number) =>
+      this.projectLocal(bx * ss, by * ss, bz * ss);
 
-      // Ground shadow matching original drawDice()
-      const shadowSize = 30 * ds * hoverScale * (1 + (drawZ + hoverZ) / (150 * ds));
-      const shadowAlpha = Math.max(0.06, 0.3 - (drawZ + hoverZ) / (400 * ds));
-      this.diceGfx.ellipse(drawX, drawY + 5, shadowSize, shadowSize * 0.6).fill({
-        color: 0x000000,
-        alpha: shadowAlpha,
-      });
-
-      const size = 30 * ds * hoverScale;
-      const verts = CUBE_VERTICES.map((v) =>
-        rotate3D({ x: v.x * size, y: v.y * size, z: v.z * size }, rx, ry, rz),
-      );
-
-      const facesWithDepth = CUBE_FACES.map((f) => {
-        const v0 = verts[f.indices[0]];
-        const v1 = verts[f.indices[1]];
-        const v2 = verts[f.indices[2]];
-        // Outward face normal Z component; positive means facing toward camera
-        const nz = (v1.x - v0.x) * (v2.y - v0.y) - (v1.y - v0.y) * (v2.x - v0.x);
-        const avgZ = f.indices.reduce((sum, i) => sum + verts[i].z, 0) / 4;
-        return { ...f, avgZ, nz };
-      })
-        .filter((f) => f.nz > 1e-2)
-        .sort((a, b) => a.avgZ - b.avgZ);
-
-      const screenY = drawY - (drawZ + hoverZ);
-      // Generous rounded corner radius (~28% of face width) for unmistakable smooth curved dice corners
-      const cornerRadius = 11.5 * ds * hoverScale;
-
-      // Subtle rounded backing body while tumbling multi-face angles so seams between curved faces stay solid
-      if (facesWithDepth.length > 1) {
-        const bodyHex = rgbToHexNumber(style.face[0] * 0.78, style.face[1] * 0.78, style.face[2] * 0.78);
-        this.diceGfx.circle(drawX, screenY, size * 0.92).fill(bodyHex);
-      }
-
-      facesWithDepth.forEach((f) => {
-        const pts = f.indices.map((vi) => ({
-          x: drawX + verts[vi].x,
-          y: screenY + verts[vi].y,
-        }));
-
-        // Bright face shading matching original (1.0 + avgZ / (size * 4))
-        const shade = 1.0 + f.avgZ / (size * 4);
-        const faceHex = rgbToHexNumber(
-          style.face[0] * shade,
-          style.face[1] * shade,
-          style.face[2] * shade,
-        );
-
-        if (glowHex !== null && f.avgZ > 0) {
-          drawRoundedPolygonPath(this.diceGfx, pts, cornerRadius);
-          this.diceGfx.stroke({
-            width: d.active && this.snapshot!.isRolling ? 6 : 4,
-            color: glowHex,
-            alpha: 0.35,
-          });
-        }
-
-        drawRoundedPolygonPath(this.diceGfx, pts, cornerRadius);
-        this.diceGfx.fill(faceHex).stroke({ width: 1.8, color: borderHex });
-
-        if (f.avgZ > 0) {
-          this.drawDiePips(f.value, verts, f.indices, drawX, screenY, dotHex, ds * hoverScale);
-        }
-      });
+    // Depth sort the two board dice back-to-front so whichever arcs nearer renders in front
+    const order = [0, 1].sort((a, b) => {
+      const pa = projBoardUnits(this.diceAnims[a].x, this.diceAnims[a].y, this.diceAnims[a].z);
+      const pb = projBoardUnits(this.diceAnims[b].x, this.diceAnims[b].y, this.diceAnims[b].z);
+      return pa.persp - pb.persp;
     });
 
-    const readyToRoll = !this.snapshot.hasRolled && !this.snapshot.isRolling;
-    this.diceLayer.eventMode = readyToRoll ? 'static' : 'none';
-    this.diceLayer.cursor = readyToRoll ? 'pointer' : 'default';
-    this.diceLayer.hitArea = {
-      contains: (x: number, y: number) =>
-        readyToRoll && Math.hypot(x - this.diceAnchor.x, y - this.diceAnchor.y) < 120,
-    };
+    order.forEach((idx, zOrder) => {
+      const d = this.diceAnims[idx];
+      const sh = this.boardDieShadows[idx];
+      const g = this.boardDieNodes[idx];
+      this.boardDiceLayer.setChildIndex(sh, zOrder);
+      this.boardDiceLayer.setChildIndex(g, 2 + zOrder);
+
+      const postLand = postLandAll;
+      let playableForDie = true;
+      if (postLand) {
+        if (!remainDiceFlags[idx]) {
+          playableForDie = false;
+        } else if (this.snapshot!.movesAvailable.length >= 2) {
+          playableForDie = legalMoves.some((m) => m.dieIdx === idx || m.dieIdx === 'combined');
+        } else if (this.snapshot!.movesAvailable.length === 1) {
+          playableForDie = legalMoves.some((m) => m.dieIdx === 0);
+        } else {
+          playableForDie = false;
+        }
+      }
+      const used = postLand && (!remainDiceFlags[idx] || !playableForDie);
+      const selected = postLand && remainDiceFlags[idx] && playableForDie && activeIdx === idx;
+      const hoverPulse =
+        waitingToRoll || selected
+          ? 0.5 + 0.5 * Math.sin(nowMs * (selected ? 0.008 : 0.005) + idx * 0.7)
+          : 0;
+      const floatZ = waitingToRoll ? 0.06 + hoverPulse * 0.07 : selected ? 0.05 + hoverPulse * 0.05 : 0;
+
+      drawBoardDie3D(
+        g,
+        sh,
+        projBoardUnits,
+        d.x,
+        d.y,
+        d.z + floatZ,
+        LudoScene.DIE_HALF_SIZE,
+        d.value,
+        palette.faceRgb,
+        dotHex,
+        {
+          rotX: d.rx,
+          rotY: d.ry,
+          rotZ: d.rz,
+          borderHex,
+          glowHex: !isClassic || waitingToRoll || selected ? seatGlowHex : null,
+          seatGlowHex,
+          styleId: this.snapshot!.diceStyle,
+          used,
+          selected,
+          hoverPulse,
+        },
+      );
+    });
   }
 
-  private drawDiePips(
-    value: number,
-    verts: Array<{ x: number; y: number }>,
-    indices: number[],
-    ox: number,
-    oy: number,
-    dotHex: number,
-    scale: number,
-  ): void {
-    let cx = 0;
-    let cy = 0;
-    indices.forEach((i) => {
-      cx += verts[i].x;
-      cy += verts[i].y;
-    });
-    cx /= 4;
-    cy /= 4;
+  private updateBoardPerspective(rotRad: number): void {
+    if (!this.boardRenderTexture || !this.boardPerspectiveMesh || !this.boardShadowMesh) return;
 
-    const v0 = verts[indices[0]];
-    const v1 = verts[indices[1]];
-    const v3 = verts[indices[3]];
-    const ux = (v1.x - v0.x) / 2;
-    const uy = (v1.y - v0.y) / 2;
-    const vx = (v3.x - v0.x) / 2;
-    const vy = (v3.y - v0.y) / 2;
-    const dotRadius = 4.4 * scale;
+    const needsBgTextureRender =
+      this.bgDirty ||
+      Number.isNaN(this.lastRenderedBgRotDeg) ||
+      Math.abs(this.rotationOffsetDeg - this.lastRenderedBgRotDeg) > 0.02;
 
-    const dot = (px: number, py: number) => {
-      const dx = ox + cx + px * ux + py * vx;
-      const dy = oy + cy + px * uy + py * vy;
-      this.diceGfx.circle(dx, dy, dotRadius).fill(dotHex);
-      this.diceGfx
-        .circle(dx - dotRadius * 0.28, dy - dotRadius * 0.28, dotRadius * 0.35)
-        .fill({ color: 0xffffff, alpha: 0.16 });
-    };
+    if (needsBgTextureRender && this.bgRenderTexture) {
+      this.bgSpinLayer.rotation = rotRad;
+      this.app.renderer.render({
+        container: this.bgOffscreenStage,
+        target: this.bgRenderTexture,
+        clear: true,
+      });
+      this.lastRenderedBgRotDeg = this.rotationOffsetDeg;
+      this.bgDirty = false;
+    }
 
-    if (value === 1) dot(0, 0);
-    if (value === 2) {
-      dot(-0.5, -0.5);
-      dot(0.5, 0.5);
+    const bgMeshKey = `${this.currentTiltDeg.toFixed(2)}:${this.rotationOffsetDeg.toFixed(2)}:${this.boardAnchor.scale.toFixed(3)}`;
+    if (this.bgPerspectiveMesh && bgMeshKey !== this.lastBgMeshKey) {
+      this.lastBgMeshKey = bgMeshKey;
+      const fr = LudoScene.BG_WORLD_HALF;
+      const fz = -14;
+      const ftl = this.projectLocal(-fr, -fr, fz);
+      const ftr = this.projectLocal(fr, -fr, fz);
+      const fbr = this.projectLocal(fr, fr, fz);
+      const fbl = this.projectLocal(-fr, fr, fz);
+      this.bgPerspectiveMesh.setCorners(ftl.x, ftl.y, ftr.x, ftr.y, fbr.x, fbr.y, fbl.x, fbl.y);
     }
-    if (value === 3) {
-      dot(-0.5, -0.5);
-      dot(0, 0);
-      dot(0.5, 0.5);
+
+    const needsTextureRender =
+      this.boardDirty ||
+      Number.isNaN(this.lastRenderedRotDeg) ||
+      Math.abs(this.rotationOffsetDeg - this.lastRenderedRotDeg) > 0.02;
+
+    if (needsTextureRender) {
+      this.boardSpinLayer.rotation = rotRad;
+      if (this.homeLabelNode) {
+        this.homeLabelNode.rotation = -rotRad;
+      }
+      this.app.renderer.render({
+        container: this.boardOffscreenStage,
+        target: this.boardRenderTexture,
+        clear: true,
+      });
+      this.lastRenderedRotDeg = this.rotationOffsetDeg;
+      this.boardDirty = false;
     }
-    if (value === 4) {
-      dot(-0.5, -0.5);
-      dot(0.5, -0.5);
-      dot(-0.5, 0.5);
-      dot(0.5, 0.5);
-    }
-    if (value === 5) {
-      dot(-0.5, -0.5);
-      dot(0.5, -0.5);
-      dot(-0.5, 0.5);
-      dot(0.5, 0.5);
-      dot(0, 0);
-    }
-    if (value === 6) {
-      dot(-0.5, -0.5);
-      dot(0.5, -0.5);
-      dot(-0.5, 0.5);
-      dot(0.5, 0.5);
-      dot(-0.5, 0);
-      dot(0.5, 0);
+
+    const meshKey = `${this.currentTiltDeg.toFixed(2)}:${this.rotationOffsetDeg.toFixed(2)}:${this.boardAnchor.scale.toFixed(3)}`;
+    if (meshKey !== this.lastMeshKey) {
+      this.lastMeshKey = meshKey;
+      const r = LudoScene.BOARD_TEX_HALF;
+      const tl = this.projectLocal(-r, -r, 0);
+      const tr = this.projectLocal(r, -r, 0);
+      const br = this.projectLocal(r, r, 0);
+      const bl = this.projectLocal(-r, r, 0);
+      this.boardPerspectiveMesh.setCorners(tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y);
+
+      const pitchRad = this.getPitchRad();
+      const shadowDepth = -8 - Math.sin(pitchRad) * 22;
+      const stl = this.projectLocal(-r, -r, shadowDepth);
+      const str = this.projectLocal(r, -r, shadowDepth);
+      const sbr = this.projectLocal(r, r, shadowDepth);
+      const sbl = this.projectLocal(-r, r, shadowDepth);
+      this.boardShadowMesh.setCorners(stl.x, stl.y, str.x, str.y, sbr.x, sbr.y, sbl.x, sbl.y);
+      this.boardShadowMesh.alpha = 0.18 + Math.sin(pitchRad) * 0.2;
+
+      const cosR = Math.cos(rotRad);
+      const sinR = Math.sin(rotRad);
+      for (let i = 0; i < 5; i++) {
+        const tri = this.baseTriWorlds[i];
+        const polyGfx = this.baseHitPolys[i];
+        if (!tri || !polyGfx) continue;
+        polyGfx.clear();
+        const pts: number[] = [];
+        for (const pt of tri) {
+          const wx = pt.x * cosR - pt.y * sinR;
+          const wy = pt.x * sinR + pt.y * cosR;
+          const pr = this.projectLocal(wx, wy, 0);
+          pts.push(pr.x, pr.y);
+        }
+        polyGfx.poly(pts).fill({ color: 0xffffff, alpha: 0.001 });
+      }
     }
   }
 
   private updateFrame(delta: number): void {
     if (!this.snapshot || this.destroyed) return;
+
+    const tiltDiff = this.targetTiltDeg - this.currentTiltDeg;
+    if (Math.abs(tiltDiff) > 0.05) {
+      this.currentTiltDeg += tiltDiff * Math.min(1, 0.22 * delta);
+      this.boardAnchor.tilt = Math.cos(this.getPitchRad());
+    } else if (this.currentTiltDeg !== this.targetTiltDeg) {
+      this.currentTiltDeg = this.targetTiltDeg;
+      this.boardAnchor.tilt = Math.cos(this.getPitchRad());
+    }
 
     const prevRotDeg = this.rotationOffsetDeg;
     const rotDiff = ((((this.targetRotationDeg - this.rotationOffsetDeg) % 360) + 540) % 360) - 180;
@@ -1296,11 +1902,7 @@ export class LudoScene {
 
     this.renderBackground(this.logicalW, this.logicalH);
     this.rebuildBoardGeometryIfNeeded();
-
-    this.boardSpinLayer.rotation = rotRad;
-    if (this.homeLabelNode) {
-      this.homeLabelNode.rotation = -rotRad;
-    }
+    this.updateBoardPerspective(rotRad);
     this.emitNameplatePositionsIfChanged(rotRad);
 
     const isSelectable =
@@ -1319,60 +1921,30 @@ export class LudoScene {
             ]
           : [false, false];
 
-    if (this.rollFramesLeft > 0) {
-      this.rollFramesLeft--;
-      this.diceAnims.forEach((d) => {
-        d.x += d.vx * delta;
-        d.y += d.vy * delta;
-        d.z += d.vz * delta;
-        d.vz -= 0.36 * delta;
-        if (d.z < 0) {
-          d.z = 0;
-          d.vz = Math.abs(d.vz) * 0.45;
-        }
-        d.rx += d.vrx * delta;
-        d.ry += d.vry * delta;
-        d.rz += d.vrz * delta;
-        if (this.rollFramesLeft < 24) {
-          const t = 0.13;
-          d.rx += (d.targetRX - d.rx) * t;
-          d.ry += (d.targetRY - d.ry) * t;
-          d.rz += (0 - d.rz) * t;
-          d.x += (d.targetX - d.x) * t;
-          d.y += (d.targetY - d.y) * t;
-        }
-      });
-    } else {
-      const keepOnBoard = this.snapshot.hasRolled || this.snapshot.isRolling;
-      this.diceAnims.forEach((d, idx) => {
-        if (d.active) {
-          d.rx += (d.targetRX - d.rx) * 0.2;
-          d.ry += (d.targetRY - d.ry) * 0.2;
-          d.rz += (0 - d.rz) * 0.2;
-          d.z *= 0.82;
-          d.x += (d.targetX - d.x) * 0.2;
-          d.y += (d.targetY - d.y) * 0.2;
-          if (!keepOnBoard && Math.abs(d.z) < 0.3 && Math.abs(d.rx - d.targetRX) < 0.02) {
-            d.active = false;
-          }
-        }
-        const dieUnused = isSelectable && remainDiceFlags[idx];
-        const activeIdx =
-          this.snapshot!.movesAvailable.length === 1
-            ? remainDiceFlags[0]
-              ? 0
-              : remainDiceFlags[1]
-                ? 1
-                : -1
-            : this.snapshot!.selectedDieIndex;
-        const isSelected = dieUnused && activeIdx === idx;
-        const targetOff = isSelected ? 22 : dieUnused ? 10 : 0;
-        const targetScale = isSelected ? 1.14 : dieUnused ? 1.06 : 1;
-        d.hoverOffset += (targetOff - d.hoverOffset) * 0.14;
-        d.hoverScale += (targetScale - d.hoverScale) * 0.14;
-      });
-    }
-    this.drawDice3D();
+    const activeIdx =
+      this.snapshot.movesAvailable.length === 1
+        ? remainDiceFlags[0]
+          ? 0
+          : remainDiceFlags[1]
+            ? 1
+            : -1
+        : this.snapshot.selectedDieIndex ?? -1;
+
+    const frameNowMs = Date.now();
+    const rawThemeId = this.snapshot.isTournament
+      ? this.snapshot.tournamentBoardThemeId || 'classic'
+      : this.snapshot.boardThemeId || 'classic';
+    const activeThemeId = resolveBoardThemeId(rawThemeId);
+    drawBoardLiveSurfaceEffects(
+      this.boardSurfaceAnimGfx,
+      activeThemeId,
+      frameNowMs,
+      this.yardMetas,
+      rotRad,
+      (wx, wy, wz) => this.projectLocal(wx, wy, wz),
+    );
+    this.updateFly(frameNowMs, delta);
+    this.drawBoardDice3D(frameNowMs, remainDiceFlags, activeIdx);
 
     // Compute occupancy on board for radial stacking
     const occupancy = new Map<string, Array<{ pIdx: number; iIdx: number }>>();
@@ -1399,43 +1971,61 @@ export class LudoScene {
       !this.snapshot.isRolling &&
       (!this.snapshot.isOnline || this.snapshot.mySeat === this.snapshot.currentPlayer);
 
-    const drawOrder: Array<{ pIdx: number; iIdx: number; pos: number; node: AnimPawn }> = [];
+    const drawOrder: Array<{ pIdx: number; iIdx: number; pos: number; projY: number; node: AnimPawn }> = [];
+    const groundFlatten = Math.max(0.55, Math.cos(this.getPitchRad()));
 
     for (let pIdx = 0; pIdx < 5; pIdx++) {
       const path = getPawnPath(pIdx);
       const colorHex = this.getPlayerColorHex(pIdx);
       const isLone = isLoneTokenOnTrack(this.snapshot.pawns, pIdx);
       const combinedSteps = this.snapshot.movesAvailable.reduce((a, b) => a + Number(b), 0);
+      const charId = resolveCharacterId(
+        this.snapshot.tokenStyle,
+        pIdx,
+        this.snapshot.seatTokenOverrides,
+      );
+      const charGender = resolveCharacterGender(
+        this.snapshot.tokenGenderMode,
+        this.snapshot.players[pIdx]?.gender,
+      );
+      const fastCadence = this.snapshot.dice[0] === 6 && this.snapshot.dice[1] === 6;
+
+      const locomotion = getTokenLocomotionMode(charId);
+      const isAnimal = isAnimalCharacter(charId);
 
       for (let iIdx = 0; iIdx < 4; iIdx++) {
         const pawn = this.snapshot.pawns[pIdx][iIdx];
         const ap = this.animPawns[pIdx][iIdx];
         const diff = pawn.pos - ap.displayPos;
         if (Math.abs(diff) > 0.01) {
-          ap.displayPos += diff > 0 ? Math.min(diff, 0.175 * delta) : Math.max(diff, -0.36 * delta);
+          if (locomotion === 'fly' && diff > 0.01) {
+            const flightSpan = Math.max(1, pawn.pos - ap.flightFromPos);
+            const flySpeed = Math.max(0.115, flightSpan * 0.022) * delta;
+            ap.displayPos += Math.min(diff, flySpeed);
+          } else {
+            ap.displayPos += diff > 0 ? Math.min(diff, 0.105 * delta) : Math.max(diff, -0.34 * delta);
+          }
         } else {
           ap.displayPos = pawn.pos;
+          ap.flightFromPos = pawn.pos;
         }
 
-        let target: { x: number; y: number };
-        if (ap.displayPos < 0) {
-          const base = this.getBasePawnPos(pIdx, iIdx);
-          const firstSq = this.getSpaceCoords(path[0].arm, path[0].c, path[0].r);
-          const t = Math.max(0, Math.min(1, ap.displayPos + 1));
-          target = {
-            x: base.x + (firstSq.x - base.x) * t,
-            y: base.y + (firstSq.y - base.y) * t,
-          };
-        } else {
-          const i1 = Math.floor(ap.displayPos);
-          const i2 = Math.min(path.length - 1, Math.ceil(ap.displayPos));
-          const t = ap.displayPos - i1;
-          const p1 = this.getSpaceOrHomeCoords(path[i1], pIdx, iIdx);
-          const p2 = this.getSpaceOrHomeCoords(path[i2], pIdx, iIdx);
-          target = {
-            x: p1.x + (p2.x - p1.x) * t,
-            y: p1.y + (p2.y - p1.y) * t,
-          };
+        // Fire per-tile crisp character step cues (Eagle emits soar cue on takeoff / long span rather than ground tile clicks)
+        const currentTile = Math.floor(ap.displayPos + 0.001);
+        if (charId && diff > 0.02) {
+          if (locomotion === 'fly') {
+            if (ap.stepCounter === 0 || currentTile - ap.lastSteppedTile >= 4) {
+              ap.lastSteppedTile = currentTile;
+              sfx.playCharacterMoveStep(charId, charGender, ap.stepCounter, fastCadence);
+              ap.stepCounter += 1;
+            }
+          } else if (currentTile > ap.lastSteppedTile) {
+            ap.lastSteppedTile = currentTile;
+            sfx.playCharacterMoveStep(charId, charGender, ap.stepCounter, fastCadence);
+            ap.stepCounter += 1;
+          }
+        } else if (Math.abs(diff) <= 0.01) {
+          ap.lastSteppedTile = Math.floor(pawn.pos);
         }
 
         let stackX = 0;
@@ -1455,9 +2045,59 @@ export class LudoScene {
           }
         }
 
+        const isEagleFlight = locomotion === 'fly' && diff > 0.02;
+        let flightLift = 0;
+        let target: { x: number; y: number };
+        if (isEagleFlight) {
+          const flightSpan = Math.max(0.5, pawn.pos - ap.flightFromPos);
+          const flightT = Math.max(0, Math.min(1, (ap.displayPos - ap.flightFromPos) / flightSpan));
+          const smoothT = flightT * flightT * (3 - 2 * flightT);
+          const destBase =
+            pawn.pos < 0
+              ? this.getBasePawnPos(pIdx, iIdx)
+              : this.getSpaceOrHomeCoords(path[Math.min(path.length - 1, pawn.pos)], pIdx, iIdx);
+          target = {
+            x: ap.flightFromX + (destBase.x + stackX - ap.flightFromX) * smoothT - stackX,
+            y: ap.flightFromY + (destBase.y + stackY - ap.flightFromY) * smoothT - stackY,
+          };
+          flightLift = Math.sin(flightT * Math.PI) * (24 + Math.min(20, flightSpan * 2.5)) + 10;
+        } else if (ap.displayPos < 0) {
+          const base = this.getBasePawnPos(pIdx, iIdx);
+          const firstSq = this.getSpaceCoords(path[0].arm, path[0].c, path[0].r);
+          const t = Math.max(0, Math.min(1, ap.displayPos + 1));
+          target = {
+            x: base.x + (firstSq.x - base.x) * t,
+            y: base.y + (firstSq.y - base.y) * t,
+          };
+        } else {
+          const i1 = Math.floor(ap.displayPos);
+          const i2 = Math.min(path.length - 1, Math.ceil(ap.displayPos));
+          const t = ap.displayPos - i1;
+          const p1 = this.getSpaceOrHomeCoords(path[i1], pIdx, iIdx);
+          const p2 = this.getSpaceOrHomeCoords(path[i2], pIdx, iIdx);
+          target = {
+            x: p1.x + (p2.x - p1.x) * t,
+            y: p1.y + (p2.y - p1.y) * t,
+          };
+          if (locomotion === 'slither' && diff > 0.03) {
+            const segDx = p2.x - p1.x;
+            const segDy = p2.y - p1.y;
+            const segLen = Math.hypot(segDx, segDy);
+            if (segLen > 0.1) {
+              const taper = Math.min(1, Math.abs(diff) * 1.4);
+              const sWave = Math.sin(ap.travelPhase * 2.4) * ss * 0.14 * taper;
+              target.x += (-segDy / segLen) * sWave;
+              target.y += (segDx / segLen) * sWave;
+            }
+          }
+        }
+
         if (!ap.initializedPos) {
           ap.renderX = target.x + stackX;
           ap.renderY = target.y + stackY;
+          ap.flightFromX = ap.renderX;
+          ap.flightFromY = ap.renderY;
+          ap.flightFromPos = pawn.pos;
           ap.initializedPos = true;
         } else {
           // Rotate stationary/moving pawn coords in lockstep with GPU board spin so pawns never slip off squares
@@ -1468,10 +2108,28 @@ export class LudoScene {
             const ry = ap.renderX * sn + ap.renderY * cs;
             ap.renderX = rx;
             ap.renderY = ry;
+            const fx = ap.flightFromX * cs - ap.flightFromY * sn;
+            const fy = ap.flightFromX * sn + ap.flightFromY * cs;
+            ap.flightFromX = fx;
+            ap.flightFromY = fy;
           }
-          const lerpAmt = Math.min(1, 0.2 * delta);
+          const lerpAmt = isEagleFlight
+            ? Math.min(1, 0.55 * delta)
+            : locomotion === 'slither'
+              ? Math.min(1, 0.24 * delta)
+              : Math.min(1, 0.18 * delta);
           ap.renderX += (target.x + stackX - ap.renderX) * lerpAmt;
           ap.renderY += (target.y + stackY - ap.renderY) * lerpAmt;
+        }
+
+        const settleDist = Math.hypot(target.x + stackX - ap.renderX, target.y + stackY - ap.renderY);
+        const isMovingNow = Math.abs(diff) > 0.03 || settleDist > 1.8;
+        if (isMovingNow) {
+          ap.travelPhase += delta * 0.22;
+        } else if (Math.abs(diff) <= 0.01 && settleDist <= 1.2) {
+          ap.travelPhase = 0;
+          ap.flightFromX = ap.renderX;
+          ap.flightFromY = ap.renderY;
         }
 
         const isMovable =
@@ -1491,43 +2149,161 @@ export class LudoScene {
                 this.snapshot.movesAvailable,
               )));
 
-        const bounce = isMovable ? Math.abs(Math.sin(nowMs / 150)) * 22 : 0;
+        const isJumper = locomotion === 'jump';
+        const bounce = isMovable && isJumper ? Math.abs(Math.sin(nowMs / 150)) * 22 : 0;
+        const stepFraction = ((ap.displayPos % 1) + 1) % 1;
+        const moveJumpLift =
+          isJumper && isMovingNow && diff > 0.02
+            ? Math.sin(stepFraction * Math.PI) * (charId === null ? 16 : 15)
+            : 0;
+        const activeAirLift = isEagleFlight ? flightLift : bounce + moveJumpLift;
 
-        ap.container.x = ap.renderX;
-        ap.container.y = ap.renderY;
+        const proj = this.projectLocal(ap.renderX, ap.renderY, 0);
 
+        const bodyScale = proj.persp * 0.84;
+        ap.container.x = proj.x;
+        ap.container.y = proj.y;
+        ap.container.scale.set(bodyScale);
+
+        const hopLiftScale = Math.max(0.45, 1 - activeAirLift * 0.012);
+        ap.shadow.x = proj.x;
+        ap.shadow.y = proj.y;
+        ap.shadow.scale.set(bodyScale);
+        ap.shadow.clear();
+        if (isAnimal) {
+          drawAnimalGroundAura(
+            ap.shadow,
+            colorHex,
+            groundFlatten,
+            hopLiftScale,
+            ap.dirX,
+            ap.dirY,
+            isMovable && !isMovingNow,
+            nowMs,
+            pIdx,
+            iIdx,
+          );
+        } else {
+          ap.shadow
+            .ellipse(0, 0, 11.5 * hopLiftScale, 11.5 * hopLiftScale * groundFlatten)
+            .fill({ color: 0x000000, alpha: 0.3 });
+        }
+
+        ap.ring.x = proj.x;
+        ap.ring.y = proj.y;
+        ap.ring.scale.set(bodyScale, bodyScale * groundFlatten);
         ap.ring.clear();
         if (isMovable) {
-          const pulseR = (ss * 0.58 + Math.sin(nowMs / 200) * 5) * 0.8;
-          ap.ring.ellipse(0, 4, pulseR, pulseR * 0.6).stroke({ width: 3, color: 0xffffff });
+          const basePulse = (ss * 0.58 + Math.sin(nowMs / 200) * 5) * 0.85;
+          const pulseR = isAnimal ? Math.max(21.5, basePulse) : basePulse;
+          ap.ring.ellipse(0, 0, pulseR, pulseR * 0.85).stroke({ width: 3.2, color: 0xffffff });
         }
 
-        if (ap.sprite) {
-          const tex = this.pawnTextures[pIdx];
-          if (tex) {
-            // 0.8x token scale matching exact board proportions
-            const targetW = ss * 0.88 * 0.8;
-            const scale = targetW / tex.width;
-            ap.sprite.scale.set(scale, scale);
-            ap.sprite.y = 6.4 - bounce;
+        if (charId) {
+          if (ap.sprite) ap.sprite.visible = false;
+          ap.fallbackGfx.visible = false;
+          ap.characterGfx.visible = true;
+
+          // Determine projected screen-space path direction so token faces the square ahead (or flight destination)
+          const isReturning = diff < -0.04;
+          let dirFrom = { x: ap.renderX, y: ap.renderY };
+          let dirTo: { x: number; y: number };
+          if (isEagleFlight) {
+            dirFrom = { x: ap.flightFromX, y: ap.flightFromY };
+            const destBase =
+              pawn.pos < 0
+                ? this.getBasePawnPos(pIdx, iIdx)
+                : this.getSpaceOrHomeCoords(path[Math.min(path.length - 1, pawn.pos)], pIdx, iIdx);
+            dirTo = { x: destBase.x + stackX, y: destBase.y + stackY };
+          } else if (isReturning) {
+            dirTo = { x: target.x + stackX, y: target.y + stackY };
+          } else if (ap.displayPos < 0) {
+            dirFrom = this.getBasePawnPos(pIdx, iIdx);
+            dirTo = this.getSpaceCoords(path[0].arm, path[0].c, path[0].r);
+          } else if (ap.displayPos >= path.length - 1) {
+            dirFrom = this.getSpaceOrHomeCoords(path[path.length - 2], pIdx, iIdx);
+            dirTo = this.getCenterOfWinHome(pIdx);
+          } else {
+            const curIdx = Math.max(0, Math.min(path.length - 2, Math.floor(ap.displayPos + 0.001)));
+            const nxtIdx = curIdx + 1;
+            dirFrom = this.getSpaceOrHomeCoords(path[curIdx], pIdx, iIdx);
+            dirTo = this.getSpaceOrHomeCoords(path[nxtIdx], pIdx, iIdx);
           }
+          const fromProj = this.projectLocal(dirFrom.x, dirFrom.y, 0);
+          const toProj = this.projectLocal(dirTo.x, dirTo.y, 0);
+          const sDx = toProj.x - fromProj.x;
+          const sDy = toProj.y - fromProj.y;
+          const sLen = Math.hypot(sDx, sDy);
+          if (sLen > 0.5) {
+            ap.dirX = sDx / sLen;
+            ap.dirY = sDy / sLen;
+            if (Math.abs(sDx) > 0.25) {
+              ap.facing = sDx >= 0 ? 1 : -1;
+            }
+          }
+
+          const celebrateRemaining = ap.celebrateUntil - nowMs;
+          const celebrateProgress =
+            celebrateRemaining > 0 && ap.celebrateDuration > 0
+              ? 1 - Math.min(1, celebrateRemaining / ap.celebrateDuration)
+              : 0;
+          if (celebrateRemaining <= 0) {
+            ap.celebrateKind = null;
+          }
+          drawCharacterToken({
+            gfx: ap.characterGfx,
+            charId,
+            gender: charGender,
+            colorHex,
+            nowMs,
+            seatIdx: pIdx,
+            pawnIdx: iIdx,
+            facing: ap.facing,
+            dirX: ap.dirX,
+            dirY: ap.dirY,
+            isMovable,
+            isMoving: isMovingNow,
+            stepFraction,
+            travelPhase: ap.travelPhase,
+            bounce: bounce * 0.65,
+            flightLift,
+            celebrateProgress,
+            celebrateKind: ap.celebrateKind,
+          });
         } else {
-          ap.fallbackGfx.clear();
-          ap.fallbackGfx
-            .poly([-8.8, 6.4 - bounce, 8.8, 6.4 - bounce, 5.6, -11.2 - bounce, -5.6, -11.2 - bounce])
-            .fill(colorHex)
-            .stroke({ width: 2, color: 0x0f172a })
-            .circle(0, -15.2 - bounce, 7.2)
-            .fill(colorHex)
-            .stroke({ width: 2, color: 0x0f172a });
+          ap.characterGfx.visible = false;
+          const classicLift = bounce + moveJumpLift;
+          if (ap.sprite) {
+            ap.sprite.visible = true;
+            const tex = this.pawnTextures[pIdx];
+            if (tex) {
+              // Centered directly in the square (0,0) with upward hop bounce/step arc
+              const targetW = ss * 0.88 * 0.8;
+              const scale = targetW / tex.width;
+              ap.sprite.scale.set(scale, scale);
+              ap.sprite.y = -classicLift;
+            }
+          } else {
+            ap.fallbackGfx.visible = true;
+            ap.fallbackGfx.clear();
+            ap.fallbackGfx
+              .poly([-8.8, 2 - classicLift, 8.8, 2 - classicLift, 5.6, -15.6 - classicLift, -5.6, -15.6 - classicLift])
+              .fill(colorHex)
+              .stroke({ width: 2, color: 0x0f172a })
+              .circle(0, -19.6 - classicLift, 7.2)
+              .fill(colorHex)
+              .stroke({ width: 2, color: 0x0f172a });
+          }
         }
 
-        drawOrder.push({ pIdx, iIdx, pos: ap.displayPos, node: ap });
+        drawOrder.push({ pIdx, iIdx, pos: ap.displayPos, projY: proj.y, node: ap });
       }
     }
 
-    drawOrder.sort((a, b) => b.pos - a.pos);
+    drawOrder.sort((a, b) => (a.projY !== b.projY ? a.projY - b.projY : b.pos - a.pos));
     drawOrder.forEach((item, idx) => {
+      this.shadowLayer.setChildIndex(item.node.shadow, idx * 2);
+      this.shadowLayer.setChildIndex(item.node.ring, idx * 2 + 1);
       this.pawnLayer.setChildIndex(item.node.container, idx);
     });
 
@@ -1588,6 +2364,18 @@ export class LudoScene {
       this.floorTexture.destroy(true);
       this.floorTexture = null;
     }
+    this.bgTextures.forEach((tex) => tex.destroy(true));
+    this.bgTextures.clear();
+    if (this.bgRenderTexture) {
+      this.bgRenderTexture.destroy(true);
+      this.bgRenderTexture = null;
+    }
+    this.bgOffscreenStage.destroy({ children: true });
+    if (this.boardRenderTexture) {
+      this.boardRenderTexture.destroy(true);
+      this.boardRenderTexture = null;
+    }
+    this.boardOffscreenStage.destroy({ children: true });
     if (this.initialized) {
       this.app.destroy(true, { children: true });
     }
@@ -1597,26 +2385,33 @@ export class LudoScene {
     if (!this.callbacks.onNameplatesChange || this.plateMetas.length === 0) return;
     const cosR = Math.cos(rotRad);
     const sinR = Math.sin(rotRad);
+    const cosPitch = Math.cos(this.getPitchRad());
     const next: NameplateScreenPos[] = this.plateMetas.map((meta) => {
       const bx = meta.baseCenter.x + meta.plateX * Math.cos(meta.totalRot);
       const by = meta.baseCenter.y + meta.plateX * Math.sin(meta.totalRot);
       const wx = bx * cosR - by * sinR;
       const wy = bx * sinR + by * cosR;
-      const screen = this.worldToScreen(wx, wy);
+      const center = this.worldToScreen(wx, wy, 0);
 
       const alpha = meta.totalRot + rotRad + Math.PI / 2;
-      const vx = Math.cos(alpha);
-      const vy = Math.sin(alpha) * this.boardAnchor.tilt;
-      let angleDeg = (Math.atan2(vy, vx) * 180) / Math.PI;
+      const halfSpan = meta.plateW / 2;
+      const tx = Math.cos(alpha) * halfSpan;
+      const ty = Math.sin(alpha) * halfSpan;
+      const leftPt = this.worldToScreen(wx - tx, wy - ty, 0);
+      const rightPt = this.worldToScreen(wx + tx, wy + ty, 0);
+
+      const dx = rightPt.x - leftPt.x;
+      const dy = rightPt.y - leftPt.y;
+      let angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
       if (angleDeg > 90) angleDeg -= 180;
       if (angleDeg < -90) angleDeg += 180;
 
-      const w = meta.plateW * this.boardAnchor.scale * Math.hypot(vx, vy);
-      const h = meta.plateH * this.boardAnchor.scale * (0.85 + 0.15 * this.boardAnchor.tilt);
+      const w = Math.hypot(dx, dy);
+      const h = meta.plateH * this.boardAnchor.scale * center.persp * (0.85 + 0.15 * cosPitch);
       return {
         seatIdx: meta.seatIdx,
-        x: Math.round(screen.x * 10) / 10,
-        y: Math.round(screen.y * 10) / 10,
+        x: Math.round(center.x * 10) / 10,
+        y: Math.round(center.y * 10) / 10,
         w: Math.round(w * 10) / 10,
         h: Math.round(h * 10) / 10,
         angleDeg: Math.round(angleDeg * 10) / 10,

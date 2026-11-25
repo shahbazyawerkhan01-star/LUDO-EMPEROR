@@ -3,8 +3,10 @@ import {
   applyLucky7IfEligible,
   canAnyPawnMove,
   canMovePawn,
+  CENTER_HOME_POS,
   checkCompulsoryCapturePenalties,
   cloneDefaultPlayers,
+  COLORED_PATH_START_POS,
   createInitialPawns,
   createInitialPlayerStats,
   evaluateCaptureObligation,
@@ -13,10 +15,11 @@ import {
   getMatchLeader,
   getPawnPath,
   getPlayerRankings,
-  isLoneTokenOnTrack,
   isMovePartOfCaptureSequence,
   pickBestAIMove,
+  resolvePawnTapMove,
   rollDicePair,
+  shouldPromptGulChoice,
   stripSeatTag,
   type CaptureCandidate,
   type ExtraTurnReason,
@@ -35,6 +38,12 @@ import {
   type BanterEvent,
   type RivalryCalloutKind,
 } from '../game/banter';
+import {
+  pickRandomAiSeatTokenOverrides,
+  resolveCharacterGender,
+  resolveCharacterId,
+  type CharacterArchetypeId,
+} from '../game/characterTokens';
 import { sfx } from '../game/sfx';
 import { getDefaultWinStats, runSdk, type SavedPreferences, type WinStats } from '../sdk/runSdk';
 import { translate } from '../i18n';
@@ -50,8 +59,8 @@ export type ScreenMode = 'menu' | 'setup' | 'playing';
 export type ActiveModal =
   | null
   | 'settings'
-  | 'howto'
   | 'music'
+  | 'howto'
   | 'wish'
   | 'profile'
   | 'lobby'
@@ -136,6 +145,7 @@ export interface GameStoreState {
   dice: [number, number];
   movesAvailable: number[];
   selectedDieIndex: number | null;
+  userSelectedDie: boolean;
   hasRolled: boolean;
   isRolling: boolean;
   extraTurnEarned: boolean;
@@ -163,6 +173,7 @@ export interface GameStoreState {
   // Prompts
   pendingCoachMove: PendingMoveChoice | null;
   pendingGulMove: PendingMoveChoice | null;
+  aiTokenOverrides: Partial<Record<number, CharacterArchetypeId>>;
 
   // Online Room State
   roomCode: string | null;
@@ -226,6 +237,7 @@ export interface GameStoreState {
   exitMatchToMenu: () => void;
   rollLocalDice: (useWish?: boolean, fromAutoPlay?: boolean) => void;
   handleLocalPawnTap: (pIdx: number, pawnIdx: number) => void;
+  handleLocalCombinedMove: (pIdx: number, pawnIdx: number) => void;
   handleLocalBaseTap: (pIdx: number) => void;
   attemptOnlineMoveWithCoachCheck: (pawnIdx: number, steps: number, dieIdx: number | 'combined') => boolean;
   confirmCoachSkipMove: () => void;
@@ -334,6 +346,7 @@ let banterTimers: Array<ReturnType<typeof setTimeout>> = [];
 let lastRoutineSpeechAt = 0;
 let lastSyncedDialogueKey = '';
 let lastSyncedDialogueAt = 0;
+let lastPassPlayAiTokenOverrides: Partial<Record<number, CharacterArchetypeId>> = {};
 const whisperBadgeTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
 function clearLocalTimers() {
@@ -640,6 +653,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       turnAutoPlay: false,
       movesAvailable: [],
       selectedDieIndex: null,
+      userSelectedDie: false,
       extraTurnEarned: false,
       extraTurnReason: null,
       lucky7UsedThisTurn: false,
@@ -690,16 +704,64 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       return;
     }
 
-    // Centre Home ("Gul or Pass") choice for humans reaching pos 68
+    // Centre Home ("Gul or Pass") choice only when 1 lone runner on track reaches pos 69 via full roll total
     const currPawn = st.pawns[pIdx][pawnIdx];
     const destPos = currPawn.status === 'home' ? 0 : currPawn.pos + steps;
     const path = getPawnPath(pIdx);
-    if (!effectiveBypass && !player.isAI && destPos === path.length - 1) {
-      set({
-        pendingGulMove: { pawnIdx, steps, dieIdx },
-        activeModal: 'gulPass',
-      });
-      return;
+    if (
+      !player.isAI &&
+      destPos === path.length - 1 &&
+      shouldPromptGulChoice(st.pawns, pIdx, steps, dieIdx, st.dice)
+    ) {
+      if (st.turnAutoPlay) {
+        const nextMoves = [...st.movesAvailable];
+        if (dieIdx === 'combined') nextMoves.length = 0;
+        else if (typeof dieIdx === 'number' && dieIdx >= 0) nextMoves.splice(dieIdx, 1);
+
+        const canMoveRem = nextMoves.length > 0 && canAnyPawnMove(st.pawns, pIdx, nextMoves, st.dice);
+        if (!canMoveRem) {
+          const nextPawns = st.pawns.map((row) => row.map((p) => ({ ...p })));
+          const nextStats = st.playerStats.map((s) => ({ ...s }));
+          const penalized = checkCompulsoryCapturePenalties(
+            nextPawns,
+            nextStats,
+            pIdx,
+            st.turnRequiredCaptures,
+            st.turnCapturesMade,
+            st.turnCandidatePawns,
+            st.turnMidTurnMissedCandidates,
+            st.turnCapturingPawns,
+          );
+          let banner = "⏱️ Time's up! Auto-passed Gul entry.";
+          if (penalized.length > 0) {
+            const pName = player?.name || 'Player';
+            banner =
+              penalized.length > 1
+                ? `⚠️ ${pName}: Missed capture! ${penalized.length} tokens sent back to base.`
+                : `⚠️ ${pName}: ${translate(st.prefs.language, 'missed_capture_desc')}`;
+            sfx.play('whoosh', 0.8);
+            emitBanter(pIdx, 'penalty');
+          }
+          set({ pawns: nextPawns, playerStats: nextStats, movesAvailable: [], bannerText: banner });
+          passTimeout = setTimeout(advanceLocalTurn, 750);
+        } else {
+          set({
+            movesAvailable: nextMoves,
+            selectedDieIndex: 0,
+            userSelectedDie: false,
+            bannerText: "⏱️ Time's up! Auto-passed Gul...",
+          });
+          scheduleAITurnIfNeeded(220);
+        }
+        return;
+      }
+      if (!effectiveBypass) {
+        set({
+          pendingGulMove: { pawnIdx, steps, dieIdx },
+          activeModal: 'gulPass',
+        });
+        return;
+      }
     }
 
     const nextPawns = st.pawns.map((row) => row.map((p) => ({ ...p })));
@@ -717,7 +779,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     const outcome = executePawnMove(nextPawns, nextStats, pIdx, pawnIdx, steps, st.dice, nextMoves);
     if (!outcome.moved) return;
 
-    sfx.play('move', 0.85);
+    const charId = resolveCharacterId(st.prefs.tokenStyle, pIdx, st.aiTokenOverrides);
+    const charGender = resolveCharacterGender(st.prefs.tokenGenderMode, player?.gender);
+
+    if (!charId) {
+      sfx.play('move', 0.85);
+    }
 
     let extraEarned = st.extraTurnEarned;
     let extraReason = st.extraTurnReason;
@@ -733,8 +800,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     if (outcome.reachedCenterHome) {
       extraEarned = true;
       extraReason = 'home';
+      if (charId && outcome.capturedVictims.length === 0) {
+        sfx.playCharacterAction(charId, charGender, 'center_home');
+      }
       emitBanter(pIdx, 'pawn_home');
-    } else if (startPos >= 0 && startPos < 63 && nextPawns[pIdx][pawnIdx].pos >= 63) {
+    } else if (startPos >= 0 && startPos < COLORED_PATH_START_POS && nextPawns[pIdx][pawnIdx].pos >= COLORED_PATH_START_POS) {
+      if (charId && outcome.capturedVictims.length === 0) {
+        sfx.playCharacterAction(charId, charGender, 'home_stretch');
+      }
       emitBanter(pIdx, 'home_stretch');
     }
     if (outcome.capturedVictims.length > 0) {
@@ -743,7 +816,11 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       capturedFlag = true;
       capturesMade += 1;
       if (!capturingPawns.includes(pawnIdx)) capturingPawns.push(pawnIdx);
-      sfx.play('capture');
+      if (charId) {
+        sfx.playCharacterCapture(charId, charGender);
+      } else {
+        sfx.play('capture');
+      }
 
       const victimIdx = outcome.capturedVictims[0].playerIdx;
       nextGrudges[victimIdx] = { attackerIdx: pIdx, turnsLeft: 6 };
@@ -839,6 +916,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         playerStats: nextStats,
         movesAvailable: [],
         selectedDieIndex: null,
+        userSelectedDie: false,
         extraTurnEarned: extraEarned,
         extraTurnReason: extraReason,
         turnCapturedPawn: capturedFlag,
@@ -851,7 +929,10 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         dethroneAlertedLeader: nextDethroneAlert,
         bannerText: banner,
       });
-      passTimeout = setTimeout(advanceLocalTurn, st.turnAutoPlay ? 820 : 1320);
+      passTimeout = setTimeout(
+        advanceLocalTurn,
+        st.turnAutoPlay ? Math.max(920, steps * 160 + 180) : Math.max(1320, steps * 175 + 240),
+      );
     } else {
       const nextOb = evaluateCaptureObligation(nextPawns, pIdx, nextMoves, st.dice);
       if (nextOb.requiredCaptures > 0 && outcome.capturedVictims.length === 0) {
@@ -878,6 +959,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         playerStats: nextStats,
         movesAvailable: nextMoves,
         selectedDieIndex: 0,
+        userSelectedDie: false,
         extraTurnEarned: extraEarned,
         extraTurnReason: extraReason,
         turnCapturedPawn: capturedFlag,
@@ -921,6 +1003,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     dice: [1, 6],
     movesAvailable: [],
     selectedDieIndex: null,
+    userSelectedDie: false,
     hasRolled: false,
     isRolling: false,
     extraTurnEarned: false,
@@ -947,6 +1030,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
     pendingCoachMove: null,
     pendingGulMove: null,
+    aiTokenOverrides: {},
 
     roomCode: null,
     mySeat: null,
@@ -1018,12 +1102,22 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const next = { ...get().prefs, ...patch };
       runSdk.savePreferences(next);
       sfx.setVolumes(next.volume, next.musicVolume);
+      if (patch.musicId !== undefined) {
+        if (next.musicId === 'none' || next.musicVolume <= 0.005) {
+          sfx.stopMusic();
+        } else {
+          void sfx.playMusic(next.musicId);
+        }
+      } else if (patch.musicVolume !== undefined) {
+        if (next.musicVolume <= 0.005) {
+          sfx.stopMusic();
+        } else if (next.musicId !== 'none') {
+          void sfx.playMusic(next.musicId);
+        }
+      }
       if (patch.aiVoiceMuted !== undefined) {
         sfx.setAiVoiceMuted(next.aiVoiceMuted);
         if (next.aiVoiceMuted) set({ speakingSeat: null });
-      }
-      if (patch.musicId !== undefined) {
-        sfx.playMusic(next.musicId);
       }
       if (patch.language !== undefined) {
         void preloadDialogueLanguage(next.language);
@@ -1047,7 +1141,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     setSceneHandlers: (sceneHandlers) => set({ sceneHandlers }),
     selectDieIndex: (idx) => {
       if (get().turnAutoPlay) return;
-      set({ selectedDieIndex: idx });
+      set({ selectedDieIndex: idx, userSelectedDie: idx !== null });
     },
 
     startLocalMatch: (tournament) => {
@@ -1078,9 +1172,16 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       }
 
       sfx.preloadCore();
-      if (st.prefs.musicId && st.prefs.musicId !== 'none') {
-        sfx.playMusic(st.prefs.musicId);
+      if (st.prefs.musicId && st.prefs.musicId !== 'none' && st.prefs.musicVolume > 0.005) {
+        void sfx.playMusic(st.prefs.musicId);
       }
+
+      const nextAiTokenOverrides = pickRandomAiSeatTokenOverrides(
+        st.players,
+        st.prefs.tokenStyle,
+        lastPassPlayAiTokenOverrides,
+      );
+      lastPassPlayAiTokenOverrides = nextAiTokenOverrides;
 
       set({
         screen: 'playing',
@@ -1094,6 +1195,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         dice: [1, 6],
         movesAvailable: [],
         selectedDieIndex: null,
+        userSelectedDie: false,
         hasRolled: false,
         isRolling: false,
         extraTurnEarned: false,
@@ -1113,6 +1215,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         turnAutoPlay: false,
         pendingCoachMove: null,
         pendingGulMove: null,
+        aiTokenOverrides: nextAiTokenOverrides,
         winner: null,
         rankings: [],
         aiGrudges: {},
@@ -1146,6 +1249,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         screen: 'menu',
         activeModal: null,
         toastText: null,
+        aiTokenOverrides: {},
         gameStarted: false,
         matchOver: false,
         isOnline: false,
@@ -1183,7 +1287,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         wishFlags[pIdx] = true;
       }
 
-      sfx.play('dice');
       const lucky7 = applyLucky7IfEligible(st.pawns, pIdx, rawDice, false);
       const finalDice = lucky7.applied ? lucky7.dice : rawDice;
       const extraEarned = finalDice[0] === 6 && finalDice[1] === 6;
@@ -1230,6 +1333,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           hasRolled: true,
           movesAvailable: hasMoves ? moves : [],
           selectedDieIndex: hasMoves ? 0 : null,
+          userSelectedDie: false,
           turnStartCaptures: startCaps,
           turnRequiredCaptures: hasMoves ? ob.requiredCaptures : 0,
           turnCapturesMade: 0,
@@ -1261,45 +1365,27 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       const pawn = st.pawns[pIdx][pawnIdx];
       if (!pawn) return;
 
-      let chosenSteps: number | null = null;
-      let chosenDieIdx: number | 'combined' = -1;
-
-      if (pawn.status === 'home') {
-        const sixIdx = st.movesAvailable.findIndex((s) => s === 6);
-        if (sixIdx >= 0) {
-          chosenDieIdx = sixIdx;
-          chosenSteps = 6;
-        }
-      } else {
-        const isLone = isLoneTokenOnTrack(st.pawns, pIdx);
-        const total = st.movesAvailable.reduce((a, b) => a + b, 0);
-        const canCombined =
-          isLone && st.movesAvailable.length > 1 && canMovePawn(st.pawns, pIdx, pawnIdx, total, st.dice, st.movesAvailable);
-
-        const sel = st.selectedDieIndex;
-        const canSelected =
-          sel !== null &&
-          st.movesAvailable[sel] !== undefined &&
-          canMovePawn(st.pawns, pIdx, pawnIdx, st.movesAvailable[sel], st.dice, st.movesAvailable);
-        const fallbackIdx = st.movesAvailable.findIndex((s) =>
-          canMovePawn(st.pawns, pIdx, pawnIdx, s, st.dice, st.movesAvailable),
-        );
-
-        if (canSelected && sel !== null) {
-          chosenDieIdx = sel;
-          chosenSteps = st.movesAvailable[sel];
-        } else if (fallbackIdx >= 0) {
-          chosenDieIdx = fallbackIdx;
-          chosenSteps = st.movesAvailable[fallbackIdx];
-        } else if (canCombined) {
-          chosenDieIdx = 'combined';
-          chosenSteps = total;
-        }
+      const chosen = resolvePawnTapMove(
+        st.pawns,
+        pIdx,
+        pawnIdx,
+        st.movesAvailable,
+        st.dice,
+        st.selectedDieIndex,
+        st.userSelectedDie,
+      );
+      if (chosen) {
+        executeLocalMoveStep(pawnIdx, chosen.steps, chosen.dieIdx, false);
       }
+    },
 
-      if (chosenSteps !== null && chosenDieIdx !== -1) {
-        executeLocalMoveStep(pawnIdx, chosenSteps, chosenDieIdx, false);
-      }
+    handleLocalCombinedMove: (pIdx, pawnIdx) => {
+      const st = get();
+      if (st.isOnline || st.turnAutoPlay || pIdx !== st.currentPlayer || !st.hasRolled || st.isRolling || st.matchOver) return;
+      if (st.players[pIdx].isAI || st.movesAvailable.length < 2) return;
+      const total = st.movesAvailable.reduce((a, b) => a + b, 0);
+      if (!canMovePawn(st.pawns, pIdx, pawnIdx, total, st.dice, st.movesAvailable)) return;
+      executeLocalMoveStep(pawnIdx, total, 'combined', false);
     },
 
     handleLocalBaseTap: (pIdx) => {
@@ -1378,7 +1464,12 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           set({ pawns: nextPawns, playerStats: nextStats, movesAvailable: [], bannerText: banner });
           passTimeout = setTimeout(advanceLocalTurn, 750);
         } else {
-          set({ movesAvailable: nextMoves, selectedDieIndex: 0, bannerText: 'Passed! Choose remaining die.' });
+          set({
+            movesAvailable: nextMoves,
+            selectedDieIndex: 0,
+            userSelectedDie: false,
+            bannerText: 'Passed! Choose remaining die.',
+          });
         }
       }
     },
@@ -1406,19 +1497,66 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       if (st.activeModal && st.activeModal !== 'coachSkip' && st.activeModal !== 'gulPass') return;
 
       if (st.turnSecondsLeft <= 1) {
-        // Case A: Timed out on 'gulPass' -> close modal and auto-choose Gul (Enter Centre)
+        // Case A: Timed out on 'gulPass' -> close modal and auto-choose PASS (never auto-Gul)
         if (st.pendingGulMove) {
           const pending = st.pendingGulMove;
-          set({
-            turnAutoPlay: true,
-            turnSecondsLeft: 0,
-            activeModal: null,
-            pendingGulMove: null,
-            pendingCoachMove: null,
-            bannerText: "⏱️ Time's up! Auto-entering Centre Home...",
-          });
-          get().showToast("⏱️ Time's up! Auto-playing...");
-          executeLocalMoveStep(pending.pawnIdx, pending.steps, pending.dieIdx, true);
+          const nextMoves = [...st.movesAvailable];
+          if (pending.dieIdx === 'combined') nextMoves.length = 0;
+          else if (typeof pending.dieIdx === 'number' && pending.dieIdx >= 0) nextMoves.splice(pending.dieIdx, 1);
+
+          const canMoveRem =
+            nextMoves.length > 0 && canAnyPawnMove(st.pawns, st.currentPlayer, nextMoves, st.dice);
+          if (!canMoveRem) {
+            const nextPawns = st.pawns.map((row) => row.map((p) => ({ ...p })));
+            const nextStats = st.playerStats.map((s) => ({ ...s }));
+            const penalized = checkCompulsoryCapturePenalties(
+              nextPawns,
+              nextStats,
+              st.currentPlayer,
+              st.turnRequiredCaptures,
+              st.turnCapturesMade,
+              st.turnCandidatePawns,
+              st.turnMidTurnMissedCandidates,
+              st.turnCapturingPawns,
+            );
+            let banner = "⏱️ Time's up! Auto-passed Gul entry.";
+            if (penalized.length > 0) {
+              const pName = st.players[st.currentPlayer]?.name || 'Player';
+              banner =
+                penalized.length > 1
+                  ? `⚠️ ${pName}: Missed capture! ${penalized.length} tokens sent back to base.`
+                  : `⚠️ ${pName}: ${translate(st.prefs.language, 'missed_capture_desc')}`;
+              sfx.play('whoosh', 0.8);
+              emitBanter(st.currentPlayer, 'penalty');
+            }
+            set({
+              turnAutoPlay: true,
+              turnSecondsLeft: 0,
+              activeModal: null,
+              pendingGulMove: null,
+              pendingCoachMove: null,
+              pawns: nextPawns,
+              playerStats: nextStats,
+              movesAvailable: [],
+              bannerText: banner,
+            });
+            get().showToast("⏱️ Time's up! Auto-passed Gul.");
+            passTimeout = setTimeout(advanceLocalTurn, 750);
+          } else {
+            set({
+              turnAutoPlay: true,
+              turnSecondsLeft: 0,
+              activeModal: null,
+              pendingGulMove: null,
+              pendingCoachMove: null,
+              movesAvailable: nextMoves,
+              selectedDieIndex: 0,
+              userSelectedDie: false,
+              bannerText: "⏱️ Time's up! Auto-passed Gul — playing remaining die...",
+            });
+            get().showToast("⏱️ Time's up! Auto-passed Gul.");
+            scheduleAITurnIfNeeded(220);
+          }
           return;
         }
 
@@ -1583,6 +1721,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       });
       set({
         isOnline: true,
+        aiTokenOverrides: {},
         roomCode,
         mySeat: seatIndex,
         hostSeatIndex: hostIdx,
@@ -1643,6 +1782,7 @@ export const useGameStore = create<GameStoreState>((set, get) => {
 
       const patch: Partial<GameStoreState> = {
         isOnline: true,
+        aiTokenOverrides: {},
         roomCode: roomState.code,
         hostSeatIndex: hostIdx,
         amHost: st.mySeat !== null ? st.mySeat === hostIdx : st.amHost,
@@ -1688,8 +1828,15 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         }
         if (nextMoves.length === 0) {
           patch.selectedDieIndex = null;
-        } else if (st.selectedDieIndex === null || st.selectedDieIndex >= nextMoves.length) {
+          patch.userSelectedDie = false;
+        } else if (
+          st.selectedDieIndex === null ||
+          st.selectedDieIndex >= nextMoves.length ||
+          nextMoves.length !== st.movesAvailable.length ||
+          m.currentPlayer !== st.currentPlayer
+        ) {
           patch.selectedDieIndex = 0;
+          patch.userSelectedDie = false;
         }
         patch.pawns = (m.pawns as PawnState[][]) || st.pawns;
         patch.playerStats = (m.playerStats as PlayerStats[]) || st.playerStats;
@@ -1725,6 +1872,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
       if (roomState.started && roomState.match && patch.hasRolled === false) {
         sfx.stopHeartbeat();
       }
+      if (!wasStarted && roomState.started && st.prefs.musicId && st.prefs.musicId !== 'none' && st.prefs.musicVolume > 0.005) {
+        void sfx.playMusic(st.prefs.musicId);
+      }
 
       if (wasStarted && roomState.started && roomState.match && patch.pawns) {
         const nextPawns = patch.pawns;
@@ -1732,10 +1882,14 @@ export const useGameStore = create<GameStoreState>((set, get) => {
         let capturedNow = false;
         let penaltyOrSacrifice = false;
         let movedForward = false;
+        let movedSeat = -1;
+        let reachedCenterHome = false;
+        let enteredHomeStretch = false;
 
         for (let i = 0; i < 5; i++) {
           if ((nextStats[i]?.captures_made || 0) > (prevPlayerStats[i]?.captures_made || 0)) {
             capturedNow = true;
+            movedSeat = i;
           }
           if ((nextStats[i]?.penalties || 0) > (prevPlayerStats[i]?.penalties || 0)) {
             penaltyOrSacrifice = true;
@@ -1749,6 +1903,9 @@ export const useGameStore = create<GameStoreState>((set, get) => {
               (oldP.status === 'home' && newP.status !== 'home')
             ) {
               movedForward = true;
+              if (movedSeat === -1) movedSeat = i;
+              if (oldP.pos < CENTER_HOME_POS && newP.pos === CENTER_HOME_POS) reachedCenterHome = true;
+              else if (oldP.pos < COLORED_PATH_START_POS && newP.pos >= COLORED_PATH_START_POS) enteredHomeStretch = true;
             }
           }
         }
@@ -1757,9 +1914,21 @@ export const useGameStore = create<GameStoreState>((set, get) => {
           penaltyOrSacrifice = true;
         }
 
+        const actorSeat = movedSeat !== -1 ? movedSeat : st.currentPlayer;
+        const actorCharId = resolveCharacterId(st.prefs.tokenStyle, actorSeat, st.aiTokenOverrides);
+        const actorGender = resolveCharacterGender(
+          st.prefs.tokenGenderMode,
+          (patch.players || st.players)[actorSeat]?.gender,
+        );
+
         if (capturedNow) {
-          sfx.play('capture');
-        } else if (movedForward) {
+          if (actorCharId) sfx.playCharacterCapture(actorCharId, actorGender);
+          else sfx.play('capture');
+        } else if (actorCharId && reachedCenterHome) {
+          sfx.playCharacterAction(actorCharId, actorGender, 'center_home');
+        } else if (actorCharId && enteredHomeStretch) {
+          sfx.playCharacterAction(actorCharId, actorGender, 'home_stretch');
+        } else if (movedForward && !actorCharId) {
           sfx.play('move', 0.85);
         }
         if (penaltyOrSacrifice && !capturedNow) {
@@ -1789,7 +1958,6 @@ export const useGameStore = create<GameStoreState>((set, get) => {
     },
 
     applyServerDiceRoll: ({ dice, player, isLucky7, isAutoPlay }) => {
-      sfx.play('dice');
       if (isLucky7) {
         sfx.play('lucky7');
         get().showToast('✨ Lucky 7 Bonus! Converted to 6 + 6 + Extra Turn!');
