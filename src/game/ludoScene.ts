@@ -1454,11 +1454,11 @@ export class LudoScene {
         tilt,
       };
     } else {
-      // Portrait layout (720x1280) balanced cleanly between title and ad-banner
+      // Portrait layout (720x1280 — mobile & tablet): tucked up cleanly under raised #title
       this.boardAnchor = {
         x: w * 0.5,
-        y: h * (596 / 1280),
-        scale: Math.min(w / 720, h / 1280) * 1.03,
+        y: h * (444 / 1280),
+        scale: Math.min(w / 720, h / 1280) * 0.86,
         tilt,
       };
     }

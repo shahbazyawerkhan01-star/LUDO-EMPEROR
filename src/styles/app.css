@@ -77,49 +77,47 @@
   height: 100%;
 }
 
-/* Top-Right Ratio / Fullscreen Toggle Button */
+/* Bottom-Left Corner Ratio / Fullscreen Toggle Button (inside #bottom-left-actions) */
 #ratio-toggle-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 54px;
-  height: 54px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-radius: 12px;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.38);
+  border-radius: 50%;
   color: white;
-  font-size: 26px;
+  font-size: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 1000;
-  backdrop-filter: blur(5px);
-  transition: all 0.2s;
+  z-index: 200;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  transition: transform 0.18s ease, background 0.2s ease, border-color 0.2s ease;
   pointer-events: auto;
 }
 
 #game-container.landscape #ratio-toggle-btn {
-  top: 20px;
-  right: 20px;
-  width: 58px;
-  height: 58px;
-  font-size: 28px;
+  width: 54px;
+  height: 54px;
+  font-size: 24px;
 }
 
 #ratio-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: scale(1.05);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(241, 196, 15, 0.8);
+  transform: scale(1.06);
 }
 
 #ratio-toggle-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 /* Portrait Game Title */
 #title {
   position: absolute;
-  top: 184px;
+  top: 136px;
   width: 100%;
   text-align: center;
   font-family: 'Fredoka', sans-serif;
@@ -137,24 +135,26 @@
   display: none;
 }
 
-/* Promotional Content Ad Banner (Exact Original Web & Mobile Styling) */
+/* Promotional Content Ad Banner (95px Safe Portrait Height; >=150px Clearance Everywhere) */
 #ad-banner {
   position: absolute;
-  left: 360px;
-  top: 1020px;
-  width: 620px;
-  height: 116px;
+  left: 50%;
+  top: 960px;
+  width: calc(100% - 32px);
+  height: 95px;
   transform: translate(-50%, -50%);
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  padding: 12px 14px 4px;
   color: rgba(255, 255, 255, 0.6);
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: 13px;
   pointer-events: none !important;
   z-index: 90;
   overflow: hidden;
@@ -165,41 +165,54 @@
 #ad-banner::before {
   content: 'SPONSORED';
   position: absolute;
-  top: 8px;
+  top: 3px;
   left: 12px;
-  font-size: 10px;
+  font-size: 8px;
   letter-spacing: 1px;
   font-weight: 600;
   opacity: 0.8;
 }
 
 #game-container.landscape #ad-banner {
-  left: 1110px;
-  top: 369px;
-  width: 300px;
-  height: 492px;
+  left: 1168px;
+  top: 291px;
+  width: 184px;
+  height: 358px;
+  padding: 18px 12px 10px;
+  font-size: 13px;
+  border-radius: 12px;
 }
 
-/* Classic Roll Hint / Waiting-to-Roll Active Tray */
+@media (max-height: 540px) and (orientation: landscape) {
+  #game-container.landscape #ad-banner {
+    left: 1168px;
+    top: 276px;
+    width: 176px;
+    height: 328px;
+  }
+}
+
+/* Classic Roll Hint / Waiting-to-Roll Active Tray (0.75x compact, >=150px below portrait ad banner) */
 #roll-hint {
   position: absolute;
   left: 360px;
-  top: 1118px;
+  top: 1184px;
   transform: translate(-50%, -50%);
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
   font-family: 'Fredoka', sans-serif;
-  font-size: 26px;
+  font-size: 19.5px;
+  line-height: 1.15;
   font-weight: 700;
   color: #ffffff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.6);
   background: rgba(15, 23, 42, 0.58);
   border: 2px solid rgba(255, 255, 255, 0.25);
-  border-radius: 20px;
-  padding: 8px 22px;
+  border-radius: 15px;
+  padding: 6px 16px;
   backdrop-filter: blur(8px);
   cursor: pointer;
   pointer-events: auto;
@@ -223,18 +236,18 @@
 #game-container.landscape #roll-hint {
   left: 830px;
   top: 676px;
-  font-size: 26px;
+  font-size: 19.5px;
 }
 
-/* Dice Results HUD */
+/* Dice Results HUD (0.75x compact) */
 #dice-hud {
   position: absolute;
   left: 360px;
-  top: 1198px;
+  top: 1195px;
   transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   pointer-events: auto;
   z-index: 130;
   transition: all 0.25s ease;
@@ -243,33 +256,33 @@
 #game-container.landscape #dice-hud {
   left: 830px;
   top: 608px;
-  gap: 18px;
+  gap: 14px;
 }
 
 .dice-val {
   background: rgba(15, 23, 42, 0.72);
   color: #ffffff;
-  width: 88px;
-  height: 88px;
-  border-radius: 24px;
+  width: 66px;
+  height: 66px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Fredoka', sans-serif;
-  font-size: 40px;
+  font-size: 30px;
   font-weight: 700;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-  border: 3px solid transparent;
+  border: 2px solid transparent;
   backdrop-filter: blur(6px);
   cursor: pointer;
   transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s, opacity 0.18s;
 }
 
 #game-container.landscape .dice-val {
-  width: 96px;
-  height: 96px;
-  border-radius: 26px;
-  font-size: 44px;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  font-size: 33px;
 }
 
 .dice-val.selected {
@@ -280,10 +293,10 @@
   box-shadow: 0 0 24px rgba(255, 215, 0, 0.55);
 }
 
-/* AI Judge Progress Bar (Top 3 Leaders + Inline Reaction Tray) */
+/* AI Judge Progress Bar (View-Only All Players) */
 #ai-judge-bar {
   position: absolute;
-  top: 80px;
+  top: 66px;
   left: 50%;
   transform: translateX(-50%);
   width: 94%;
@@ -295,19 +308,19 @@
   overflow: hidden;
   backdrop-filter: blur(12px);
   z-index: 100;
-  font-size: 18px;
+  font-size: 14.5px;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 #game-container.landscape #ai-judge-bar {
   top: 20px;
-  right: 88px;
+  right: 20px;
   left: auto;
   transform: none;
-  width: 318px;
+  width: 477px;
   height: 68px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 #ai-judge-bar.tournament {
@@ -323,7 +336,7 @@
   color: white;
   transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  padding: 4px 2px;
+  padding: 4px 4px;
   min-width: 0;
   overflow: hidden;
   border-right: 1px solid rgba(0, 0, 0, 0.2);
@@ -378,14 +391,14 @@
   text-shadow: none !important;
 }
 
-/* Turn Timer Bar */
+/* Turn Timer Bar (Compact Pill — Top-Right Inline with Play With Friends in Portrait) */
 #turn-timer-container {
   position: absolute;
-  top: 148px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 94%;
-  max-width: 680px;
+  top: 22px;
+  right: 16px;
+  left: auto;
+  transform: none;
+  width: 240px;
   height: 28px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 14px;
@@ -398,11 +411,12 @@
 }
 
 #game-container.landscape #turn-timer-container {
-  top: 24px;
+  top: 26px;
   left: 212px;
   right: auto;
   transform: none;
-  width: 170px;
+  width: 130px;
+  height: 26px;
 }
 
 #turn-timer-bar {
@@ -430,11 +444,11 @@
   justify-content: center;
   color: #f1c40f;
   font-family: 'Fredoka', sans-serif;
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 700;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 1);
   pointer-events: none;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
 }
 
 @keyframes pulse-red-timer {
@@ -479,7 +493,7 @@
 
 #bottom-left-actions {
   position: absolute;
-  bottom: 22px;
+  bottom: 10px;
   left: 16px;
   display: flex;
   flex-direction: row;
@@ -665,7 +679,7 @@
 
 #music-controls-overlay {
   position: absolute;
-  bottom: 24px;
+  bottom: 8px;
   right: 16px;
   display: flex;
   flex-direction: row;
@@ -733,7 +747,7 @@
 #live-voice-hud {
   position: absolute;
   top: 16px;
-  right: 80px;
+  right: 16px;
   height: 46px;
   display: flex;
   align-items: center;
@@ -756,7 +770,7 @@
 
 #game-container.landscape #live-voice-hud {
   top: 20px;
-  right: 416px;
+  right: 508px;
   height: 48px;
 }
 

@@ -233,8 +233,8 @@ export const Hud: React.FC<HudProps> = ({
     };
   }, []);
 
-  // Exact original updateAIJudge: Top 3 leaders with short name + %
-  const top3Judges = useMemo(() => {
+  // All players sorted by progress % (descending) with normalized widths
+  const allJudges = useMemo(() => {
     const progressValues = players.map((p, idx) => {
       const { percentage } = getPlayerProgressPercent(pawns, idx);
       const cleanName = stripSeatTag(p.name);
@@ -248,11 +248,16 @@ export const Hud: React.FC<HudProps> = ({
       };
     });
     const totalSum = progressValues.reduce((acc, item) => acc + item.val, 0);
-    const sortedTop3 = [...progressValues].sort((a, b) => b.val - a.val).slice(0, 3);
-    const top3Sum = sortedTop3.reduce((acc, item) => acc + item.val, 0);
-    return sortedTop3.map((item) => {
+    const sortedAll = [...progressValues].sort((a, b) => b.val - a.val || a.idx - b.idx);
+    const count = Math.max(1, sortedAll.length);
+    const minPct = Math.min(13, 100 / count);
+    const variablePool = Math.max(0, 100 - minPct * count);
+    return sortedAll.map((item) => {
       const pct = Math.round(item.val);
-      const widthPct = totalSum > 1 && top3Sum > 0 ? Math.max(18, (item.val / top3Sum) * 100) : 33.33;
+      const widthPct =
+        totalSum > 1
+          ? minPct + (item.val / totalSum) * variablePool
+          : 100 / count;
       return { ...item, pct, widthPct };
     });
   }, [players, pawns, isTournament]);
@@ -332,22 +337,9 @@ export const Hud: React.FC<HudProps> = ({
         <span>{roomCode ? `ROOM ${roomCode}` : 'PLAY WITH FRIENDS'}</span>
       </button>
 
-      {/* Top-Right Fullscreen / Orientation Ratio Toggle Button */}
-      <button
-        id="ratio-toggle-btn"
-        type="button"
-        onClick={onToggleAspectRatio}
-        title="Toggle Portrait / Landscape View"
-      >
-        ⛶
-      </button>
-
-      {/* Portrait Game Title */}
-      <h1 id="title">{isTournament ? '👑 TOURNAMENT LUDO 5 WAY' : 'LUDO DETHRONED 5 WAY'}</h1>
-
-      {/* Clean Top-3 AI Judge Progress Bar (Progress % & Speaking Status Only) */}
+      {/* Clean All-Players Progress Bar (View-Only Progress % & Speaking Status) */}
       <div id="ai-judge-bar" className={isTournament ? 'tournament' : ''}>
-        {top3Judges.map((entry) => {
+        {allJudges.map((entry) => {
           const isAiSpeakingNow = speakingSeat === entry.idx;
           const isDethroneTarget =
             rivalry.tier === 'dethrone' && rivalry.leaderIdx === entry.idx;
@@ -356,16 +348,9 @@ export const Hud: React.FC<HudProps> = ({
               key={entry.idx}
               id={`judge-${entry.idx}`}
               className="judge-segment"
-              onClick={() => openProfileModal(entry.idx)}
-              title={
-                isDethroneTarget
-                  ? `Dethrone Target (${rivalry.leaderPct}%)`
-                  : `View ${entry.fullName}`
-              }
               style={{
                 width: `${entry.widthPct}%`,
                 backgroundColor: entry.color,
-                cursor: 'pointer',
                 boxShadow: isAiSpeakingNow
                   ? 'inset 0 0 0 3px #f1c40f'
                   : isDethroneTarget
@@ -375,10 +360,33 @@ export const Hud: React.FC<HudProps> = ({
                       : undefined,
               }}
             >
-              <div className="judge-name" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {isAiSpeakingNow ? <span>🗣️</span> : isDethroneTarget ? <span>🎯</span> : null}
-                <span>
-                  {entry.shortName}: {entry.pct}%
+              <div
+                className="judge-name"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '3px',
+                  width: '100%',
+                }}
+              >
+                {isAiSpeakingNow ? (
+                  <span style={{ flexShrink: 0 }}>🗣️</span>
+                ) : isDethroneTarget ? (
+                  <span style={{ flexShrink: 0 }}>🎯</span>
+                ) : null}
+                <span
+                  style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }}
+                >
+                  {entry.shortName}
+                </span>
+                <span className="tabular-nums" style={{ flexShrink: 0 }}>
+                  : {entry.pct}%
                 </span>
               </div>
             </div>
@@ -386,19 +394,20 @@ export const Hud: React.FC<HudProps> = ({
         })}
       </div>
 
-      {/* Whisper Layer for Board Nameplates (Rendered Directly Inside Each Rotated Nameplate) */}
-      {isOnline &&
-        nameplates.map((plate) => {
+      {/* Portrait Game Title */}
+      <h1 id="title">{isTournament ? '👑 TOURNAMENT LUDO 5 WAY' : 'LUDO DETHRONED 5 WAY'}</h1>
+
+      {/* Board Nameplates Layer (Profile / Reactions / Speech / Whisper across Local & Online) */}
+      {nameplates.map((plate) => {
           const seatPlayer = players[plate.seatIdx];
           if (!seatPlayer) return null;
           const cleanName = stripSeatTag(seatPlayer.name);
-          const isMe = mySeat === plate.seatIdx;
+          const isMe = isOnline && mySeat === plate.seatIdx;
           const canWhisperTarget =
-            !seatPlayer.isAI && !isMe && !!onlineSeats[plate.seatIdx]?.connected;
-          const pendingWhisper = incomingWhispers[plate.seatIdx];
-          const hasPulseBadge = !!whisperBadges[plate.seatIdx];
+            isOnline && !seatPlayer.isAI && !isMe && !!onlineSeats[plate.seatIdx]?.connected;
+          const pendingWhisper = isOnline ? incomingWhispers[plate.seatIdx] : undefined;
+          const hasPulseBadge = isOnline && !!whisperBadges[plate.seatIdx];
           const isSeatMuted = !isMe && prefs.mutedSeats.includes(plate.seatIdx);
-          if (!canWhisperTarget && !pendingWhisper && !hasPulseBadge && !isSeatMuted) return null;
 
           const plateW = Math.max(88, plate.w);
           const plateH = Math.max(22, plate.h);
@@ -417,32 +426,28 @@ export const Hud: React.FC<HudProps> = ({
                 transform: `translate(-50%, -50%) rotate(${plate.angleDeg}deg)`,
               }}
             >
-              {(canWhisperTarget || !!pendingWhisper) && (
-                <button
-                  type="button"
-                  className={`nameplate-hit-btn ${pendingWhisper ? 'has-pending-whisper' : ''}`}
-                  title={
-                    pendingWhisper
-                      ? `Tap to play unheard whisper from ${cleanName}`
-                      : `Open Private Whisper to ${cleanName}`
+              <button
+                type="button"
+                className={`nameplate-hit-btn ${pendingWhisper ? 'has-pending-whisper' : ''}`}
+                title={
+                  pendingWhisper
+                    ? `Tap to play unheard whisper from ${cleanName}`
+                    : `View ${cleanName}`
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (pendingWhisper) {
+                    playIncomingWhisper(plate.seatIdx);
+                    return;
                   }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (pendingWhisper) {
-                      playIncomingWhisper(plate.seatIdx);
-                      return;
-                    }
-                    if (canWhisperTarget) {
-                      openWhisperModal([plate.seatIdx]);
-                    }
-                  }}
-                  aria-label={
-                    pendingWhisper
-                      ? `Play whisper from ${cleanName}`
-                      : `Whisper to ${cleanName}`
-                  }
-                />
-              )}
+                  openProfileModal(plate.seatIdx);
+                }}
+                aria-label={
+                  pendingWhisper
+                    ? `Play whisper from ${cleanName}`
+                    : `View ${cleanName}`
+                }
+              />
 
               {pendingWhisper ? (
                 <button
@@ -541,7 +546,7 @@ export const Hud: React.FC<HudProps> = ({
         Promotional Content Section
       </div>
 
-      {/* Bottom-Left Actions: Lucky Wish + Quick Chat / Message Icon */}
+      {/* Bottom-Left Actions: Lucky Wish + Fullscreen/Ratio Toggle + Quick Chat */}
       <div id="bottom-left-actions">
         {wishAvailable && (
           <button
@@ -553,6 +558,14 @@ export const Hud: React.FC<HudProps> = ({
             <span>✨</span>
           </button>
         )}
+        <button
+          id="ratio-toggle-btn"
+          type="button"
+          onClick={onToggleAspectRatio}
+          title="Toggle Portrait / Landscape View"
+        >
+          ⛶
+        </button>
         <button
           id="quick-msg-btn"
           type="button"
@@ -610,12 +623,12 @@ export const Hud: React.FC<HudProps> = ({
                   className="dice-val selected"
                   style={{
                     width: 'auto',
-                    padding: '0 16px',
+                    padding: '0 12px',
                     background: activeSeatColor,
                     borderColor: '#ffffff',
                     boxShadow: `0 0 22px ${activeSeatColor}cc`,
                     color: resolveSeatDicePalette(currentPlayer, isTournament, 'classic').pipColor,
-                    fontSize: '20px',
+                    fontSize: '15px',
                   }}
                 >
                   USE {combinedTotal}
@@ -645,8 +658,8 @@ export const Hud: React.FC<HudProps> = ({
           >
             <span
               style={{
-                width: '10px',
-                height: '10px',
+                width: '8px',
+                height: '8px',
                 borderRadius: '50%',
                 backgroundColor: activeSeatColor,
                 boxShadow: `0 0 8px ${activeSeatColor}`,
